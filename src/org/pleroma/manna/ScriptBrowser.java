@@ -21,17 +21,10 @@ public class ScriptBrowser extends Activity
       String bookName = getIntent().getStringExtra("Book");
       int cnum = getIntent().getIntExtra("Chapter", 1);
 
-      Canon theCanon = new Canon(getResources().getAssets());
-      Canon.Manna book = theCanon.selectManna(bookName);
-      try {
-         String mannaText = book.chapter(cnum).toString();
-         mannaView.setText(mannaText);
-         setTitle(bookName + " Chapter " + cnum);
-      }
-      catch(IOException ioe) { 
-         mannaView.setText("Missing " + bookName + " chapter " + cnum);
-         setTitle("ERROR!");
-      }
+      Canon.Manna book = CanonBrowser.theCanon.get(bookName);
+      String mannaText = book.chapter(cnum).toString();
+      mannaView.setText(mannaText);
+      setTitle(bookName + " Chapter " + cnum);
    }
    private TextView mannaView;
 }

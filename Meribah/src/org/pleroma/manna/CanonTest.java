@@ -15,24 +15,31 @@ public class CanonTest extends AndroidTestCase {
     }
     private Canon theCanon;
 
-    public void testCanon() throws IOException {
-       Map<String, Canon.Manna> oldTestament = theCanon.oldTestament();
-       Map<String, Canon.Manna> newTestament = theCanon.newTestament();
+    public void testAment() {
+       OldTestament oldTestament = theCanon.oldTestament;
+       NewTestament newTestament = theCanon.newTestament;
 
-       assertEquals("Incomplete Old Testament.", 39, oldTestament.size());
-       assertEquals("Incomplete New Testament.", 27, newTestament.size());
+       assertEquals(39, oldTestament.books.size());
+       assertEquals(27, newTestament.books.size());
+       assertEquals("Genesis", oldTestament.book(1).whatIsIt);
+       assertEquals("Genesis", oldTestament.books.get(0).whatIsIt);
 
-       assertEquals("Genesis", oldTestament.keySet().iterator().next());
+       Canon.Manna genesis = oldTestament.book("Genesis");
+       assertTrue("Genesis".equals(genesis.whatIsIt));
 
-       Canon.Manna genesis = oldTestament.get("Genesis");
-       assertNotNull("Canon missing Genesis: ", genesis);
-       assertEquals("Missing chapters from Genesis.", 
-                     50, genesis.chapterCount());
+       /*
 
-       Canon.Manna revelation =  newTestament.get("Revelation");
-       assertNotNull("Canon missing Revelation.", revelation);
-       assertEquals("Missing chapters from Revelation.", 
-                    22, revelation.chapterCount());
+       assertEquals(50, genesis.chapters.count);
+       Chapter g1 = genesis.chapter(1);
+       assertEquals(51, g1.verses.count);
+       Verse g1v1 = g1.verse(1);
+       assertNotNull(g1v1);
+
+       assertTrue(g1v1.match("1 In the beginning"));
+       Verse g1v31 = genesis.chapter(1).verse(31);
+       assertTrue(g1v31.match("the sixth day."));
+       */
+//       Canon.Manna revelation =  newTestament.book("Revelation");
+//       assertEquals(22, revelation.chapters.count);
     }
-
 }

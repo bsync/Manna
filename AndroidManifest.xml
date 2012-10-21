@@ -11,6 +11,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name=".BookBrowser" 
+                  android:label="Manna Books">
+        </activity>
         <activity android:name=".ChapterBrowser" 
                   android:label="Manna Chapters">
         </activity>

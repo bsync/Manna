@@ -6,76 +6,62 @@ import android.util.Log;
 import java.util.*;
 import java.io.*;
 import java.lang.reflect.*;
+import javax.xml.parsers.*;
+import org.xml.sax.SAXException;
+import org.w3c.dom.*;
 
-public class Canon { 
+public class Canon extends Division { 
    public Canon(AssetManager staffOfLife) { 
       iam = staffOfLife;
       try {
-         for(String eachBookName : iam.list("KJV")) {
-            Manna eachBook = new Manna(this, eachBookName);
-            desertMap.put(eachBookName, eachBook);
+         docBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+         for(String eachBookDir : Division.CANON) {
+            String eachBookPath = "KJV/" + eachBookDir + "/info.xml";
+            Log.e("Canon", "parsing " + eachBookPath ); 
+            Document eachBookInfo = docBuilder.parse(iam.open(eachBookPath));
+            Manna eachBook = new Manna(eachBookInfo);
+            put(eachBookDir, eachBook);
          }
-      } catch(Exception ioe) { Log.e("Manna", "Unable to load data." ); }
+      } catch(ParserConfigurationException pce) {
+         Log.e("Canon", "Unable to parse biblical data." ); 
+         throw new RuntimeException(pce);
+      } catch(Exception ioe) { 
+         Log.e("Canon", "Unable to load biblical data." ); 
+         throw new RuntimeException(ioe);
+      }
+      oldTestament=new OldTestament(this);
+      newTestament=new NewTestament(this);
    }
    private AssetManager iam;
-   public Manna selectManna(String name) { return desertMap.get(name); }
-   private LinkedHashMap<String, Manna> desertMap = new LinkedHashMap();
-
-   public Map<String, Manna> oldTestament() {
-      return filter(desertMap, oldTestamentBooks);
-   }
-   private LinkedHashMap<String, Manna> oldDesertMap = new LinkedHashMap();
-   private final List<String> oldTestamentBooks 
-      = Arrays.asList("Genesis", "Exodus", "Leviticus", "Numbers",
-            "Deuteronomy", "Joshua", "Judges", "Ruth", "1stSamuel",
-            "2ndSamuel", "1stKings", "2ndKings", "1stChronicles",
-            "2ndChronicles", "Ezra", "Nehemiah", "Esther", "Job", "Psalm",
-            "Proverbs", "Ecclesiastes", "Song of Solomon", "Isaiah",
-            "Jeremiah", "Lamentations", "Ezekiel", "Daniel", "Hosea", "Joel",
-            "Amos", "Obadiah", "Jonah", "Micah", "Nahum", "Habakkuk",
-            "Zephaniah", "Haggai", "Zechariah", "Malachi");
-
-
-   public Map<String, Manna> newTestament() {
-      return filter(desertMap, newTestamentBooks);
-   }
-   private LinkedHashMap<String, Manna> newDesertMap = new LinkedHashMap();
-   private final List<String> newTestamentBooks 
-      = Arrays.asList("Matthew", "Mark", "Luke", "John", "Acts", "Romans",
-            "1stCorinthians", "2ndCorinthians", "Galatians", "Ephesians",
-            "Philippians", "Colossians", "1stThessalonians",
-            "2ndThessalonians", "1stTimothy", "2ndTimothy", "Titus",
-            "Philemon", "Hebrews", "James", "1stPeter", "2ndPeter", "1stJohn",
-            "2ndJohn", "3rdJohn", "Jude", "Revelation");
-
-   private Map<String, Manna> filter(Map<String, Manna> m, List<String> l) {
-      LinkedHashMap<String, Manna> filteredMap = new LinkedHashMap(); 
-      for(String s : l) { 
-         if(m.containsKey(s)) { 
-            filteredMap.put(s, m.get(s)); 
-         }
-      }
-      return filteredMap;
-   }
+   private DocumentBuilder docBuilder;
+   public final NewTestament newTestament;
+   public final OldTestament oldTestament;
 
    public class Manna {
-      Manna(Canon theCanon, String bookName) {
-         mannaCanon = theCanon;
-         mannaName = bookName;
+      Manna(Document bookInfo) {
+         whatIsIt = bookInfo.getDocumentElement().getAttribute("name");
       }
-      private String mannaName;
-      private Canon mannaCanon;
+      final String whatIsIt;
 
-      public String whatIsIt() { return mannaName; } 
+      public List<Chapter> chapters() { 
+         return new ArrayList(mannaMap.values()); 
+      }
 
-      public Chapter chapter(int cnum) throws IOException {
+      public Chapter chapter(int cnum) {
          if(!mannaMap.containsKey(cnum)) {
-            String chapterPath = mannaName + "/" + cnum + ".txt";
+            String chapterPath = whatIsIt + "/" + cnum + ".txt";
             Log.d("Manna", "Scanning chapter " + chapterPath);
-            InputStream mannaStream = iam.open("KJV/" + chapterPath);
-            Chapter rChap = new Chapter(mannaStream, mannaName, cnum);
-            mannaMap.put(cnum, rChap);
-            mannaStream.close();
+            try {
+               InputStream mannaStream = iam.open("KJV/" + chapterPath);
+               Document mannaDoc = docBuilder.parse(mannaStream);
+               Chapter rChap = new Chapter(mannaDoc, whatIsIt, cnum);
+               mannaMap.put(cnum, rChap);
+               mannaStream.close(); 
+            } catch (IOException ioe) {
+               throw new RuntimeException(ioe);
+            } catch (SAXException saxe) {
+               throw new RuntimeException(saxe);
+            } 
          }
          return mannaMap.get(cnum);
       }
@@ -84,11 +70,11 @@ public class Canon {
 
       public int chapterCount() { 
          if (chapterCount == 0) {
-            Log.d("Manna", "Counting chapters for KJV/" + mannaName);
-            try { chapterCount = iam.list("KJV/" + mannaName).length; }
+            Log.d("Manna", "Counting chapters for KJV/" + whatIsIt);
+            try { chapterCount = iam.list("KJV/" + whatIsIt).length; }
             catch (Exception e) { return 0; } 
          }
-         return chapterCount;
+         return chapterCount - 1; //One of the files is the info file
       }
       private int chapterCount = 0;
    }

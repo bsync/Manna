@@ -12,16 +12,16 @@
 #
 #Incidently, the main reason for doing this is to make it easier for the Manna
 #application to navigate to a particular passage without requiring it to parse
-#thru large files. Java, it seems, is not so well suited as perl for processing
-#text files.
+#thru large files. Perl is well suited for pre-processing these text files.
 use File::Path;
+use XML::Writer;
 
 $infile = ($ARGV[0]) ? $ARGV[0] : "preproc/*.txt";
 foreach $filename (<${infile}>) {
    open ($file, "<", $filename) or die "Could not open $filename";
    $filename =~ m/(?:.*\/)?(.*)\.txt/; 
    print "Processing $filename ...";
-   process_book($file, "assets/KJV/" . $1);
+   process_book($file, "assets/KJV/" . $1, $1);
    close $file;
    print "produced assets/KJV/$1\n";
 }
@@ -29,8 +29,13 @@ foreach $filename (<${infile}>) {
 sub process_book {
    my $infile = shift;
    my $bookpath = shift; rmtree($bookpath); mkpath($bookpath);
+   my $bookname = shift; 
    my $chapter=1;
-   my $verseText = scalar <$infile>; #initialize with title line.
+
+   process_info_file($infile, $bookpath, $bookname);
+
+   #Iterate over verse text
+   my $verseText = "";
    while(<$infile>) {
       s/^\s*//; #Strip white space at start of line 
       s/\s*\r*\n$//; #Strip line endings and white space at line endings
@@ -49,22 +54,54 @@ sub process_book {
    process_chapter($bookpath, $chapter, $verseText);
 }
 
+sub process_info_file {
+   my $infile = shift;
+   my $bookpath = shift; 
+   my $bookname = shift;
+
+   #Start an info file containing just the title of the book for now
+   open ($bfile, ">", "$bookpath/info.txt") 
+      or die "Could not open $bookpath/info.txt";
+   my $writer = XML::Writer->new(OUTPUT=>$bfile);
+   $writer->xmlDecl();
+   $writer->startTag("BookInfo", 'name'=>$bookname);
+   $writer->characters("\n\t");
+   $writer->startTag("Title");
+   my $titleLine = scalar <$infile>;
+   $titleLine =~ s/\[.*\]:\s*//; $titleLine =~ s/$//; chomp($titleLine);
+   $writer->characters($titleLine); 
+   $writer->endTag("Title");
+   $writer->characters("\n");
+   $writer->endTag("BookInfo");
+   $writer->end();
+   close $bfile;
+}
+
 sub process_chapter {
    my $bookpath = shift; 
    my $ch = shift; 
    my $vText = shift;
-   my @processed_text;
 
    open ($cfile, ">", "$bookpath/$ch.txt") 
       or die "Could not open $bookpath/$ch.txt";
+   $bookpath =~ /.*\/(.*)/;
+   my $writer = XML::Writer->new(OUTPUT=>$cfile);
+   $writer->xmlDecl();
+   $writer->startTag("Chapter", 'number' => $ch);
+   $writer->characters("\n");
+#   print $cfile "Book $1 : Chapter $ch\n\n";
 
-   @cvt = split /($ch:\d+)/, $vText; 
-   $leadingField = shift @cvt; 
-   print $cfile "$leadingField \n" if ($ch == 1); #Print chapter1 titles
+   @cvt = split /$ch:(\d+)/, $vText; 
+   shift @cvt;
    while(@cvt) {
-      ($cav, $vtext, @cvt) = @cvt;
-      print $cfile "$cav $vtext\n";
+      ($vnum, $vtext, @cvt) = @cvt;
+      $writer->startTag("Verse", 'number' => $vnum);
+      $writer->characters($vtext);
+#      print $cfile "$vnum. $vtext\n";
+      $writer->endTag("Verse");
+      $writer->characters("\n");
    }
-
+   $writer->endTag("Chapter");
+   $writer->end();
    close $cfile
 }
