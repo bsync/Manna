@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<TextView  xmlns:android="http://schemas.android.com/apk/res/android" 
-   android:id="@+id/scripture_view"
+<org.pleroma.manna.ScriptView
+   xmlns:android="http://schemas.android.com/apk/res/android" 
+   android:id="@+id/scriptview"
    android:layout_width="fill_parent" 
    android:layout_height="fill_parent"
-   android:text="Bible Text goes here..."
    android:scrollbars="vertical"
-   android:maxLines="100">
-    </TextView>
+   android:maxLines="100"
+/>

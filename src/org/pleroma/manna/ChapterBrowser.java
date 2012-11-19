@@ -23,7 +23,7 @@ public class ChapterBrowser extends Activity implements View.OnKeyListener{
       chapterGrid = (GridView) findViewById(R.id.chapterview);
       Canon.Manna cManna = CanonBrowser.theCanon.get(bookName);
       ArrayList<Integer> chapterNumbers = new ArrayList();
-      for(int i = 1; i < cManna.chapterCount(); i++) { chapterNumbers.add(i); }
+      for(int i = 1; i <= cManna.chapterCount(); i++) { chapterNumbers.add(i); }
       chapterGrid.setAdapter(new ChapterAdapter(chapterNumbers));
       setTitle("Select " + bookName + " chapter:");
 
@@ -61,7 +61,7 @@ public class ChapterBrowser extends Activity implements View.OnKeyListener{
    private class ChapterAdapter extends ArrayAdapter<Integer> {
 
       public ChapterAdapter(List<Integer> chptNumbers) {
-         super(ChapterBrowser.this, R.layout.book_title, chptNumbers);
+         super(ChapterBrowser.this, R.layout.button, chptNumbers);
          scriptIntent = new Intent(ChapterBrowser.this, ScriptBrowser.class);
       }
       private Intent scriptIntent;
@@ -73,7 +73,7 @@ public class ChapterBrowser extends Activity implements View.OnKeyListener{
             LayoutInflater vi = 
                (LayoutInflater)
                   getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-            buttonView = (Button) vi.inflate(R.layout.book_title, null);
+            buttonView = (Button) vi.inflate(R.layout.button, null);
          }
          Integer chapter = getItem(position);
          if (chapter != null) { 

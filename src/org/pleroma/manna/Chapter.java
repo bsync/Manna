@@ -6,42 +6,32 @@ import java.util.regex.*;
 import android.util.Log;
 import android.content.res.*;
 import org.w3c.dom.Document;
+import org.w3c.dom.NodeList;
+import org.w3c.dom.Node;
 
 public class Chapter {
 
    Chapter(Document mannaDoc, String book, int cNum) 
    { 
-      chapterNumber = cNum;
+      number = cNum;
       chapterDoc = mannaDoc;
-//      readLines(mannaStream);
+      NodeList verseNodes = chapterDoc.getElementsByTagName("Verse");
+      for(int i = 0; i < verseNodes.getLength(); i++) {
+         verses.add(new Verse(verseNodes.item(i))); }
    }
    private String preamble = null;
-   private int chapterNumber = 0;
+   public final int number;
    private Document chapterDoc = null;
+   private ArrayList<Verse> verses = new ArrayList();
 
+   public int verseCount() { return verses.size(); }
    Verse verse(int vnum) { return verses.get(vnum-1); }
-   private List<Verse> verses = new ArrayList<Verse>();
-
+   
    public String toString() {
-      return chapterDoc.getDocumentElement().getTextContent();
-      /*
       StringBuilder s = new StringBuilder();
-      for(Verse v : verses) { s.append(v.toString() + "\n\n"); }
+      int i=1;
+      for(Verse v : verses) { s.append(i++ + v.toString() + "\n\n"); }
       return s.toString();
-      */
    }
-
-   private void readLines(InputStream lineStream) throws IOException {
-      InputStreamReader streamReader = new InputStreamReader(lineStream);
-      BufferedReader bufferedReader = new BufferedReader(streamReader);
-      List<String> lines = new ArrayList<String>();
-      String line = null;
-      if(chapterNumber == 1) preamble = bufferedReader.readLine();
-      while ((line = bufferedReader.readLine()) != null) {
-         verses.add(new Verse(line));
-      }
-      bufferedReader.close();
- }
-
 }
 

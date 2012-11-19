@@ -2,6 +2,10 @@
 test: assets
 	cd Meribah; ant debug install test 
 
+.phony: build
+build:
+	ant debug install
+
 assets: .flags/xmlwriter chaptize.pl
 	perl chaptize.pl
 	touch assets

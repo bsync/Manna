@@ -15,17 +15,9 @@ public class BookBrowser extends ListActivity implements View.OnClickListener {
       super.onCreate(savedInstanceState);
       Canon bookCanon = CanonBrowser.theCanon;
       String divisionName = getIntent().getStringExtra("division");
-      DivisionAdapter divisionAdapter = null;
-      Log.i("Manna", "Creating BookBrowser for " + divisionName);
-      if(divisionName.equals("Old Testament")) {
-         divisionAdapter = new DivisionAdapter(bookCanon.oldTestament.books);
-         Log.i("Manna", "BookBrowser using " + divisionName);
-      }
-      else if(divisionName.equals("New Testament")) {
-         divisionAdapter = new DivisionAdapter(bookCanon.newTestament.books);
-         Log.i("Manna", "BookBrowser using " + divisionName);
-      }
-      setListAdapter(divisionAdapter); 
+      Division selectedDiv = bookCanon.divisions.get(divisionName);
+      setListAdapter(new BookAdapter(selectedDiv.books));
+      setTitle("Select a book from " + selectedDiv.toString());
    }
 
    public void onClick(View v) {
@@ -35,10 +27,10 @@ public class BookBrowser extends ListActivity implements View.OnClickListener {
       BookBrowser.this.startActivity(chapterIntent);
    }
 
-   private class DivisionAdapter extends ArrayAdapter<Canon.Manna> {
+   private class BookAdapter extends ArrayAdapter<Canon.Manna> {
 
-      public DivisionAdapter(Collection<Canon.Manna> books) {
-         super(BookBrowser.this, R.layout.book_title, new ArrayList(books));
+      public BookAdapter(Collection<Canon.Manna> books) {
+         super(BookBrowser.this, R.layout.button, new ArrayList(books));
       }
 
       @Override
@@ -48,7 +40,7 @@ public class BookBrowser extends ListActivity implements View.OnClickListener {
             LayoutInflater vi = 
                (LayoutInflater)
                   getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-            buttonView = (Button) vi.inflate(R.layout.book_title, null);
+            buttonView = (Button) vi.inflate(R.layout.button, null);
          }
          Canon.Manna selection = getItem(position);
          if (selection != null) { 

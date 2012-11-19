@@ -3,9 +3,11 @@
       package="org.pleroma.manna"
       android:versionCode="1"
       android:versionName="1.0">
-    <application android:label="Manna" android:debuggable="true">
+    <application android:label="Manna" 
+                 android:debuggable="true"
+                 android:theme="@style/Canon">
        <activity android:name=".CanonBrowser" 
-                 android:label="MannaCanon">
+                 android:label="Manna Canon">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -19,6 +21,9 @@
         </activity>
         <activity android:name=".ScriptBrowser" 
                   android:label="Manna Script">
+        </activity>
+        <activity android:name=".VerseBrowser" 
+                  android:label="Manna Verse">
         </activity>
     </application>
 </manifest> 
