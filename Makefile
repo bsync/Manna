@@ -1,10 +1,20 @@
 .phony: test
-test: assets
-	cd Meribah; ant debug install test 
+test: build 
+	cd Meribah; ant test 
 
 .phony: build
-build:
+build: assets local.properties ${HOME}/.android/avd/manna.ini 
+	#[ -f ${HOME}/.android/avd/manna.ini ] || exit
 	ant debug install
+
+${HOME}/.android/avd/manna.ini: 
+	#You need to create an avd for Manna dev as follows:
+	#android create avd -n manna -t <target>
+	#where <target> is one of the targets on your system
+	#List targets with: android list targets
+
+local.properties:
+	android update project -p .
 
 assets: .flags/xmlwriter chaptize.pl
 	perl chaptize.pl

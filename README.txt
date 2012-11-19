@@ -22,7 +22,7 @@ Ideally the Makefile could be used to bootstrap the entire dev environment.
 
 PHILOSOPHY:
 The Bible teaches us to take every thought captive for Christ. In many ways
-software is the epitamy of captured thought. It is the thinking of a man
+software is the epitome of captured thought. It is the thinking of a man
 captured in a volition-less computer. I have often marvelled at how a machine
 with no will or emotion of its own can invoke such willful responses (both
 positive and negative) from the users it was intended to serve. Obviously the
