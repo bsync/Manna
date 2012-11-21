@@ -1,6 +1,6 @@
 .phony: test
 test: install Meribah/local.properties 
-	cd Meribah; ant installd test 
+	cd Meribah; ant debug install test 
 
 EMU:=$(shell pgrep -f mannadroid)
 .phony: install  
