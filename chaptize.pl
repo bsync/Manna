@@ -60,8 +60,8 @@ sub process_info_file {
    my $bookname = shift;
 
    #Start an info file containing just the title of the book for now
-   open ($bfile, ">", "$bookpath/info.txt") 
-      or die "Could not open $bookpath/info.txt";
+   open ($bfile, ">", "$bookpath/info.xml") 
+      or die "Could not open $bookpath/info.xml";
    my $writer = XML::Writer->new(OUTPUT=>$bfile);
    $writer->xmlDecl();
    $writer->startTag("BookInfo", 'name'=>$bookname);
