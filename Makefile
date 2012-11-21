@@ -1,14 +1,17 @@
 .phony: test
-test: install Meribah/local.properties 
+test: local.properties Meribah/local.properties emulator assets
 	cd Meribah; ant debug install test 
 
-EMU:=$(shell pgrep -f mannadroid)
 .phony: install  
-install:	${HOME}/.android/avd/mannadroid.ini build
+install:	${HOME}/.android/avd/mannadroid.ini emulator build
+	ant installd 
+
+EMU:=$(shell pgrep -f mannadroid)
+.phony: emulator
+emulator:
 	[ "x$(EMU)" != "x" ] || setsid emulator @mannadroid &
 	[ "x$(EMU)" != "x" ] || echo "Wait for emulator and try again."
 	[ "x$(EMU)" != "x" ] 
-	ant installd 
 
 .phony: build
 build: assets local.properties 
