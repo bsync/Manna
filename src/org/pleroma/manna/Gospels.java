@@ -1,14 +1,10 @@
 package org.pleroma.manna;
+import org.pleroma.manna.*;
 import java.util.*;
 
-public class Gospels extends Division{
-
-   Gospels(NewTestament source) { 
-      super(source.filterBy(BOOKS));
+public class Gospels extends BookSet{
+   public Gospels(Spirit IAM) { 
+      super(IAM, new Book(IAM,"Matthew"), new Book(IAM,"Mark"), 
+                 new Book(IAM,"Luke"), new Book(IAM,"John")); 
    }
-
-   public static final List<String> BOOKS 
-      = Arrays.asList("Matthew", "Mark", "Luke", "John");
-
-   public String toString() { return "Gospels"; }
 }

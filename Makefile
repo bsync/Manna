@@ -3,12 +3,12 @@ test: local.properties Meribah/local.properties emulator assets
 	cd Meribah; ant debug install test 
 
 .phony: install  
-install:	${HOME}/.android/avd/mannadroid.ini emulator build
+install:	${HOME}/.android/avd/default.ini emulator build
 	ant installd 
 
 EMU:=$(shell pgrep -f mannadroid)
 .phony: emulator
-emulator:
+emulator: ${HOME}/.android/avd/mannadroid.ini
 	[ "x$(EMU)" != "x" ] || setsid emulator @mannadroid &
 	[ "x$(EMU)" != "x" ] || echo "Wait for emulator and try again."
 	[ "x$(EMU)" != "x" ] 
@@ -44,3 +44,7 @@ assets: .flags/xmlwriter chaptize.pl
 
 .flags:
 	mkdir .flags
+
+.phony: clean
+clean:
+	rm -rf bin/classes Meribah/bin/classes

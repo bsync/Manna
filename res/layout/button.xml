@@ -2,6 +2,6 @@
 <Button xmlns:android="http://schemas.android.com/apk/res/android" 
    android:background="@drawable/solid_blue"
    android:singleLine="true"
-   android:textColor="@color/black"
+   android:textColor="@color/lime"
    android:layout_height="fill_parent"
    android:layout_width="fill_parent"/>

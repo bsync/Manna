@@ -1,36 +1,20 @@
 package org.pleroma.manna;
 import java.util.*;
 
-public class NewTestament extends Division{
+public class NewTestament extends BookSet {
 
-   NewTestament(Canon source) { 
-      super(source.filterBy(BOOKS));
-      divisions = new LinkedHashMap<String, Division>();
-      gospels = new Gospels(this);
-      divisions.put(gospels.toString(), gospels);
-      acts = new Acts(this);
-      divisions.put(acts.toString(), acts);
-      paulines = new PaulineEpistles(this);
-      divisions.put(paulines.toString(), paulines);
-      generalEpistles = new GeneralEpistles(this);
-      divisions.put(generalEpistles.toString(), generalEpistles);
-      revelation = new Revelation(this);
-      divisions.put(revelation.toString(), revelation);
+   public NewTestament(Spirit IAM) { 
+      super(IAM, new Book(IAM,"Acts"), new Book(IAM,"Revelation"));
+      gospels =  new Gospels(IAM); 
+      paulineEpistles = new PaulineEpistles(IAM);
+      generalEpistles = new GeneralEpistles(IAM); 
+      collect(gospels, paulineEpistles, generalEpistles);
    }
-   public final Gospels gospels;
-   public final PaulineEpistles paulines;
-   public final GeneralEpistles generalEpistles;
-   public final Acts acts;
-   public final Revelation revelation;
-   public final Map<String, Division> divisions;
+   private Gospels gospels;
+   private PaulineEpistles paulineEpistles;
+   private GeneralEpistles generalEpistles;
 
-   public static final List<String> BOOKS 
-      = Arrays.asList("Matthew", "Mark", "Luke", "John", "Acts", "Romans",
-            "1stCorinthians", "2ndCorinthians", "Galatians", "Ephesians",
-            "Philippians", "Colossians", "1stThessalonians",
-            "2ndThessalonians", "1stTimothy", "2ndTimothy", "Titus",
-            "Philemon", "Hebrews", "James", "1stPeter", "2ndPeter", "1stJohn",
-            "2ndJohn", "3rdJohn", "Jude", "Revelation");
-
-   public String toString() { return "New Testament"; }
+   public Gospels gospels() { return amen(gospels); }
+   public PaulineEpistles paulineEpistles() { return amen(paulineEpistles); }
+   public GeneralEpistles generalEpistles() { return amen(generalEpistles); }
 }

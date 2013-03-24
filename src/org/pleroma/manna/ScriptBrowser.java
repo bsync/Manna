@@ -21,11 +21,11 @@ public class ScriptBrowser extends ListActivity {
       super.onCreate(savedInstanceState);
       scriptGestureDetector = new GestureDetector(this, scriptGestureListener);
       String bookName = getIntent().getStringExtra("Book");
-      book = CanonBrowser.theCanon.get(bookName);
+      book = CanonBrowser.theCanon.lookUp(bookName);
       int intentedChapter = getIntent().getIntExtra("Chapter", 1);
-      setChapter(intentedChapter);
+      if(book != null) setChapter(intentedChapter);
    }
-   private Canon.Manna book;
+   private Book book;
    private int currentChapter = 1;
    private GestureDetector scriptGestureDetector;
    private GestureDetector.SimpleOnGestureListener scriptGestureListener =
@@ -33,11 +33,9 @@ public class ScriptBrowser extends ListActivity {
          public boolean onFling (MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
             Log.i("Manna", "Detected horizontal fling of velocity: " + velocityX);
             int speed = (int) Math.abs(velocityX);
-            if(speed > 50){
+            if(speed > 30){
                int cbump = (int) velocityX/speed;
-               if(setChapter(currentChapter - cbump) != currentChapter) { 
-                  Log.i("Manna", "Fling changed to chapter: " + currentChapter);
-               } else Log.i("Manna", "book chapter count: " + book.chapterCount() + " cnum: " + currentChapter);
+               setChapter(currentChapter - cbump);
             }
             return true;
          }
@@ -45,10 +43,10 @@ public class ScriptBrowser extends ListActivity {
 
 
    private int setChapter(int targetChapter) {
-      if(targetChapter > 0 && targetChapter < book.chapterCount()) {
+      if(targetChapter > 0 && targetChapter <= book.count()) {
          currentChapter=targetChapter;
-         setListAdapter(new VerseAdapter(book.chapter(currentChapter)));
-         setTitle("Chapter " + currentChapter + " of " + book.whatIsIt);
+         setListAdapter(new VerseAdapter(book.lookUp(currentChapter)));
+         setTitle("Chapter " + currentChapter + " of " + book.whatIsIt());
       }
       return currentChapter;
    }
@@ -63,8 +61,8 @@ public class ScriptBrowser extends ListActivity {
       private Intent verseIntent;
 
       public long getItemId(int pos) { return pos; }
-      public Verse getItem(int pos) { return verseChapter.verse(pos+1); }
-      public int getCount() { return verseChapter.verseCount(); }
+      public Verse getItem(int pos) { return verseChapter.lookUp(pos+1); }
+      public int getCount() { return verseChapter.count(); }
 
       @Override
       public View getView(int position, View convertView, ViewGroup parent) {
@@ -80,7 +78,7 @@ public class ScriptBrowser extends ListActivity {
                } });
             buttonView.setOnClickListener(new View.OnClickListener() {
                public void onClick(View v) {
-                  verseIntent.putExtra("Book", ScriptBrowser.this.book.whatIsIt);
+                  verseIntent.putExtra("Book", ScriptBrowser.this.book.whatIsIt());
                   verseIntent.putExtra("Chapter", verseChapter.number);
                   verseIntent.putExtra("Verse", v.getId());
                   ScriptBrowser.this.startActivity(verseIntent);

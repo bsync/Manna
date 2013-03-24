@@ -32,8 +32,6 @@ sub process_book {
    my $bookname = shift; 
    my $chapter=1;
 
-   process_info_file($infile, $bookpath, $bookname);
-
    #Iterate over verse text
    my $verseText = "";
    while(<$infile>) {
@@ -52,19 +50,22 @@ sub process_book {
    }
    #Handle the last chapter of book
    process_chapter($bookpath, $chapter, $verseText);
+
+   process_info_file($infile, $bookpath, $bookname, $chapter);
 }
 
 sub process_info_file {
    my $infile = shift;
    my $bookpath = shift; 
    my $bookname = shift;
+   my $chptcnt = shift;
 
    #Start an info file containing just the title of the book for now
    open ($bfile, ">", "$bookpath/info.xml") 
       or die "Could not open $bookpath/info.xml";
    my $writer = XML::Writer->new(OUTPUT=>$bfile);
    $writer->xmlDecl();
-   $writer->startTag("BookInfo", 'name'=>$bookname);
+   $writer->startTag("BookInfo", 'name'=>$bookname, 'chapters'=>$chptcnt);
    $writer->characters("\n\t");
    $writer->startTag("Title");
    my $titleLine = scalar <$infile>;

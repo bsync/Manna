@@ -19,11 +19,11 @@ public class VerseBrowser extends Activity {
    public void onCreate(Bundle savedInstanceState) {
       super.onCreate(savedInstanceState);
       String bookName = getIntent().getStringExtra("Book");
-      book = CanonBrowser.theCanon.get(bookName);
+      book = CanonBrowser.theCanon.lookUp(bookName);
       int intentedChapter = getIntent().getIntExtra("Chapter", 1);
-      chapter = book.chapter(intentedChapter);
+      chapter = book.lookUp(intentedChapter);
       int intentedVerse = getIntent().getIntExtra("Verse", 1);
-      currentVerse = chapter.verse(intentedVerse);
+      currentVerse = chapter.lookUp(intentedVerse);
       verseGestureDetector = new GestureDetector(this, verseGestureListener);
       setContentView(R.layout.verse_browser);
       verseView = (TextView) findViewById(R.id.verseview);
@@ -37,7 +37,7 @@ public class VerseBrowser extends Activity {
       setVerse(currentVerse.number);
    }
    private TextView verseView;
-   private Canon.Manna book;
+   private Book book;
    private Chapter chapter;
    private Verse currentVerse;
    private GestureDetector verseGestureDetector;
@@ -50,17 +50,17 @@ public class VerseBrowser extends Activity {
                int cbump = (int) velocityX/speed;
                if(setVerse(currentVerse.number - cbump) != currentVerse.number) { 
                   Log.i("Manna", "Fling changed to chapter: " + currentVerse.number);
-               } else Log.i("Manna", "book chapter count: " + book.chapterCount() + " number: " + currentVerse.number);
+               } else Log.i("Manna", "book chapter count: " + book.count() + " number: " + currentVerse.number);
             }
             return true;
          }
       };
 
    private int setVerse(int targetVerse) {
-      if(targetVerse > 0 && targetVerse < chapter.verseCount()) {
-         currentVerse=chapter.verse(targetVerse);
+      if(targetVerse > 0 && targetVerse < chapter.count()) {
+         currentVerse=chapter.lookUp(targetVerse);
          verseView.setText(currentVerse.toString());
-         setTitle(chapter.number + ":" + currentVerse.number + " of " + book.whatIsIt);
+         setTitle(chapter.number + ":" + currentVerse.number + " of " + book.whatIsIt());
       }
       return currentVerse.number;
    }

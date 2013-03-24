@@ -18,39 +18,40 @@ public class CanonBrowser extends ListActivity implements View.OnClickListener {
 
    public void onCreate(Bundle savedInstanceState) { 
       super.onCreate(savedInstanceState);
-      theCanon = new Canon(getResources().getAssets()); 
-      setListAdapter(
-            new DivisionAdapter(
-               new ArrayList<Division>(
-                  theCanon.divisions.values())));
-      setTitle("Select book or division:");
+      try {
+         theCanon = new Spirit(getResources().getAssets()).inspiredCanon; 
+      } catch (Exception e) { 
+         throw new RuntimeException(e);
+      }
+      setListAdapter(new DivisionAdapter(theCanon.divide()));
+      setTitle("Select Manna for division:");
    }
    protected static Canon theCanon;
 
    public void onClick(View v) {
-      String selection = (((Button) v).getText()).toString();
-      Division selectedDiv = theCanon.divisions.get(selection);
-      if(selectedDiv.books.size() > 1) {
+      String selector = (((Button) v).getText()).toString();
+      Manna selected = theCanon.select(selector);
+      if(selected.count() > 1) {
          Intent bookIntent = new Intent(this, BookBrowser.class);
-         bookIntent.putExtra("division", selection);
+         bookIntent.putExtra("division", selector);
          CanonBrowser.this.startActivity(bookIntent);
       } else {
          Intent chapterIntent = new Intent(this, ChapterBrowser.class);
-         chapterIntent.putExtra("Book", selection);
+         chapterIntent.putExtra("Book", selector);
          CanonBrowser.this.startActivity(chapterIntent);
       }
    }
 
-   private class DivisionAdapter extends ArrayAdapter<Division> {
-      public DivisionAdapter(List<Division> divs) {
-         super(CanonBrowser.this, 0, divs);
+   private class DivisionAdapter extends ArrayAdapter<Manna> {
+      public DivisionAdapter(List<Manna> basket) {
+         super(CanonBrowser.this, 0, basket);
          layoutInflater = CanonBrowser.this.getLayoutInflater();
       }
       private LayoutInflater layoutInflater;
 
       @Override
       public View getView(int position, View convertView, ViewGroup parent) {
-         Division selectedDivision = getItem(position);
+         Manna selectedDivision = getItem(position);
          Button buttonView = (Button) convertView;
          if (buttonView == null) {
             if(getItemViewType(position) == OLD_TESTAMENT_ITEM_TYPE) {
@@ -61,14 +62,14 @@ public class CanonBrowser extends ListActivity implements View.OnClickListener {
                buttonView = (Button) layoutInflater.inflate(R.layout.button, null);
             }
          }
-         buttonView.setText(selectedDivision.toString());
+         buttonView.setText(selectedDivision.whatIsIt());
          buttonView.setOnClickListener(CanonBrowser.this);
          return buttonView;
       }
 
       public int getViewTypeCount() { return 3; }
       public int getItemViewType(int position) { 
-         Division positionedDivision = getItem(position);
+         Manna positionedDivision = getItem(position);
          if(positionedDivision == theCanon.oldTestament) return OLD_TESTAMENT_ITEM_TYPE;
          if(positionedDivision == theCanon.newTestament) return NEW_TESTAMENT_ITEM_TYPE;
          return SUB_TESTAMENT_TYPE;

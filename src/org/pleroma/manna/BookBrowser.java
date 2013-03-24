@@ -1,5 +1,7 @@
 package org.pleroma.manna;
 
+import org.pleroma.manna.collections.BookSet;
+
 import android.app.ListActivity;
 import android.content.Context;
 import android.content.Intent;
@@ -15,9 +17,9 @@ public class BookBrowser extends ListActivity implements View.OnClickListener {
       super.onCreate(savedInstanceState);
       Canon bookCanon = CanonBrowser.theCanon;
       String divisionName = getIntent().getStringExtra("division");
-      Division selectedDiv = bookCanon.divisions.get(divisionName);
-      setListAdapter(new BookAdapter(selectedDiv.books));
-      setTitle("Select a book from " + selectedDiv.toString());
+      BookSet selectedBooks = bookCanon.selectBookSet(divisionName);
+      setListAdapter(new BookAdapter(selectedBooks));
+      setTitle("Select a book from " + selectedBooks.whatIsIt());
    }
 
    public void onClick(View v) {
@@ -27,10 +29,10 @@ public class BookBrowser extends ListActivity implements View.OnClickListener {
       BookBrowser.this.startActivity(chapterIntent);
    }
 
-   private class BookAdapter extends ArrayAdapter<Canon.Manna> {
+   private class BookAdapter extends ArrayAdapter<Book> {
 
-      public BookAdapter(Collection<Canon.Manna> books) {
-         super(BookBrowser.this, R.layout.button, new ArrayList(books));
+      public BookAdapter(BookSet bookSet) {
+         super(BookBrowser.this, R.layout.button, bookSet.books());
       }
 
       @Override
@@ -42,9 +44,9 @@ public class BookBrowser extends ListActivity implements View.OnClickListener {
                   getSystemService(Context.LAYOUT_INFLATER_SERVICE);
             buttonView = (Button) vi.inflate(R.layout.button, null);
          }
-         Canon.Manna selection = getItem(position);
+         Book selection = getItem(position);
          if (selection != null) { 
-            buttonView.setText(selection.whatIsIt); 
+            buttonView.setText(selection.whatIsIt()); 
             buttonView.setOnClickListener(BookBrowser.this);
          }
          return buttonView;

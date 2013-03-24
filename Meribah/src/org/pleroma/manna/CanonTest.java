@@ -6,162 +6,174 @@ import java.io.*;
 
 public class CanonTest extends AndroidTestCase {
 
-    public CanonTest() { super(); }
+ public CanonTest() { super(); }
 
-    protected void setUp() throws Exception {
-        super.setUp();
-        theCanon = new Canon(mContext.getResources().getAssets());
-        assertNotNull(theCanon);
+ protected void setUp() throws Exception{
+   super.setUp();
+   Spirit theHolySpirit = new Spirit(mContext.getResources().getAssets());
+   testCanon = theHolySpirit.inspiredCanon;
+   assertNotNull(testCanon);
+ }
+ private Canon testCanon;
+
+ public void testCanon() {
+   assertEquals("The Holy Bible", testCanon.whatIsIt());
+   assertEquals(66, testCanon.count());
+   assertEquals("Genesis", testCanon.select("Genesis").whatIsIt());
+   assertEquals("Matthew", testCanon.select("Matthew").whatIsIt());
+
+   Chapter m1 = testCanon.select("Matthew", 1);
+   assertNotNull(m1);
+   assertTrue("Mathew 1 mis-start: " + m1.whatIsIt().substring(0,50),
+              m1.whatIsIt().startsWith("1 The book of the generation of"));
+
+   Verse m1v1 = testCanon.select("Matthew", 1, 1); 
+   assertNotNull(m1v1);
+   assertTrue("Mathew 1:1 mis-start: " + m1v1.whatIsIt().substring(0,50),
+              m1v1.whatIsIt().startsWith(" The book of the generation of"));
+ }
+
+ public void testAment() {
+   OldTestament ot = testCanon.oldTestament();
+   NewTestament nt = testCanon.newTestament();
+
+   assertEquals(39, ot.count());
+   assertEquals(27, nt.count());
+   assertEquals("OldTestament", ot.whatIsIt());
+   assertEquals("NewTestament", nt.whatIsIt());
+ }
+
+ public void testBookChapterVerse() {
+   Book genesis = testCanon.select("Genesis");
+   assertTrue("Genesis".equals(genesis.whatIsIt()));
+   assertEquals(50, genesis.count());
+   Chapter g1 = genesis.select(1);
+   assertEquals(31, g1.count());
+   Verse g1v1 = g1.select(1);
+   assertNotNull(g1v1);
+   assertTrue("Match " + g1v1 + " against 'In the beginning'",
+              g1v1.match("In the beginning"));
+ }
+
+ public void testPentatuch() {
+   Pentatuch pentatuch = testCanon.oldTestament().pentatuch();
+   assertEquals(pentatuch.count(), 5);
+   assertNotNull("Missing Genesis", pentatuch.select("Genesis"));
+   assertNotNull("Missing Exodus", pentatuch.select("Exodus"));
+   assertNotNull("Missing Leviticus", pentatuch.select("Leviticus"));
+   assertNotNull("Missing Numbers", pentatuch.select("Numbers"));
+   assertNotNull("Missing Deuteronomy", pentatuch.select("Deuteronomy"));
+   assertNull("Found Joshua", pentatuch.select("Joshua"));
+ }
+
+ public void testHistorics() {
+    Historics historics = testCanon.oldTestament().historics();
+    assertEquals(historics.count(), 12);
+    assertNotNull("Missing Joshua", historics.select("Joshua")); 
+    assertNotNull("Missing Judges", historics.select("Judges"));
+    assertNotNull("Missing Ruth", historics.select("Ruth"));
+    assertNotNull("Missing 1st Samuel", historics.select("1stSamuel"));
+    assertNotNull("Missing 2nd Samuel", historics.select("2ndSamuel"));
+    assertNotNull("Missing 1st Kings", historics.select("1stKings"));
+    assertNotNull("Missing 2nd Kings", historics.select("2ndKings"));
+    assertNotNull("Missing 1st Chronicles", historics.select("1stChronicles"));
+    assertNotNull("Missing 2nd Chronicles", historics.select("2ndChronicles"));
+    assertNotNull("Missing Ezra", historics.select("Ezra"));
+    assertNotNull("Missing Nehemiah", historics.select("Nehemiah"));
+    assertNotNull("Missing Esther", historics.select("Esther"));
+    assertNull("Found Job", historics.select("Job"));
+ }
+
+ public void testPoetics() {
+    Poetics poetics = testCanon.oldTestament().poetics();
+    assertEquals(poetics.count(), 5);
+    assertNotNull("Missing Job", poetics.select("Job")); 
+    assertNotNull("Missing Psalms", poetics.select("Psalms"));
+    assertNotNull("Missing Proverbs", poetics.select("Proverbs"));
+    assertNotNull("Missing Ecclesiastes", poetics.select("Ecclesiastes"));
+    assertNotNull("Missing SOS", poetics.select("Song of Solomon"));
+    assertNull("Found Isaiah", poetics.select("Isaiah"));
+ }
+
+ public void testMajorProphets() {
+    MajorProphets majorProphets = testCanon.oldTestament().majorProphets();
+    assertEquals(majorProphets.count(), 5);
+    assertNotNull("Missing Isaiah", majorProphets.select("Isaiah")); 
+    assertNotNull("Missing Jeremiah", majorProphets.select("Jeremiah"));
+    assertNotNull("Missing Lamen...", majorProphets.select("Lamentations"));
+    assertNotNull("Missing Ezekiel", majorProphets.select("Ezekiel"));
+    assertNotNull("Missing Daniel", majorProphets.select("Daniel"));
+    assertNull("Found Hosea", majorProphets.select("Hosea"));
+ }
+
+ public void testMinorProphets() {
+    MinorProphets minorProphets = testCanon.oldTestament().minorProphets();
+    assertEquals(minorProphets.count(), 12);
+    assertNotNull("Missing Hosea", minorProphets.select("Hosea")); 
+    assertNotNull("Missing Joel", minorProphets.select("Joel"));
+    assertNotNull("Missing Amos", minorProphets.select("Amos"));
+    assertNotNull("Missing Obadiah", minorProphets.select("Obadiah"));
+    assertNotNull("Missing Jonah", minorProphets.select("Jonah"));
+    assertNotNull("Missing Micah", minorProphets.select("Micah"));
+    assertNotNull("Missing Nahum", minorProphets.select("Nahum"));
+    assertNotNull("Missing Habakkuk", minorProphets.select("Habakkuk"));
+    assertNotNull("Missing Zephaniah", minorProphets.select("Zephaniah"));
+    assertNotNull("Missing Haggai", minorProphets.select("Haggai"));
+    assertNotNull("Missing Zechariah", minorProphets.select("Zechariah"));
+    assertNotNull("Missing Malachi", minorProphets.select("Malachi"));
+    assertNull("Found Matthew", minorProphets.select("Matthew"));
+ }
+
+ //New Testament BookSets
+
+ public void testGospels() {
+    Gospels gospels = testCanon.newTestament().gospels();
+    assertEquals(gospels.count(), 4);
+    assertNotNull("Missing Matthew", gospels.select("Matthew")); 
+    assertNotNull("Missing Mark", gospels.select("Mark"));
+    assertNotNull("Missing Luke", gospels.select("Luke"));
+    assertNotNull("Missing John", gospels.select("John"));
+    assertNull("Found Romans", gospels.select("Romans"));
+ }
+
+ public void testPaulineEpistles() {
+    PaulineEpistles paulines = testCanon.newTestament().paulineEpistles();
+    assertEquals(paulines.count(), 13);
+    assertNotNull("Missing Romans", paulines.select("Romans")); 
+    assertNotNull("Missing 1stCorinth", paulines.select("1stCorinthians"));
+    assertNotNull("Missing 2ndCorinth", paulines.select("2ndCorinthians"));
+    assertNotNull("Missing Galatians", paulines.select("Galatians"));
+    assertNotNull("Missing Ephesians", paulines.select("Ephesians"));
+    assertNotNull("Missing Philippians", paulines.select("Philippians"));
+    assertNotNull("Missing Colossians", paulines.select("Colossians"));
+    assertNotNull("Missing 1stThess", paulines.select("1stThessalonians"));
+    assertNotNull("Missing 2ndThess", paulines.select("2ndThessalonians"));
+    assertNotNull("Missing 1stTimothy", paulines.select("1stTimothy"));
+    assertNotNull("Missing 2ndTimothy", paulines.select("2ndTimothy"));
+    assertNotNull("Missing Titus", paulines.select("Titus"));
+    assertNotNull("Missing Philemon", paulines.select("Philemon"));
+    assertNull("Found James", paulines.select("James"));
+ }
+
+ public void testGeneralEpistles() {
+    GeneralEpistles generals = testCanon.newTestament().generalEpistles();
+    assertEquals(generals.count(), 8);
+    assertNotNull("Missing James", generals.select("James")); 
+    assertNotNull("Missing Hebrews", generals.select("Hebrews")); 
+    assertNotNull("Missing 1stPeter", generals.select("1stPeter"));
+    assertNotNull("Missing 2ndPeter", generals.select("2ndPeter"));
+    assertNotNull("Missing 1stJohn", generals.select("1stJohn"));
+    assertNotNull("Missing 2ndJohn", generals.select("2ndJohn"));
+    assertNotNull("Missing 3rdJohn", generals.select("3rdJohn"));
+    assertNotNull("Missing Jude", generals.select("Jude"));
+ }
+
+ public void testDivisions() {
+    List<Book> div = testCanon.divide();
+    assertEquals("Canon, bad division: " + div, 66, div.size());
+    for(Manna m : div) {
+      String eachName = m.whatIsIt();
+      assertNotNull("Missing " + eachName, testCanon.select(eachName));
     }
-    private Canon theCanon;
-
-    public void testPentatuch() {
-       Pentatuch pentatuch = theCanon.oldTestament.pentatuch;
-       assertEquals(pentatuch.books.size(), 5);
-       assertTrue("Missing Genesis", pentatuch.containsKey("Genesis"));
-       assertTrue("Missing Exodus", pentatuch.containsKey("Exodus"));
-       assertTrue("Missing Leviticus", pentatuch.containsKey("Leviticus"));
-       assertTrue("Missing Numbers", pentatuch.containsKey("Numbers"));
-       assertTrue("Missing Deuteronomy", pentatuch.containsKey("Deuteronomy"));
-    }
-
-    public void testHistorics() {
-       Historics historics = theCanon.oldTestament.historics;
-       assertEquals(historics.books.size(), 12);
-       assertTrue("Missing Joshua", historics.containsKey("Joshua")); 
-       assertTrue("Missing Judges", historics.containsKey("Judges"));
-       assertTrue("Missing Ruth", historics.containsKey("Ruth"));
-       assertTrue("Missing 1st Samuel", historics.containsKey("1stSamuel"));
-       assertTrue("Missing 2nd Samuel", historics.containsKey("2ndSamuel"));
-       assertTrue("Missing 1st Kings", historics.containsKey("1stKings"));
-       assertTrue("Missing 2nd Kings", historics.containsKey("2ndKings"));
-       assertTrue("Missing 1st Chronicles", 
-                  historics.containsKey("1stChronicles"));
-       assertTrue("Missing 2nd Chronicles", 
-                  historics.containsKey("2ndChronicles"));
-       assertTrue("Missing Ezra", historics.containsKey("Ezra"));
-       assertTrue("Missing Nehemiah", historics.containsKey("Nehemiah"));
-       assertTrue("Missing Esther", historics.containsKey("Esther"));
-    }
-
-    public void testPoetics() {
-       Poetics poetics = theCanon.oldTestament.poetics;
-       assertEquals(poetics.books.size(), 5);
-       assertTrue("Missing Job", poetics.containsKey("Job")); 
-       assertTrue("Missing Psalms", poetics.containsKey("Psalms"));
-       assertTrue("Missing Proverbs", poetics.containsKey("Proverbs"));
-       assertTrue("Missing Ecclesiastes", poetics.containsKey("Ecclesiastes"));
-       assertTrue("Missing Song of Solomon", 
-                  poetics.containsKey("Song of Solomon"));
-    }
-
-    public void testMajorProphets() {
-       MajorProphets majorProphets = theCanon.oldTestament.majorProphets;
-       assertEquals(majorProphets.books.size(), 5);
-       assertTrue("Missing Isaiah", majorProphets.containsKey("Isaiah")); 
-       assertTrue("Missing Jeremiah", majorProphets.containsKey("Jeremiah"));
-       assertTrue("Missing Lamentations", 
-                  majorProphets.containsKey("Lamentations"));
-       assertTrue("Missing Ezekiel", majorProphets.containsKey("Ezekiel"));
-       assertTrue("Missing Daniel", majorProphets.containsKey("Daniel"));
-    }
-
-    public void testMinorProphets() {
-       MinorProphets minorProphets = theCanon.oldTestament.minorProphets;
-       assertEquals(minorProphets.books.size(), 12);
-       assertTrue("Missing Hosea", minorProphets.containsKey("Hosea")); 
-       assertTrue("Missing Joel", minorProphets.containsKey("Joel"));
-       assertTrue("Missing Amos", minorProphets.containsKey("Amos"));
-       assertTrue("Missing Obadiah", minorProphets.containsKey("Obadiah"));
-       assertTrue("Missing Jonah", minorProphets.containsKey("Jonah"));
-       assertTrue("Missing Micah", minorProphets.containsKey("Micah"));
-       assertTrue("Missing Nahum", minorProphets.containsKey("Nahum"));
-       assertTrue("Missing Habakkuk", minorProphets.containsKey("Habakkuk"));
-       assertTrue("Missing Zephaniah", minorProphets.containsKey("Zephaniah"));
-       assertTrue("Missing Haggai", minorProphets.containsKey("Haggai"));
-       assertTrue("Missing Zechariah", minorProphets.containsKey("Zechariah"));
-       assertTrue("Missing Malachi", minorProphets.containsKey("Malachi"));
-    }
-
-    public void testAment() {
-       OldTestament oldTestament = theCanon.oldTestament;
-       NewTestament newTestament = theCanon.newTestament;
-
-       assertEquals(39, oldTestament.books.size());
-       assertEquals(27, newTestament.books.size());
-       assertEquals("Genesis", oldTestament.book(1).whatIsIt);
-       assertEquals("Genesis", oldTestament.books.get(0).whatIsIt);
-
-       Canon.Manna genesis = oldTestament.book("Genesis");
-       assertTrue("Genesis".equals(genesis.whatIsIt));
-       assertEquals(50, genesis.chapterCount());
-       Chapter g1 = genesis.chapter(1);
-       assertEquals(31, g1.verseCount());
-       Verse g1v1 = g1.verse(1);
-       assertNotNull(g1v1);
-       assertTrue("Unable to match 'In the beginning' against: " + g1v1,
-                  g1v1.match("In the beginning"));
-       /*
-       Verse g1v31 = genesis.chapter(1).verse(31);
-       assertTrue(g1v31.match("the sixth day."));
-       */
-//       Canon.Manna revelation =  newTestament.book("Revelation");
-//       assertEquals(22, revelation.chapters.count);
-    }
-
-    public void testGospels() {
-       Gospels gospels = theCanon.newTestament.gospels;
-       assertEquals(gospels.books.size(), 4);
-       assertTrue("Missing Matthew", gospels.containsKey("Matthew")); 
-       assertTrue("Missing Mark", gospels.containsKey("Mark"));
-       assertTrue("Missing Luke", gospels.containsKey("Luke"));
-       assertTrue("Missing John", gospels.containsKey("John"));
-    }
-
-    public void testPaulineEpistles() {
-       PaulineEpistles paulines = theCanon.newTestament.paulines;
-       assertEquals(paulines.books.size(), 13);
-       assertTrue("Missing Romans", paulines.containsKey("Romans")); 
-       assertTrue("Missing 1stCorinthians", 
-                  paulines.containsKey("1stCorinthians"));
-       assertTrue("Missing 2ndCorinthians", 
-                  paulines.containsKey("2ndCorinthians"));
-       assertTrue("Missing Galatians", paulines.containsKey("Galatians"));
-       assertTrue("Missing Ephesians", paulines.containsKey("Ephesians"));
-       assertTrue("Missing Philippians", paulines.containsKey("Philippians"));
-       assertTrue("Missing Colossians", paulines.containsKey("Colossians"));
-       assertTrue("Missing 1stThessalonians", 
-                  paulines.containsKey("1stThessalonians"));
-       assertTrue("Missing 2ndThessalonians", 
-                  paulines.containsKey("2ndThessalonians"));
-       assertTrue("Missing 1stTimothy", paulines.containsKey("1stTimothy"));
-       assertTrue("Missing 2ndTimothy", paulines.containsKey("2ndTimothy"));
-       assertTrue("Missing Titus", paulines.containsKey("Titus"));
-       assertTrue("Missing Philemon", paulines.containsKey("Philemon"));
-    }
-
-    public void testGeneralEpistles() {
-       GeneralEpistles generalEpistles = theCanon.newTestament.generalEpistles;
-       assertEquals(generalEpistles.books.size(), 8);
-       assertTrue("Missing James", generalEpistles.containsKey("James")); 
-       assertTrue("Missing Hebrews", generalEpistles.containsKey("Hebrews")); 
-       assertTrue("Missing 1stPeter", generalEpistles.containsKey("1stPeter"));
-       assertTrue("Missing 2ndPeter", generalEpistles.containsKey("2ndPeter"));
-       assertTrue("Missing 1stJohn", generalEpistles.containsKey("1stJohn"));
-       assertTrue("Missing 2ndJohn", generalEpistles.containsKey("2ndJohn"));
-       assertTrue("Missing 3rdJohn", generalEpistles.containsKey("3rdJohn"));
-       assertTrue("Missing Jude", generalEpistles.containsKey("Jude"));
-    }
-
-    public void testActs() {
-       Acts acts = theCanon.newTestament.acts;
-       assertEquals(acts.books.size(), 1);
-       assertTrue("Missing Acts", acts.containsKey("Acts")); 
-    }
-
-    public void testRevelation() {
-       Revelation revelation = theCanon.newTestament.revelation;
-       assertEquals(revelation.books.size(), 1);
-       assertTrue("Missing Revelation", revelation.containsKey("Revelation")); 
-    }
+ }
 }
