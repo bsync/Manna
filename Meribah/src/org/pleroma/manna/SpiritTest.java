@@ -30,11 +30,23 @@ public class SpiritTest extends AndroidTestCase {
    OldTestament ot = theHolySpirit.inspiredCanon.oldTestament();
    assertEquals(1, history.size());
 
-   ot.select("Genesis");
+   Pentatuch pt = ot.pentatuch();
    assertEquals(2, history.size());
 
+   pt.select("Genesis");
+   assertEquals(3, history.size());
+
+   ot.select("Genesis");
+   assertEquals(4, history.size());
+
+   assertNotNull(history.get(0));
    assertEquals("OldTestament", history.get(0).whatIsIt());
-   assertEquals("Genesis", history.get(1).whatIsIt());
+   assertNotNull("NULL value in history!", history.get(1));
+   assertEquals("Pentatuch", history.get(1).whatIsIt());
+   assertNotNull("NULL value in history!", history.get(2));
+   assertEquals("Genesis", history.get(2).whatIsIt());
+   assertNotNull("NULL value in history!", history.get(3));
+   assertEquals("Genesis", history.get(3).whatIsIt());
  }
 
 }

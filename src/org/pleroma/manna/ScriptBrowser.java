@@ -21,7 +21,7 @@ public class ScriptBrowser extends ListActivity {
       super.onCreate(savedInstanceState);
       scriptGestureDetector = new GestureDetector(this, scriptGestureListener);
       String bookName = getIntent().getStringExtra("Book");
-      book = CanonBrowser.theCanon.lookUp(bookName);
+      book = CanonBrowser.theCanon.select(bookName);
       int intentedChapter = getIntent().getIntExtra("Chapter", 1);
       if(book != null) setChapter(intentedChapter);
    }
@@ -45,7 +45,7 @@ public class ScriptBrowser extends ListActivity {
    private int setChapter(int targetChapter) {
       if(targetChapter > 0 && targetChapter <= book.count()) {
          currentChapter=targetChapter;
-         setListAdapter(new VerseAdapter(book.lookUp(currentChapter)));
+         setListAdapter(new VerseAdapter(book.select(currentChapter)));
          setTitle("Chapter " + currentChapter + " of " + book.whatIsIt());
       }
       return currentChapter;
@@ -61,7 +61,7 @@ public class ScriptBrowser extends ListActivity {
       private Intent verseIntent;
 
       public long getItemId(int pos) { return pos; }
-      public Verse getItem(int pos) { return verseChapter.lookUp(pos+1); }
+      public Verse getItem(int pos) { return verseChapter.select(pos+1); }
       public int getCount() { return verseChapter.count(); }
 
       @Override

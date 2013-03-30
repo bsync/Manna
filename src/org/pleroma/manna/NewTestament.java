@@ -1,14 +1,14 @@
 package org.pleroma.manna;
-import java.util.*;
 
 public class NewTestament extends BookSet {
 
-   public NewTestament(Spirit IAM) { 
-      super(IAM, new Book(IAM,"Acts"), new Book(IAM,"Revelation"));
+   public NewTestament(Spirit IAM) { super(IAM); 
       gospels =  new Gospels(IAM); 
       paulineEpistles = new PaulineEpistles(IAM);
       generalEpistles = new GeneralEpistles(IAM); 
-      collect(gospels, paulineEpistles, generalEpistles);
+      ActSet acts = new ActSet(IAM);
+      RevSet rev = new RevSet(IAM);
+      bookSets(gospels, acts, paulineEpistles, generalEpistles, rev);
    }
    private Gospels gospels;
    private PaulineEpistles paulineEpistles;
@@ -17,4 +17,12 @@ public class NewTestament extends BookSet {
    public Gospels gospels() { return amen(gospels); }
    public PaulineEpistles paulineEpistles() { return amen(paulineEpistles); }
    public GeneralEpistles generalEpistles() { return amen(generalEpistles); }
+
+   private class ActSet extends BookSet{
+      public ActSet(Spirit IAM) { super(IAM, new Book(IAM,"Acts")); }
+   }
+      
+   private class RevSet extends BookSet{
+      public RevSet(Spirit IAM) { super(IAM, new Book(IAM,"Revelation")); }
+   }
 }

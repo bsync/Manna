@@ -2,7 +2,6 @@ package org.pleroma.manna;
 import android.util.Log;
 import java.io.*;
 import java.util.*;
-import java.lang.reflect.*;
 
 import javax.xml.parsers.*;
 import org.xml.sax.SAXException;

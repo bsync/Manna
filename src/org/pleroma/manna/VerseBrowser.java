@@ -19,11 +19,11 @@ public class VerseBrowser extends Activity {
    public void onCreate(Bundle savedInstanceState) {
       super.onCreate(savedInstanceState);
       String bookName = getIntent().getStringExtra("Book");
-      book = CanonBrowser.theCanon.lookUp(bookName);
+      book = CanonBrowser.theCanon.select(bookName);
       int intentedChapter = getIntent().getIntExtra("Chapter", 1);
-      chapter = book.lookUp(intentedChapter);
+      chapter = book.select(intentedChapter);
       int intentedVerse = getIntent().getIntExtra("Verse", 1);
-      currentVerse = chapter.lookUp(intentedVerse);
+      currentVerse = chapter.select(intentedVerse);
       verseGestureDetector = new GestureDetector(this, verseGestureListener);
       setContentView(R.layout.verse_browser);
       verseView = (TextView) findViewById(R.id.verseview);
@@ -58,9 +58,10 @@ public class VerseBrowser extends Activity {
 
    private int setVerse(int targetVerse) {
       if(targetVerse > 0 && targetVerse < chapter.count()) {
-         currentVerse=chapter.lookUp(targetVerse);
+         currentVerse=chapter.select(targetVerse);
          verseView.setText(currentVerse.toString());
-         setTitle(chapter.number + ":" + currentVerse.number + " of " + book.whatIsIt());
+         setTitle(chapter.number + ":" + currentVerse.number 
+                  + " of " + book.whatIsIt());
       }
       return currentVerse.number;
    }

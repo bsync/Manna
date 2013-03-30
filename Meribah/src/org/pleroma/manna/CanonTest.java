@@ -169,11 +169,13 @@ public class CanonTest extends AndroidTestCase {
  }
 
  public void testDivisions() {
-    List<Book> div = testCanon.divide();
-    assertEquals("Canon, bad division: " + div, 66, div.size());
-    for(Manna m : div) {
-      String eachName = m.whatIsIt();
-      assertNotNull("Missing " + eachName, testCanon.select(eachName));
-    }
+    List<BookSet> sDiv = testCanon.bookSets();
+    assertEquals("Canon, bad division: " + sDiv, 12, sDiv.size());
+    OldTestament ot = testCanon.oldTestament();
+    sDiv = ot.bookSets();
+    assertEquals("Canon, bad division: " + sDiv, 5, sDiv.size());
+    Pentatuch p = ot.pentatuch();
+    List<Book> bDiv = p.books();
+    assertEquals("Canon, bad division: " + bDiv, 5, bDiv.size());
  }
 }

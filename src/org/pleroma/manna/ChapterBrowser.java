@@ -21,7 +21,7 @@ public class ChapterBrowser extends Activity implements View.OnKeyListener{
 
       setContentView(R.layout.chapter_browser);
       chapterGrid = (GridView) findViewById(R.id.chapterview);
-      Book cManna = CanonBrowser.theCanon.lookUp(bookName);
+      Book cManna = CanonBrowser.theCanon.select(bookName);
       ArrayList<Integer> chapterNumbers = new ArrayList();
       for(int i = 1; i <= cManna.count(); i++) { chapterNumbers.add(i); }
       chapterGrid.setAdapter(new ChapterAdapter(chapterNumbers));

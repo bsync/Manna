@@ -20,7 +20,7 @@ public class Chapter extends Manna<Verse> {
       for(int i=0; i < verseNodes.getLength(); i++) {
          verses.add(new Verse(inspiration, verseNodes.item(i))); 
       }
-      collect(verses.toArray(new Verse[verses.size()]));
+      manna(verses.toArray(new Verse[verses.size()]));
    }
    public final int number;
    ArrayList<Verse> verses; 

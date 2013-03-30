@@ -1,5 +1,4 @@
 package org.pleroma.manna;
-import java.util.*;
 
 public class OldTestament extends BookSet {
    public OldTestament(Spirit IAM) { 
@@ -9,7 +8,7 @@ public class OldTestament extends BookSet {
       poetics = new Poetics(IAM);
       majorProphets = new MajorProphets(IAM);
       minorProphets = new MinorProphets(IAM);
-      collect(pentatuch, historics, poetics, majorProphets, minorProphets);
+      bookSets(pentatuch, historics, poetics, majorProphets, minorProphets);
    }
    private Pentatuch pentatuch; 
    private Historics historics; 
@@ -22,5 +21,4 @@ public class OldTestament extends BookSet {
    public Poetics poetics() { return amen(poetics); }
    public MajorProphets majorProphets() { return amen(majorProphets); }
    public MinorProphets minorProphets() { return amen(minorProphets); }
-
 }

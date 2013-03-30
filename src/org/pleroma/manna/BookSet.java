@@ -1,23 +1,31 @@
 package org.pleroma.manna;
 import java.util.*;
 
-public abstract class BookSet extends Manna<Book> {
+public class BookSet extends Manna<Book> {
    public BookSet(Spirit IAM) { super(IAM); }
    public BookSet(Spirit IAM, Book ... set) { super(IAM, set); }
-
    public List<String> titles() { return new ArrayList(basket.keySet()); }
-
    public String whatIsIt() { return this.getClass().getSimpleName(); }
 
-   public Book select(String name) { 
-      Book selectedManna = basket.get(name); 
-      return amen(selectedManna);
+   public Book select(String name) { return amen(basket.get(name)); }
+   public Chapter select(String name, int cnum) {
+      return amen(select(name).select(cnum));
+   }
+   public Verse select(String name, int cnum, int vnum) {
+      return amen(select(name).select(cnum).select(vnum));
    }
 
-   public int collect(BookSet ... provision) { 
-      for(BookSet m : provision) {
-         collect(m.divide().toArray(new Book[m.count()]));
-      }
-      return count();
+   public List<Book> books(Book ... provision) { return manna(); }
+   public List<BookSet> bookSets(BookSet ... provision) { 
+      return bookSets(Arrays.asList(provision));
    }
+   public List<BookSet> bookSets(List<BookSet> provision) { 
+      for(BookSet m : provision) {
+         setBasket.put(m.key(), m);
+         manna(m.books());
+      }
+      return new ArrayList(setBasket.values());
+   }
+   private LinkedHashMap<String, BookSet> setBasket 
+      = new LinkedHashMap<String, BookSet>();
 }

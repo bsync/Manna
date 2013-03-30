@@ -1,6 +1,6 @@
 package org.pleroma.manna;
 
-import org.pleroma.manna.collections.BookSet;
+import org.pleroma.manna.BookSet;
 
 import android.app.ListActivity;
 import android.content.Context;
@@ -17,9 +17,9 @@ public class BookBrowser extends ListActivity implements View.OnClickListener {
       super.onCreate(savedInstanceState);
       Canon bookCanon = CanonBrowser.theCanon;
       String divisionName = getIntent().getStringExtra("division");
-      BookSet selectedBooks = bookCanon.selectBookSet(divisionName);
-      setListAdapter(new BookAdapter(selectedBooks));
-      setTitle("Select a book from " + selectedBooks.whatIsIt());
+      BookSet selectedSet = bookCanon.select(divisionName);
+      setListAdapter(new BookAdapter(selectedSet.list()));
+      setTitle("Select a book from " + selectedSet.whatIsIt());
    }
 
    public void onClick(View v) {
@@ -31,8 +31,8 @@ public class BookBrowser extends ListActivity implements View.OnClickListener {
 
    private class BookAdapter extends ArrayAdapter<Book> {
 
-      public BookAdapter(BookSet bookSet) {
-         super(BookBrowser.this, R.layout.button, bookSet.books());
+      public BookAdapter(List<Book> bookSet) {
+         super(BookBrowser.this, R.layout.button, bookSet);
       }
 
       @Override

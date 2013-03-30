@@ -6,32 +6,29 @@ public abstract class Manna<T extends Manna> {
 
    public Manna(Spirit IAM) { 
       inspiration = IAM; 
-      basket = new HashMap<String, T>();
+      basket = new LinkedHashMap<String, T>();
    }
    protected Spirit inspiration;
-   protected HashMap<String, T> basket;
+   protected LinkedHashMap<String, T> basket;
 
    public Manna(Spirit IAM, T ... provision) { 
       this(IAM);
-      collect(provision);
+      manna(provision);
    }
 
    public abstract String whatIsIt();
    public int count() { return basket.size(); }
 
-   public int collect(T ... provision) { 
+   public T select(String key) { return basket.get(key); }
+
+   public List<T> manna(T ... provision) { 
+      return manna(Arrays.asList(provision));
+   }
+   public List<T> manna(List<T> provision) { 
       for(T m : provision) {
          basket.put(m.key(), m);
       }
-      return basket.size();
-   }
-   public List<T> divide() { 
-      List<T> portion = new ArrayList();
-      for(T m : basket.values()) {
-         portion.add(m);
-         portion.addAll(m.divide());
-      }
-      return portion;
+      return new ArrayList(basket.values());
    }
 
    public <R extends Manna> R amen(R m) {
