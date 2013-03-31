@@ -29,14 +29,14 @@ public class CanonBrowser extends ListActivity implements View.OnClickListener {
    protected static Canon theCanon;
 
    public void onClick(View v) {
-      String mannaKey = (((Button) v).getText()).toString();
-      if(theCanon.select(mannaKey).count() > 1) {
+      String setKey = (((Button) v).getText()).toString();
+      if(theCanon.selectSet(setKey).count() > 1) {
          Intent bookIntent = new Intent(this, BookBrowser.class);
-         bookIntent.putExtra("division", mannaKey);
+         bookIntent.putExtra("division", setKey);
          CanonBrowser.this.startActivity(bookIntent);
       } else {
          Intent chapterIntent = new Intent(this, ChapterBrowser.class);
-         chapterIntent.putExtra("Book", mannaKey);
+         chapterIntent.putExtra("Book", setKey);
          CanonBrowser.this.startActivity(chapterIntent);
       }
    }

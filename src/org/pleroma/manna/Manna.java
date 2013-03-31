@@ -17,6 +17,7 @@ public abstract class Manna<T extends Manna> {
    }
 
    public abstract String whatIsIt();
+   public String toString() { return whatIsIt(); }
    public int count() { return basket.size(); }
 
    public T select(String key) { return basket.get(key); }

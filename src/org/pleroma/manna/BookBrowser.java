@@ -17,8 +17,8 @@ public class BookBrowser extends ListActivity implements View.OnClickListener {
       super.onCreate(savedInstanceState);
       Canon bookCanon = CanonBrowser.theCanon;
       String divisionName = getIntent().getStringExtra("division");
-      BookSet selectedSet = bookCanon.select(divisionName);
-      setListAdapter(new BookAdapter(selectedSet.list()));
+      BookSet selectedSet = bookCanon.selectSet(divisionName);
+      setListAdapter(new BookAdapter(selectedSet.books()));
       setTitle("Select a book from " + selectedSet.whatIsIt());
    }
 

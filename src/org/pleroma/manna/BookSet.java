@@ -14,8 +14,9 @@ public class BookSet extends Manna<Book> {
    public Verse select(String name, int cnum, int vnum) {
       return amen(select(name).select(cnum).select(vnum));
    }
-
    public List<Book> books(Book ... provision) { return manna(); }
+
+   public BookSet selectSet(String name) { return amen(setBasket.get(name)); }
    public List<BookSet> bookSets(BookSet ... provision) { 
       return bookSets(Arrays.asList(provision));
    }
