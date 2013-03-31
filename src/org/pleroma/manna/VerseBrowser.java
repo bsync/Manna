@@ -57,7 +57,7 @@ public class VerseBrowser extends Activity {
       };
 
    private int setVerse(int targetVerse) {
-      if(targetVerse > 0 && targetVerse < chapter.count()) {
+      if(targetVerse > 0 && targetVerse <= chapter.count()) {
          currentVerse=chapter.select(targetVerse);
          verseView.setText(currentVerse.toString());
          setTitle(chapter.number + ":" + currentVerse.number 
