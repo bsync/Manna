@@ -1,6 +1,7 @@
 package org.pleroma.manna;
 
 import org.pleroma.manna.R;
+import org.bsync.android.*;
 import android.app.ListActivity;
 import android.os.Bundle;
 import android.content.Context;
@@ -8,88 +9,75 @@ import android.content.res.*;
 import android.content.Intent;
 import android.view.*;
 import android.widget.*;
-import android.view.GestureDetector.*;
+import android.R.layout;
 
 import android.util.Log;
 import java.io.*;
 import java.util.*;
 import java.lang.Math;
 
-public class ScriptBrowser extends ListActivity {
+public class ScriptBrowser extends ListActivity implements Gestured {
    @Override
    public void onCreate(Bundle savedInstanceState) {
       super.onCreate(savedInstanceState);
-      scriptGestureDetector = new GestureDetector(this, scriptGestureListener);
+      sgHandler = new GestureHandler(this);
       String bookName = getIntent().getStringExtra("Book");
       book = CanonBrowser.theCanon.select(bookName);
       int intentedChapter = getIntent().getIntExtra("Chapter", 1);
       if(book != null) setChapter(intentedChapter);
    }
+   private GestureHandler sgHandler;
    private Book book;
-   private int currentChapter = 1;
-   private GestureDetector scriptGestureDetector;
-   private GestureDetector.SimpleOnGestureListener scriptGestureListener =
-      new GestureDetector.SimpleOnGestureListener() {
-         public boolean onFling (MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
-            Log.i("Manna", "Detected horizontal fling of velocity: " + velocityX);
-            int speed = (int) Math.abs(velocityX);
-            if(speed > 30){
-               int cbump = (int) velocityX/speed;
-               setChapter(currentChapter - cbump);
-            }
-            return true;
-         }
-      };
-
+   private int cnum = 1;
 
    private int setChapter(int targetChapter) {
       if(targetChapter > 0 && targetChapter <= book.count()) {
-         currentChapter=targetChapter;
-         setListAdapter(new VerseAdapter(book.select(currentChapter)));
-         setTitle("Chapter " + currentChapter + " of " + book.whatIsIt());
+         cnum=targetChapter;
+         setListAdapter(new VerseAdapter(book.select(cnum)));
+         setTitle("Chapter " + cnum + " of " + book.whatIsIt());
       }
-      return currentChapter;
+      return cnum;
    }
 
-   private class VerseAdapter extends BaseAdapter {
-      public VerseAdapter(Chapter chapter) {
-         super();
-         verseChapter = chapter;
-         verseIntent = new Intent(ScriptBrowser.this, VerseBrowser.class);
+   protected void onListItemClick (ListView l, View v, int pos, long id) {
+      Intent verseIntent = new Intent(this, VerseBrowser.class);
+      verseIntent.putExtra("Book", book.whatIsIt());
+      verseIntent.putExtra("Chapter", cnum);
+      verseIntent.putExtra("Verse", pos+1);
+      startActivity(verseIntent);
+   }
+
+   /*Gestured Interface*/
+   public Context context() { return this; }
+   public View gesturedView() { return getListView(); }
+   public boolean onXFling (float velocityX) {
+      Log.i("SB", "Detected Script fling: " + velocityX);
+      int cbump = (int) (velocityX/Math.abs(velocityX));
+      setChapter(cnum - cbump);
+      Log.i("SB", "onFling changed to chapter: " + cnum);
+      return true;
+   }
+   public boolean onYFling (float velocityY) { return false; }
+
+   private class VerseAdapter extends ArrayAdapter<Verse> {
+      public VerseAdapter(Chapter chapter) { 
+         super(ScriptBrowser.this, 0, chapter.manna());
       }
-      private Chapter verseChapter;
-      private Intent verseIntent;
-
-      public long getItemId(int pos) { return pos; }
-      public Verse getItem(int pos) { return verseChapter.select(pos+1); }
-      public int getCount() { return verseChapter.count(); }
-
       @Override
       public View getView(int position, View convertView, ViewGroup parent) {
-         Button buttonView = (Button) convertView;
-         if (buttonView == null) {
+         TextView textView = (TextView) convertView;
+         if (textView == null) {
             LayoutInflater vi = 
                (LayoutInflater)
                   getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-            buttonView = (Button) vi.inflate(R.layout.verse_button, null);
-            buttonView.setOnTouchListener(new View.OnTouchListener() {
-               public boolean onTouch(View v, MotionEvent e) { 
-                  return scriptGestureDetector.onTouchEvent(e); 
-               } });
-            buttonView.setOnClickListener(new View.OnClickListener() {
-               public void onClick(View v) {
-                  verseIntent.putExtra("Book", ScriptBrowser.this.book.whatIsIt());
-                  verseIntent.putExtra("Chapter", verseChapter.number);
-                  verseIntent.putExtra("Verse", v.getId());
-                  ScriptBrowser.this.startActivity(verseIntent);
-               } });
+            textView = (TextView) vi.inflate(R.layout.verse_button, null);
          }
          Verse selection = getItem(position);
          if (selection != null) { 
-            buttonView.setText(selection.number + selection.toString()); 
-            buttonView.setId(selection.number);
+            textView.setText(selection.number + selection.toString()); 
+            textView.setId(selection.number);
          }
-         return buttonView;
+         return textView;
       }
    }
 }

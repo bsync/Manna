@@ -24,7 +24,7 @@ public class CanonBrowser extends ListActivity implements View.OnClickListener {
          throw new RuntimeException(e);
       }
       setListAdapter(new BookSetAdaptor(theCanon.bookSets()));
-      setTitle("Select Manna for division:");
+      setTitle("Select a Bookset:");
    }
    protected static Canon theCanon;
 
@@ -45,41 +45,31 @@ public class CanonBrowser extends ListActivity implements View.OnClickListener {
       public BookSetAdaptor(List<BookSet> bookSets) {
          super(CanonBrowser.this, 0, bookSets);
          layoutInflater = CanonBrowser.this.getLayoutInflater();
+         ot = theCanon.oldTestament();
+         nt = theCanon.newTestament();
       }
       private LayoutInflater layoutInflater;
+      private OldTestament ot;
+      private NewTestament nt;
 
-      @Override
       public View getView(int position, View convertView, ViewGroup parent) {
-         Manna selectedDivision = getItem(position);
+         BookSet bookSetItem = getItem(position);
          Button buttonView = (Button) convertView;
-         if (buttonView == null) {
-            if(getItemViewType(position) == OLD_TESTAMENT_ITEM_TYPE) {
-               buttonView = 
-                  (Button) layoutInflater.inflate(R.layout.ot_button, null);
-            } else if(getItemViewType(position) == NEW_TESTAMENT_ITEM_TYPE) {
-               buttonView = 
-                  (Button) layoutInflater.inflate(R.layout.nt_button, null);
-            } else {
-               buttonView = 
-                  (Button) layoutInflater.inflate(R.layout.button, null);
-            }
+         if(bookSetItem == ot) {
+            buttonView = 
+               (Button) layoutInflater.inflate(R.layout.ot_button, null);
+         } else if(bookSetItem == nt) {
+            buttonView = 
+               (Button) layoutInflater.inflate(R.layout.nt_button, null);
+         } else {
+            buttonView = 
+               (Button) layoutInflater.inflate(R.layout.button, null);
          }
-         buttonView.setText(selectedDivision.whatIsIt());
+         int viewHeight=getListView().getHeight();
+         buttonView.setHeight(viewHeight/Math.min(getCount(), 7));
+         buttonView.setText(bookSetItem.whatIsIt());
          buttonView.setOnClickListener(CanonBrowser.this);
          return buttonView;
       }
-
-      public int getViewTypeCount() { return 3; }
-      public int getItemViewType(int position) { 
-         Manna positionedDivision = getItem(position);
-         if(positionedDivision == theCanon.oldTestament()) 
-            return OLD_TESTAMENT_ITEM_TYPE;
-         if(positionedDivision == theCanon.newTestament()) 
-            return NEW_TESTAMENT_ITEM_TYPE;
-         return SUB_TESTAMENT_TYPE;
-      }
-      final private int OLD_TESTAMENT_ITEM_TYPE = 0;
-      final private int NEW_TESTAMENT_ITEM_TYPE = 1;
-      final private int SUB_TESTAMENT_TYPE = 2;
    }
 }

@@ -20,9 +20,11 @@ public class NewTestament extends BookSet {
 
    private class ActSet extends BookSet{
       public ActSet(Spirit IAM) { super(IAM, new Book(IAM,"Acts")); }
+      public String whatIsIt() { return "Acts"; }
    }
       
    private class RevSet extends BookSet{
       public RevSet(Spirit IAM) { super(IAM, new Book(IAM,"Revelation")); }
+      public String whatIsIt() { return "Revelation"; }
    }
 }

@@ -9,6 +9,7 @@ import android.view.*;
 import android.os.Bundle;
 import android.widget.*;
 import java.util.*;
+import java.lang.Math;
 import android.util.Log;
 
 public class BookBrowser extends ListActivity implements View.OnClickListener {
@@ -43,6 +44,8 @@ public class BookBrowser extends ListActivity implements View.OnClickListener {
                (LayoutInflater)
                   getSystemService(Context.LAYOUT_INFLATER_SERVICE);
             buttonView = (Button) vi.inflate(R.layout.button, null);
+            int viewHeight=getListView().getHeight();
+            buttonView.setHeight(viewHeight/Math.min(getCount(), 7));
          }
          Book selection = getItem(position);
          if (selection != null) { 

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Mana</string>
+    <string name="history">History</string>
+    <string name="app_name">Manna</string>
     <string-array name="biblebooks">
       <item>Genesis</item>
       <item>Exodus</item>

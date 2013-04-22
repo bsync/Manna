@@ -16,7 +16,6 @@ public class ChapterBrowser extends Activity implements View.OnKeyListener{
 
    public void onCreate(Bundle savedInstanceState) { 
       super.onCreate(savedInstanceState);
-      Log.i("Manna", "Creating ChapterBrowser.");
       bookName = getIntent().getStringExtra("Book");
 
       setContentView(R.layout.chapter_browser);

@@ -1,68 +1,69 @@
 package org.pleroma.manna;
 
 import org.pleroma.manna.R;
+import org.bsync.android.*;
 import android.app.Activity;
 import android.os.Bundle;
 import android.content.Context;
 import android.content.res.*;
 import android.view.*;
 import android.widget.*;
-import android.view.GestureDetector.*;
-
 import android.util.Log;
 import java.io.*;
 import java.util.*;
 import java.lang.Math;
 
-public class VerseBrowser extends Activity {
+public class VerseBrowser extends Activity implements Gestured {
    @Override
    public void onCreate(Bundle savedInstanceState) {
       super.onCreate(savedInstanceState);
+      setContentView(R.layout.verse_browser);
+      verseView = (TextView) findViewById(R.id.verseview);
+      vgHandler = new GestureHandler(this);
       String bookName = getIntent().getStringExtra("Book");
       book = CanonBrowser.theCanon.select(bookName);
       int intentedChapter = getIntent().getIntExtra("Chapter", 1);
       chapter = book.select(intentedChapter);
       int intentedVerse = getIntent().getIntExtra("Verse", 1);
-      currentVerse = chapter.select(intentedVerse);
-      verseGestureDetector = new GestureDetector(this, verseGestureListener);
-      setContentView(R.layout.verse_browser);
-      verseView = (TextView) findViewById(R.id.verseview);
-      verseView.setOnTouchListener(new View.OnTouchListener() {
-         public boolean onTouch(View v, MotionEvent e) { 
-            Log.i("Manna", "onTouch event: " + e);
-            verseGestureDetector.onTouchEvent(e); 
-            return true;
-         }
-      });
-      setVerse(currentVerse.number);
+      setVerse(intentedVerse);
    }
+   private GestureHandler vgHandler;
    private TextView verseView;
    private Book book;
    private Chapter chapter;
-   private Verse currentVerse;
-   private GestureDetector verseGestureDetector;
-   private GestureDetector.SimpleOnGestureListener verseGestureListener =
-      new GestureDetector.SimpleOnGestureListener() {
-         public boolean onFling (MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
-            Log.i("Manna", "Detected horizontal fling of velocity: " + velocityX);
-            int speed = (int) Math.abs(velocityX);
-            if(speed > 50){
-               int cbump = (int) velocityX/speed;
-               if(setVerse(currentVerse.number - cbump) != currentVerse.number) { 
-                  Log.i("Manna", "Fling changed to chapter: " + currentVerse.number);
-               } else Log.i("Manna", "book chapter count: " + book.count() + " number: " + currentVerse.number);
-            }
-            return true;
-         }
-      };
+   private Verse verse;
+
+   /* For some reason this method has to be overriden to call the 
+    * GestureHandler's onTouchEvent method in order for the verseView
+    * (TextView) to properly recognize Gesture type motion events.
+    *
+    * This seems like a bug in one of the android classes somewhere.
+    * */
+   @Override
+   public boolean dispatchTouchEvent(MotionEvent ev) {
+      super.dispatchTouchEvent(ev);
+      return vgHandler.onTouchEvent(ev);
+   }
 
    private int setVerse(int targetVerse) {
       if(targetVerse > 0 && targetVerse <= chapter.count()) {
-         currentVerse=chapter.select(targetVerse);
-         verseView.setText(currentVerse.toString());
-         setTitle(chapter.number + ":" + currentVerse.number 
+         verse=chapter.select(targetVerse);
+         verseView.setText(verse.toString());
+         setTitle(chapter.number + ":" + verse.number 
                   + " of " + book.whatIsIt());
       }
-      return currentVerse.number;
+      return verse.number;
+   }
+
+   /*Gestured Interface*/
+   public Context context() { return this; }
+   public View gesturedView() { return verseView; }
+   public boolean onXFling (float velocityX) { return false; }
+   public boolean onYFling(float velocityY) {
+      Log.i("VB", "detected verse fling");
+      int vbump = (int) (velocityY/Math.abs(velocityY));
+      setVerse(verse.number - vbump);
+      Log.i("VB", "onFling changed to verse: " + verse.number);
+      return true;
    }
 }
