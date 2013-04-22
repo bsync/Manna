@@ -86,7 +86,7 @@ sub process_chapter {
    open ($cfile, ">", "$bookpath/$ch.txt") 
       or die "Could not open $bookpath/$ch.txt";
    $bookpath =~ /.*\/(.*)/;
-   my $writer = XML::Writer->new(OUTPUT=>$cfile);
+   my $writer = XML::Writer->new(OUTPUT=>$cfile, UNSAFE=>1);
    $writer->xmlDecl();
    $writer->startTag("Chapter", 'number' => $ch);
    $writer->characters("\n");
@@ -97,7 +97,12 @@ sub process_chapter {
    while(@cvt) {
       ($vnum, $vtext, @cvt) = @cvt;
       $writer->startTag("Verse", 'number' => $vnum);
-      $writer->characters($vtext);
+      $writer->raw($vtext);
+      while(@cvt) {
+         ($vnum2, $vtext2, @cvt) = @cvt;
+         if($vnum2 != $vnum+1) { $writer->raw("$ch:$vnum2 $vtext2"); }
+         else { unshift @cvt, $vnum2, $vtext2; last; }
+      }
 #      print $cfile "$vnum. $vtext\n";
       $writer->endTag("Verse");
       $writer->characters("\n");
