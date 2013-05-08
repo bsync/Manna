@@ -1,63 +1,76 @@
 package org.pleroma.manna;
 
 import org.pleroma.manna.R;
-import org.bsync.android.*;
-import android.app.ListActivity;
 import android.os.Bundle;
 import android.content.Context;
-import android.content.res.*;
 import android.content.Intent;
+import android.R.layout;
+import android.support.v4.app.*;
+import android.support.v4.view.*;
+import android.util.Log;
 import android.view.*;
 import android.widget.*;
-import android.R.layout;
-
-import android.util.Log;
-import java.io.*;
 import java.util.*;
-import java.lang.Math;
 
-public class ScriptBrowser extends ListActivity implements Gestured {
+public class ScriptBrowser extends FragmentActivity {
    @Override
-   public void onCreate(Bundle savedInstanceState) {
+   protected void onCreate(Bundle savedInstanceState) {
       super.onCreate(savedInstanceState);
-      sgHandler = new GestureHandler(this);
       String bookName = getIntent().getStringExtra("Book");
       book = CanonBrowser.theCanon.select(bookName);
-      int intentedChapter = getIntent().getIntExtra("Chapter", 1);
-      if(book != null) setChapter(intentedChapter);
+      int initChapNum = getIntent().getIntExtra("Chapter", 1);
+
+      ViewPager svp = new ViewPager(this);
+      svp.setId(R.id.pager);
+      setContentView(svp);
+      svp.setAdapter(new ChapterAdapter(getSupportFragmentManager()));
+      svp.setOnPageChangeListener(
+         new ViewPager.SimpleOnPageChangeListener() {
+            public void onPageSelected (int position) {
+               setTitle("Chapter " + (position + 1) 
+                      + " of " + book.whatIsIt());
+            }
+         });
+      svp.setCurrentItem(initChapNum-1, true);
    }
-   private GestureHandler sgHandler;
    private Book book;
-   private int cnum = 1;
 
-   private int setChapter(int targetChapter) {
-      if(targetChapter > 0 && targetChapter <= book.count()) {
-         cnum=targetChapter;
-         setListAdapter(new VerseAdapter(book.select(cnum)));
-         setTitle("Chapter " + cnum + " of " + book.whatIsIt());
+   private class ChapterAdapter extends FragmentStatePagerAdapter {
+      public ChapterAdapter(FragmentManager fm) { super(fm); }
+
+      @Override
+      public Fragment getItem(int position) { 
+         ChapterFragment frag = new ChapterFragment();
+         Bundle args = new Bundle();
+         args.putInt("num", position+1);
+         frag.setArguments(args);
+         return frag;
       }
-      return cnum;
+
+      @Override
+      public int getCount() { return book.count(); }
    }
 
-   protected void onListItemClick (ListView l, View v, int pos, long id) {
-      Intent verseIntent = new Intent(this, VerseBrowser.class);
-      verseIntent.putExtra("Book", book.whatIsIt());
-      verseIntent.putExtra("Chapter", cnum);
-      verseIntent.putExtra("Verse", pos+1);
-      startActivity(verseIntent);
-   }
+   private class ChapterFragment extends ListFragment {
+      @Override
+      public void onActivityCreated(Bundle savedInstanceState) {
+         super.onActivityCreated(savedInstanceState);
+         cNum = getArguments() != null ? getArguments().getInt("num") : 1;
+         setListAdapter(new VerseAdapter(book.select(cNum)));
+      }
+      private int cNum;
 
-   /*Gestured Interface*/
-   public Context context() { return this; }
-   public View gesturedView() { return getListView(); }
-   public boolean onXFling (float velocityX) {
-      Log.i("SB", "Detected Script fling: " + velocityX);
-      int cbump = (int) (velocityX/Math.abs(velocityX));
-      setChapter(cnum - cbump);
-      Log.i("SB", "onFling changed to chapter: " + cnum);
-      return true;
+      @Override
+      public void onListItemClick(ListView l, View v, int pos, long id) {
+         Log.i("SB", "onListItemClick"); 
+         Intent verseIntent 
+            = new Intent(ScriptBrowser.this, VerseBrowser.class);
+         verseIntent.putExtra("Book", book.whatIsIt());
+         verseIntent.putExtra("Chapter", cNum);
+         verseIntent.putExtra("Verse", pos+1);
+         startActivity(verseIntent);
+      }
    }
-   public boolean onYFling (float velocityY) { return false; }
 
    private class VerseAdapter extends ArrayAdapter<Verse> {
       public VerseAdapter(Chapter chapter) { 
@@ -81,3 +94,4 @@ public class ScriptBrowser extends ListActivity implements Gestured {
       }
    }
 }
+

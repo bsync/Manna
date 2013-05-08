@@ -1,69 +1,69 @@
 package org.pleroma.manna;
-
 import org.pleroma.manna.R;
-import org.bsync.android.*;
 import android.app.Activity;
 import android.os.Bundle;
 import android.content.Context;
 import android.content.res.*;
+import android.support.v4.app.*;
+import android.support.v4.view.*;
 import android.view.*;
 import android.widget.*;
 import android.util.Log;
-import java.io.*;
-import java.util.*;
-import java.lang.Math;
 
-public class VerseBrowser extends Activity implements Gestured {
-   @Override
+public class VerseBrowser extends FragmentActivity {
+
    public void onCreate(Bundle savedInstanceState) {
       super.onCreate(savedInstanceState);
-      setContentView(R.layout.verse_browser);
-      verseView = (TextView) findViewById(R.id.verseview);
-      vgHandler = new GestureHandler(this);
       String bookName = getIntent().getStringExtra("Book");
       book = CanonBrowser.theCanon.select(bookName);
       int intentedChapter = getIntent().getIntExtra("Chapter", 1);
       chapter = book.select(intentedChapter);
       int intentedVerse = getIntent().getIntExtra("Verse", 1);
-      setVerse(intentedVerse);
+
+      ViewPager svp = new ViewPager(this);
+      svp.setId(R.id.pager);
+      setContentView(svp);
+      svp.setAdapter(new VerseAdapter(getSupportFragmentManager()));
+      svp.setOnPageChangeListener(
+         new ViewPager.SimpleOnPageChangeListener() {
+            public void onPageSelected (int position) {
+               setTitle("Verse " + (position + 1) 
+                      + ", Chapter " + chapter.number
+                      + " of " + book.whatIsIt());
+            }
+         });
+      svp.setCurrentItem(intentedVerse-1, true);
    }
-   private GestureHandler vgHandler;
-   private TextView verseView;
    private Book book;
    private Chapter chapter;
-   private Verse verse;
 
-   /* For some reason this method has to be overriden to call the 
-    * GestureHandler's onTouchEvent method in order for the verseView
-    * (TextView) to properly recognize Gesture type motion events.
-    *
-    * This seems like a bug in one of the android classes somewhere.
-    * */
-   @Override
-   public boolean dispatchTouchEvent(MotionEvent ev) {
-      super.dispatchTouchEvent(ev);
-      return vgHandler.onTouchEvent(ev);
-   }
+   private class VerseAdapter extends FragmentStatePagerAdapter {
+      public VerseAdapter(FragmentManager fm) { super(fm); }
 
-   private int setVerse(int targetVerse) {
-      if(targetVerse > 0 && targetVerse <= chapter.count()) {
-         verse=chapter.select(targetVerse);
-         verseView.setText(verse.toString());
-         setTitle(chapter.number + ":" + verse.number 
-                  + " of " + book.whatIsIt());
+      @Override
+      public Fragment getItem(int position) { 
+         VerseFragment frag = new VerseFragment();
+         Bundle args = new Bundle();
+         args.putInt("num", position+1);
+         frag.setArguments(args);
+         return frag;
       }
-      return verse.number;
+
+      @Override
+      public int getCount() { return chapter.count(); }
    }
 
-   /*Gestured Interface*/
-   public Context context() { return this; }
-   public View gesturedView() { return verseView; }
-   public boolean onXFling (float velocityX) { return false; }
-   public boolean onYFling(float velocityY) {
-      Log.i("VB", "detected verse fling");
-      int vbump = (int) (velocityY/Math.abs(velocityY));
-      setVerse(verse.number - vbump);
-      Log.i("VB", "onFling changed to verse: " + verse.number);
-      return true;
+   private class VerseFragment extends Fragment {
+      @Override
+      public View onCreateView(LayoutInflater inflater, 
+                               ViewGroup container,
+                               Bundle savedInstanceState) {
+         View v = inflater.inflate(R.layout.verse_browser, container, false);
+         TextView tv = (TextView) v.findViewById(R.id.verseview);
+         int vNum = getArguments() != null ? getArguments().getInt("num") : 1;
+         Log.i("VB", "Selecting text for verse " + vNum); 
+         ((TextView)tv).setText(chapter.select(vNum).whatIsIt());
+         return v;
+      }
    }
 }
