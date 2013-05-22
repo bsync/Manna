@@ -8,42 +8,23 @@ import javax.xml.parsers.*;
 import org.xml.sax.SAXException;
 import org.w3c.dom.*;
 
-public class Spirit extends HashMap<String, Manna> {
+public class Spirit {
 
-   public Spirit(AssetManager IAM) throws ParserConfigurationException { 
-      iamSpirit = IAM;
-      author = DocumentBuilderFactory.newInstance().newDocumentBuilder();
-      inspiredCanon = new Canon(this); 
-      session = new Session(); 
+   public Spirit(AssetManager IAM) { 
+      inspiration = IAM;
    }
-   public final Canon inspiredCanon;
-   private Session session;
-   private AssetManager iamSpirit;
-   private DocumentBuilder author;
+   private AssetManager inspiration;
 
-   public Document parse(String path) {
+   protected Document parse(String path) {
       try {
-         return author.parse(iamSpirit.open("KJV/" + path));
+         if(author == null) {
+            author = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+         }
+         return author.parse(inspiration.open("KJV/" + path));
       } 
       catch (Exception e) {
-         throw new RuntimeException("Evil spirit: " + e);
+         throw new RuntimeException("Caught an evil spirit: " + e);
       }
    }
-
-   public Manna get(String key) {
-      Manna matchBook = super.get(key);
-      if(matchBook != null) {
-         session.add(matchBook);
-      }
-      return matchBook;
-   }
-
-   public String put(Manna value) {
-//TODO: Might need to check this against an internal list of titles.
-      super.put(value.whatIsIt(), value);
-      return value.whatIsIt();
-   }
-
-   public Session session() { return this.session; }
-   public Session session(Manna m) {session.addManna(m); return this.session;}
+   private DocumentBuilder author = null;
 }

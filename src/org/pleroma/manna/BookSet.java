@@ -7,16 +7,16 @@ public class BookSet extends Manna<Book> {
    public List<String> titles() { return new ArrayList(basket.keySet()); }
    public String whatIsIt() { return this.getClass().getSimpleName(); }
 
-   public Book select(String name) { return amen(basket.get(name)); }
+   public Book select(String name) { return basket.get(name); }
    public Chapter select(String name, int cnum) {
-      return amen(select(name).select(cnum));
+      return select(name).select(cnum);
    }
    public Verse select(String name, int cnum, int vnum) {
-      return amen(select(name).select(cnum).select(vnum));
+      return select(name).select(cnum).select(vnum);
    }
    public List<Book> books(Book ... provision) { return manna(); }
 
-   public BookSet selectSet(String name) { return amen(setBasket.get(name)); }
+   public BookSet selectSet(String name) { return setBasket.get(name); }
    public List<BookSet> bookSets(BookSet ... provision) { 
       return bookSets(Arrays.asList(provision));
    }

@@ -14,9 +14,9 @@ public class NewTestament extends BookSet {
    private PaulineEpistles paulineEpistles;
    private GeneralEpistles generalEpistles;
 
-   public Gospels gospels() { return amen(gospels); }
-   public PaulineEpistles paulineEpistles() { return amen(paulineEpistles); }
-   public GeneralEpistles generalEpistles() { return amen(generalEpistles); }
+   public Gospels gospels() { return gospels; }
+   public PaulineEpistles paulineEpistles() { return paulineEpistles; }
+   public GeneralEpistles generalEpistles() { return generalEpistles; }
 
    private class ActSet extends BookSet{
       public ActSet(Spirit IAM) { super(IAM, new Book(IAM,"Acts")); }

@@ -8,18 +8,26 @@ import org.w3c.dom.Attr;
 
 public class Verse extends Manna {
 
-   Verse(Spirit IAM, Node verseNode) { super(IAM);
-      vText=verseNode.getTextContent(); 
+   Verse(Spirit IAM, String bookName, int chpNum, Node verseNode) { 
+      super(IAM);
+      bookRef = bookName;
+      cNum = chpNum;
+      vText=verseNode.getTextContent().trim(); 
       Node vAttr = verseNode.getAttributes().getNamedItem("number");
       number=Integer.parseInt(vAttr.getNodeValue());
+      
    }
+   private String bookRef;
    private String vText;
-   public final int number;
+   public final int cNum, number;
 
-   public String whatIsIt() { return vText; }
+   public String whatIsIt() { return number +  " " + vText; }
+   public String toString() { return bookRef + " " + cNum + ":" + number; }
    public int count() { return vText.length(); }
 
-   public boolean match(String matchText) { return vText.contains(matchText); }
+   public boolean match(String matchText) { 
+      return vText.contains(matchText); 
+   }
    protected String key() { return Integer.toString(number); }
 }
 

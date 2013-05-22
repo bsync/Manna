@@ -16,9 +16,9 @@ public class OldTestament extends BookSet {
    private MajorProphets majorProphets;
    private MinorProphets minorProphets;
 
-   public Pentatuch pentatuch() { return amen(pentatuch); }
-   public Historics historics() { return amen(historics); }
-   public Poetics poetics() { return amen(poetics); }
-   public MajorProphets majorProphets() { return amen(majorProphets); }
-   public MinorProphets minorProphets() { return amen(minorProphets); }
+   public Pentatuch pentatuch() { return pentatuch; }
+   public Historics historics() { return historics; }
+   public Poetics poetics() { return poetics; }
+   public MajorProphets majorProphets() { return majorProphets; }
+   public MinorProphets minorProphets() { return minorProphets; }
 }

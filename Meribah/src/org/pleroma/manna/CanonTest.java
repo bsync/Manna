@@ -10,9 +10,7 @@ public class CanonTest extends AndroidTestCase {
 
  protected void setUp() throws Exception{
    super.setUp();
-   Spirit theHolySpirit = new Spirit(mContext.getResources().getAssets());
-   testCanon = theHolySpirit.inspiredCanon;
-   assertNotNull(testCanon);
+   testCanon = new Canon(mContext.getResources().getAssets());
  }
  private Canon testCanon;
 
@@ -24,13 +22,13 @@ public class CanonTest extends AndroidTestCase {
 
    Chapter m1 = testCanon.select("Matthew", 1);
    assertNotNull(m1);
-   assertTrue("Mathew 1 mis-start: " + m1.whatIsIt().substring(0,50),
+   assertTrue("Matthew 1 mis-start:" + m1.whatIsIt().substring(0,30),
               m1.whatIsIt().startsWith("1 The book of the generation of"));
 
    Verse m1v1 = testCanon.select("Matthew", 1, 1); 
    assertNotNull(m1v1);
-   assertTrue("Mathew 1:1 mis-start: " + m1v1.whatIsIt().substring(0,50),
-              m1v1.whatIsIt().startsWith(" The book of the generation of"));
+   assertTrue("Mathew 1:1 mis-start: " + m1v1.whatIsIt().substring(0,30),
+              m1v1.whatIsIt().startsWith("1 The book of the generation of"));
  }
 
  public void testAment() {
@@ -178,4 +176,5 @@ public class CanonTest extends AndroidTestCase {
     List<Book> bDiv = p.books();
     assertEquals("Canon, bad division: " + bDiv, 5, bDiv.size());
  }
+
 }

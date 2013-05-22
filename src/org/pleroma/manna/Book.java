@@ -30,6 +30,6 @@ public class Book extends Manna<Chapter> {
          basket.put(chapterKey, selectedChapter);
       }
       else selectedChapter = basket.get(chapterKey);
-      return amen(selectedChapter);
+      return selectedChapter;
    }
 }
