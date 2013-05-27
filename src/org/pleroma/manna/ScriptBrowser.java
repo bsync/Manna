@@ -14,20 +14,17 @@ import java.util.*;
 public class ScriptBrowser extends MannaActivity {
    @Override
    protected void onCreate(Bundle savedInstanceState) {
-      Intent sbIntent = getIntent();
-      String bookName = sbIntent.getStringExtra("Book");
-      book = CanonBrowser.theCanon.select(bookName);
-      int initChapNum = sbIntent.getIntExtra("Chapter", 1);
-      chapter = book.select(initChapNum);
-      session.put(chapter.toString(), sbIntent);
+      MannaIntent scriptIntent = getMannaIntent();
+
+      book = CanonBrowser.theCanon.select(scriptIntent.name());
+      chapter = book.select(scriptIntent.chapter());
       super.onCreate(savedInstanceState);
-      setCurrentItem(initChapNum);
+      setCurrentItem(scriptIntent.chapter());
    }
    private Book book;
    private Chapter chapter;
 
-   protected String mannaRef() { return chapter.toString(); }
-   protected int mannaCount() { return 1; }
+   protected int fragCount() { return chapter.count(); }
    protected Fragment newFragment() {
       return new ListFragment() {
          @Override
@@ -40,15 +37,15 @@ public class ScriptBrowser extends MannaActivity {
 
          @Override
          public void onListItemClick(ListView l, View v, int pos, long id) {
-            Log.i("SB", "onListItemClick"); 
-            Intent verseIntent 
-               = new Intent(ScriptBrowser.this, VerseBrowser.class);
-            verseIntent.putExtra("Book", book.whatIsIt());
-            verseIntent.putExtra("Chapter", cNum);
-            verseIntent.putExtra("Verse", pos+1);
-            startActivity(verseIntent);
+            Verse vs = chapter.select(pos+1);
+            startActivity(newMannaIntent(vs, VerseBrowser.class));
          }
       };
+   }
+
+   protected void onMannaSelected(int whichManna) { 
+      chapter = book.select(whichManna);
+      session.push(newMannaIntent(chapter, this.getClass()));
    }
 
    private class VerseAdapter extends ArrayAdapter<Verse> {

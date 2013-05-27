@@ -1,26 +1,24 @@
 package org.pleroma.manna;
-import android.os.Bundle;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Bundle;
 import android.support.v4.app.*;
 import android.support.v4.view.*;
-import android.view.LayoutInflater;
+import android.util.Log;
 import android.view.View;
-import android.view.ViewGroup;
 import android.view.Window;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Spinner;
-import android.widget.TextView;
-import java.util.List;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.Collections;
-import android.util.Log;
+import java.util.regex.*;
 
 public abstract class MannaActivity extends FragmentActivity {
+   private static ArrayList<MannaIntent> sessionList 
+            = new ArrayList<MannaIntent>();
+
    protected void onCreate(Bundle savedInstanceState) {
-      requestWindowFeature(Window.FEATURE_CUSTOM_TITLE);
+      super.onCreate(savedInstanceState);
       mvp = new ViewPager(this);
       mvp.setId(R.id.pager);
       mvp.setOnPageChangeListener(
@@ -30,36 +28,33 @@ public abstract class MannaActivity extends FragmentActivity {
             }
          });
       mvp.setAdapter(new MannaAdapter(getSupportFragmentManager()));
+      requestWindowFeature(Window.FEATURE_CUSTOM_TITLE);
       setContentView(mvp);
       getWindow().setFeatureInt(Window.FEATURE_CUSTOM_TITLE, R.layout.tbar);
-      initSessionSpinner();
-      super.onCreate(savedInstanceState);
-   }
-   private ViewPager mvp;
-   protected static LinkedHashMap<String, Intent> session 
-      = new LinkedHashMap<String, Intent>();
-   private boolean sessionInitInProgress;
-
-   abstract protected String mannaRef();
-   abstract protected int mannaCount();
-   protected abstract Fragment newFragment();
-
-   private void initSessionSpinner() {
-      sessionInitInProgress = true;
-      Spinner sessionSpinner = (Spinner) findViewById(R.id.titlebar);
-      List<String> sList = new ArrayList<String>(session.keySet());
-      Collections.reverse(sList);
-      sessionSpinner.setAdapter(
-         new ArrayAdapter(this,
-            android.R.layout.simple_spinner_item, 
-            sList)
-         );
-      for(int i=0;  i < sList.size(); i++) {
-         if(sList.get(i).equals(mannaRef())) {
-            sessionSpinner.setSelection(i);
-         }
-      }
+      sessionSpinner = (Spinner) findViewById(R.id.session_spinner);
+      session = new SessionAdapter(sessionList);
+      sessionSpinner.setAdapter(session);
+      session.push(getMannaIntent());
       sessionSpinner.setOnItemSelectedListener(this.sessionHandler);
+   }
+   protected SessionAdapter session;
+   private ViewPager mvp;
+   private boolean sessionInitInProgress = true;
+   private Spinner sessionSpinner;
+
+   protected abstract Fragment newFragment();
+   protected abstract int fragCount();
+
+   protected class SessionAdapter extends ArrayAdapter<MannaIntent> {
+      SessionAdapter(ArrayList<MannaIntent> s) {
+         super(MannaActivity.this, android.R.layout.simple_spinner_item, s);
+      }
+
+      public void push(MannaIntent i) {
+         sessionList.remove(i);
+         sessionList.add(0,i);
+         notifyDataSetChanged();
+      }
    }
 
    protected void setCurrentItem(int position) {
@@ -81,7 +76,7 @@ public abstract class MannaActivity extends FragmentActivity {
       }
 
       @Override
-      public int getCount() { return mannaCount(); }
+      public int getCount() { return fragCount(); }
    }
 
 
@@ -90,12 +85,64 @@ public abstract class MannaActivity extends FragmentActivity {
             public void onItemSelected(AdapterView<?> parent, View view, 
                                        int position, long id) { 
                if(sessionInitInProgress) { sessionInitInProgress=false; }
-               else {
-                  String mannaName = 
-                     (String) parent.getItemAtPosition(position);
-                     startActivity(session.get(mannaName)); 
-               }
+               else { startActivity(sessionList.get(position)); }
             }
             public void onNothingSelected(AdapterView<?> parent) { }
          };
+
+   public MannaIntent getMannaIntent() { 
+      return new MannaIntent(super.getIntent());
+   }
+   public MannaIntent newMannaIntent(Manna m, Class<?> cls) { 
+      return new MannaIntent(m, this, cls);
+   }
+   protected class MannaIntent extends Intent {
+      MannaIntent(Intent i) { 
+         super(i); 
+         if(getStringExtra("MannaXref") == null) 
+            throw new RuntimeException(
+                  "Bad motivation: Intent missing MannaXref!"); 
+      }
+
+      MannaIntent(Manna m, Intent i) {
+         super(i);
+         putExtra("MannaXref", m.toString());
+      }
+
+      MannaIntent(Manna m, Context packageContext, Class<?> cls) {
+         super(packageContext, cls);
+         putExtra("MannaXref", m.toString());
+      }
+
+      public String name() {
+         String mannaXref = toString();
+         try {
+            mannaXref = mannaXref.split("\\b")[1];
+         }
+         catch(ArrayIndexOutOfBoundsException aioobe) {
+            Log.e("MannaXref", "Failed to split manna: " + mannaXref);
+         }
+         return mannaXref;
+      }
+
+      public int chapter() { 
+         Matcher m = Pattern.compile(".*\\s+(\\d+)").matcher(toString());
+         m.find();
+         return Integer.parseInt(m.group(1)); 
+      }
+
+      public int verse() { 
+         Matcher m = Pattern.compile(".*\\d+:(\\d+)").matcher(toString());
+         m.find();
+         return Integer.parseInt(m.group(1)); 
+      }
+
+      public String toString() { return getStringExtra("MannaXref"); }
+
+      public boolean equals(Object m) {
+         return m.toString().equals(this.toString());
+      }
+
+      public int hashCode() { return toString().hashCode(); }
+   }
 }

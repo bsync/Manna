@@ -17,34 +17,30 @@ public class BookBrowser extends MannaActivity
                          implements View.OnClickListener {
 
    public void onCreate(Bundle savedInstanceState) { 
-      Canon bookCanon = CanonBrowser.theCanon;
-      Intent bbIntent = getIntent();
-      String divisionName = bbIntent.getStringExtra("division");
-      selectedSet = bookCanon.selectSet(divisionName);
-      session.put(selectedSet.toString(), bbIntent);
+      MannaIntent bookIntent = getMannaIntent();
+      bookSet = CanonBrowser.theCanon.selectSet(bookIntent.name());
       super.onCreate(savedInstanceState);
    }
-   private BookSet selectedSet;
+   private BookSet bookSet;
 
    public void onClick(View v) {
       String selection = (((Button) v).getText()).toString();
-      Intent chapterIntent = new Intent(this, ChapterBrowser.class);
-      chapterIntent.putExtra("Book", selection);
-      BookBrowser.this.startActivity(chapterIntent);
+      Book b = bookSet.select(selection);
+      startActivity(newMannaIntent(b, ChapterBrowser.class));
    }
 
-   protected String mannaRef() { return selectedSet.toString(); }
-   protected int mannaCount() { return selectedSet.count(); }
    protected Fragment newFragment() {
       return new ListFragment() {
          @Override
          public void onActivityCreated(Bundle savedInstanceState) {
             super.onActivityCreated(savedInstanceState);
-            setListAdapter(new BookAdapter(selectedSet.books()));
+            setListAdapter(new BookAdapter(bookSet.books()));
          }
 
       };
    }
+
+   protected int fragCount() { return bookSet.count(); }
 
    private class BookAdapter extends ArrayAdapter<Book> {
 

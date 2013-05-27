@@ -17,13 +17,11 @@ public class ChapterBrowser extends MannaActivity
                             implements View.OnKeyListener{ 
 
    public void onCreate(Bundle savedInstanceState) { 
-      Intent chIntent = getIntent();
-      String bookName = chIntent.getStringExtra("Book");
-      cManna = CanonBrowser.theCanon.select(bookName);
-      session.put(cManna.toString(), chIntent);
+      MannaIntent chapterIntent = getMannaIntent();
+      bookManna = CanonBrowser.theCanon.select(chapterIntent.name());
       super.onCreate(savedInstanceState);
    }
-   private Book cManna;
+   private Book bookManna;
    private GridView chapterGrid;
 
    public boolean onKey(View v, int keyCode, KeyEvent event) {
@@ -52,8 +50,7 @@ public class ChapterBrowser extends MannaActivity
    private int chpButtonsPerRow = 4;
    private boolean longPress = false;
 
-   protected String mannaRef() { return cManna.toString(); }
-   protected int mannaCount() { return 1; }
+   protected int fragCount() { return 1; }
    protected Fragment newFragment() {
       return new Fragment() {
          @Override
@@ -61,7 +58,7 @@ public class ChapterBrowser extends MannaActivity
                                   ViewGroup container,
                                   Bundle savedInstanceState) {
             List<Integer> numbers = new ArrayList<Integer>();
-            for(int i = 1; i <= cManna.count(); i++) { numbers.add(i); }
+            for(int i = 1; i <= bookManna.count(); i++) { numbers.add(i); }
             ChapterAdapter ca = new ChapterAdapter(numbers);
             View v = inflater.inflate(R.layout.chapter_browser, 
                                       container, false);
@@ -76,9 +73,7 @@ public class ChapterBrowser extends MannaActivity
    private class ChapterAdapter extends ArrayAdapter<Integer> {
       public ChapterAdapter(List<Integer> nums) {
          super(ChapterBrowser.this, R.layout.button, nums);
-         scriptIntent = new Intent(ChapterBrowser.this, ScriptBrowser.class);
       }
-      private Intent scriptIntent;
 
       @Override
       public View getView(int position, View convertView, ViewGroup parent) {
@@ -90,22 +85,18 @@ public class ChapterBrowser extends MannaActivity
             buttonView = (Button) vi.inflate(R.layout.button, null);
          }
          Integer chapter = getItem(position);
-         if (chapter != null) { 
-            buttonView.setText(chapter.toString()); 
-            buttonView.setOnClickListener(
-               new View.OnClickListener() {
-                  public void onClick(View v) {
-                     scriptIntent.putExtra(
-                        "Book", 
-                        ChapterBrowser.this.cManna.whatIsIt());
-                     scriptIntent.putExtra(
-                        "Chapter", 
-                        Integer.parseInt(((Button) v).getText().toString()));
-                     ChapterBrowser.this.startActivity(scriptIntent);
-                  }
+         buttonView.setId(chapter);
+         buttonView.setText(chapter.toString()); 
+         buttonView.setOnClickListener(
+            new View.OnClickListener() {
+               public void onClick(View v) {
+                  int chapterId = v.getId();
+                  Chapter chapterManna = bookManna.select(chapterId);
+                  ChapterBrowser.this.startActivity(
+                     newMannaIntent(chapterManna, ScriptBrowser.class));
                }
-            );
-         }
+            }
+         );
          return buttonView;
       }
    }

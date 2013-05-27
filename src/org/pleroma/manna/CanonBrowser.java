@@ -2,8 +2,6 @@ package org.pleroma.manna;
 
 import org.pleroma.manna.R;
 import android.app.ListActivity;
-import android.content.Intent;
-import android.content.Context;
 import android.content.res.*;
 import android.graphics.Color;
 import android.graphics.drawable.*;
@@ -20,7 +18,6 @@ public class CanonBrowser extends MannaActivity
 
    public void onCreate(Bundle savedInstanceState) { 
       theCanon = new Canon(getResources().getAssets());
-      session.put(theCanon.toString(), getIntent());
       ot = theCanon.oldTestament();
       nt = theCanon.newTestament();
       super.onCreate(savedInstanceState);
@@ -29,8 +26,9 @@ public class CanonBrowser extends MannaActivity
    private OldTestament ot;
    private NewTestament nt;
 
-   protected String mannaRef() { return theCanon.toString(); }
-   protected int mannaCount() { return 1; }
+   public MannaActivity.MannaIntent getMannaIntent() { 
+      return new MannaActivity.MannaIntent(theCanon, super.getIntent());
+   }
    protected Fragment newFragment() {
       return new ListFragment() {
          @Override
@@ -42,20 +40,18 @@ public class CanonBrowser extends MannaActivity
       };
    }
 
+   protected int fragCount() { return 1; }
+
    @Override
    public void onClick(View v) {
-      Log.i("SB", "onListItemClick"); 
       String setKey = (((Button) v).getText()).toString();
-      if(theCanon.selectSet(setKey).count() > 1) {
-         Intent bookIntent 
-            = new Intent(CanonBrowser.this, BookBrowser.class);
-         bookIntent.putExtra("division", setKey);
-         CanonBrowser.this.startActivity(bookIntent);
+      BookSet bookSet = theCanon.selectSet(setKey);
+      if( bookSet.count() > 1) {
+         CanonBrowser.this.startActivity(
+            newMannaIntent(bookSet, BookBrowser.class));
       } else {
-         Intent chapterIntent 
-            = new Intent(CanonBrowser.this, ChapterBrowser.class);
-         chapterIntent.putExtra("Book", setKey);
-         CanonBrowser.this.startActivity(chapterIntent);
+         CanonBrowser.this.startActivity(
+            newMannaIntent(bookSet, ChapterBrowser.class));
       }
    }
 

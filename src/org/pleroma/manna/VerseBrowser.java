@@ -14,22 +14,22 @@ import android.util.Log;
 public class VerseBrowser extends MannaActivity {
 
    public void onCreate(Bundle savedInstanceState) {
-      Intent vbIntent = getIntent();
-      String bookName = vbIntent.getStringExtra("Book");
-      Book book = CanonBrowser.theCanon.select(bookName);
-      int intentedChapter = vbIntent.getIntExtra("Chapter", 1);
-      chapter = book.select(intentedChapter);
-      int intentedVerse = vbIntent.getIntExtra("Verse", 1);
-      verse = chapter.select(intentedVerse);
-      session.put(verse.toString(), vbIntent); 
+      MannaIntent verseIntent = getMannaIntent();
+      Book book = CanonBrowser.theCanon.select(verseIntent.name());
+      chapter = book.select(verseIntent.chapter());
       super.onCreate(savedInstanceState);
-      setCurrentItem(intentedVerse);
+      int verseNumber = verseIntent.verse();
+      Verse verse = chapter.select(verseNumber);
+      setCurrentItem(verseNumber);
    }
    private Chapter chapter;
-   private Verse verse;
 
-   protected String mannaRef() { return verse.toString(); }
-   protected int mannaCount() { return 1; }
+   protected void onMannaSelected(int whichManna) { 
+      Verse verse = chapter.select(whichManna);
+      session.push(newMannaIntent(verse, this.getClass()));
+   }
+
+   protected int fragCount() { return chapter.count(); }
    protected Fragment newFragment() {
       return new Fragment() {
          @Override

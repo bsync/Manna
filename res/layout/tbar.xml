@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Spinner xmlns:android="http://schemas.android.com/apk/res/android" 
-   android:id="@+id/titlebar"
+   android:id="@+id/session_spinner"
    android:textColor="@color/white"
    android:gravity="left"
    android:layout_width="fill_parent"
