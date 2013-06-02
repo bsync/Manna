@@ -6,24 +6,12 @@
     <application android:label="Manna" 
                  android:debuggable="true"
                  android:theme="@style/Canon">
-       <activity android:name=".CanonBrowser" 
+       <activity android:name=".MannaActivity" 
                  android:label="Manna Canon">
             <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-        <activity android:name=".BookBrowser" 
-                  android:label="Manna Books">
-        </activity>
-        <activity android:name=".ChapterBrowser" 
-                  android:label="Manna Chapters">
-        </activity>
-        <activity android:name=".ScriptBrowser" 
-                  android:label="Manna Script">
-        </activity>
-        <activity android:name=".VerseBrowser" 
-                  android:label="Manna Verse">
-        </activity>
     </application>
-</manifest> 
+</manifest>
