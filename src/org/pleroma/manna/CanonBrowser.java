@@ -1,85 +1,74 @@
 package org.pleroma.manna;
 
 import org.pleroma.manna.R;
-import android.app.ListActivity;
+import android.app.Activity;
 import android.content.res.*;
-import android.graphics.Color;
-import android.graphics.drawable.*;
+import android.content.Intent;
 import android.os.Bundle;
-import android.support.v4.app.*;
+import android.support.v4.app.Fragment;
 import android.view.*;
+import android.support.v4.app.*;
 import android.widget.*;
 import android.util.Log;
 import java.io.*;
 import java.util.*;
 
-public class CanonBrowser extends MannaActivity 
-                          implements View.OnClickListener {
-
-   public void onCreate(Bundle savedInstanceState) { 
-      theCanon = new Canon(getResources().getAssets());
+public class CanonBrowser extends MannaActivity {
+   @Override
+   public void onCreate(Bundle savedInstanceState) {
+      super.onCreate(savedInstanceState);
       ot = theCanon.oldTestament();
       nt = theCanon.newTestament();
-      super.onCreate(savedInstanceState);
    }
-   protected static Canon theCanon;
    private OldTestament ot;
    private NewTestament nt;
 
-   public MannaActivity.MannaIntent getMannaIntent() { 
-      return new MannaActivity.MannaIntent(theCanon, super.getIntent());
-   }
-   protected Fragment newFragment() {
-      return new ListFragment() {
-         @Override
-         public void onActivityCreated(Bundle savedInstanceState) {
-            super.onActivityCreated(savedInstanceState);
-            setListAdapter(new BookSetAdaptor(theCanon.bookSets()));
-         }
+   protected int getMannaFragCount() { return 1; }
 
-      };
+   protected Fragment getMannaFragment(int position) { 
+      ListFragment canonFrag = new ListFragment();
+      canonFrag.setListAdapter(new CanonAdapter());
+      return canonFrag; 
    }
 
-   protected int fragCount() { return 1; }
+   protected MannaIntent mannaIntent() { 
+      MannaIntent canonIntent 
+         = new MannaIntent(this, theCanon, CanonBrowser.class);
+      canonIntent.setAction(Intent.ACTION_MAIN);
+      return canonIntent; 
+   }
 
-   @Override
-   public void onClick(View v) {
+   public void onClick(View v) { 
       String setKey = (((Button) v).getText()).toString();
       BookSet bookSet = theCanon.selectSet(setKey);
       if( bookSet.count() > 1) {
-         CanonBrowser.this.startActivity(
-            newMannaIntent(bookSet, BookBrowser.class));
+         Log.i("CB", "Starting book browser for bookset " + setKey);
+         startActivity(new MannaIntent(this, bookSet, SetBrowser.class));
       } else {
-         CanonBrowser.this.startActivity(
-            newMannaIntent(bookSet, ChapterBrowser.class));
+         startActivity(new MannaIntent(this, bookSet, BookBrowser.class));
       }
    }
 
-   private class BookSetAdaptor extends ArrayAdapter<BookSet> {
-      public BookSetAdaptor(List<BookSet> bookSets) {
-         super(CanonBrowser.this, 0, bookSets);
+   private class CanonAdapter extends ArrayAdapter<BookSet> {
+      CanonAdapter() {
+         super(CanonBrowser.this, R.layout.button, theCanon.bookSets()); 
       }
 
       public View getView(int position, View convertView, ViewGroup parent) {
          BookSet bookSetItem = getItem(position);
-         Button buttonView = (Button) convertView;
-         LayoutInflater layoutInflater 
-           = CanonBrowser.this.getLayoutInflater();
+         Button bv = (Button) convertView;
          if(bookSetItem == ot) {
-            buttonView = 
-               (Button) layoutInflater.inflate(R.layout.ot_button, null);
+            bv = (Button) inflater.inflate(R.layout.ot_button, null);
          } else if(bookSetItem == nt) {
-            buttonView = 
-               (Button) layoutInflater.inflate(R.layout.nt_button, null);
+            bv = (Button) inflater.inflate(R.layout.nt_button, null);
          } else {
-            buttonView = 
-               (Button) layoutInflater.inflate(R.layout.button, null);
+            bv = (Button) inflater.inflate(R.layout.button, null);
          }
          int viewHeight=parent.getHeight();
-         buttonView.setHeight(viewHeight/Math.min(getCount(), 7));
-         buttonView.setText(bookSetItem.whatIsIt());
-         buttonView.setOnClickListener(CanonBrowser.this);
-         return buttonView;
+         bv.setHeight(viewHeight/Math.min(getCount(), 7));
+         bv.setText(bookSetItem.whatIsIt());
+         bv.setOnClickListener(CanonBrowser.this);
+         return bv;
       }
    }
 }

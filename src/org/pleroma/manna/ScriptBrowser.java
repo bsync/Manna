@@ -14,40 +14,40 @@ import java.util.*;
 public class ScriptBrowser extends MannaActivity {
    @Override
    protected void onCreate(Bundle savedInstanceState) {
-      MannaIntent scriptIntent = getMannaIntent();
-
-      book = CanonBrowser.theCanon.select(scriptIntent.name());
-      chapter = book.select(scriptIntent.chapter());
       super.onCreate(savedInstanceState);
-      setCurrentItem(scriptIntent.chapter());
+      Book book = theCanon.select(super.mannaIntent().name());
+      int c = super.mannaIntent().chapter();
+      chapterManna = book.select(c);
+      int v = super.mannaIntent().verse();
+      page(v);
    }
-   private Book book;
-   private Chapter chapter;
+   private Chapter chapterManna;
 
-   protected int fragCount() { return chapter.count(); }
-   protected Fragment newFragment() {
-      return new ListFragment() {
-         @Override
-         public void onActivityCreated(Bundle savedInstanceState) {
-            super.onActivityCreated(savedInstanceState);
-            cNum = getArguments() != null ? getArguments().getInt("pos") : 1;
-            setListAdapter(new VerseAdapter(book.select(cNum)));
-         }
-         private int cNum;
-
-         @Override
-         public void onListItemClick(ListView l, View v, int pos, long id) {
-            Verse vs = chapter.select(pos+1);
-            startActivity(newMannaIntent(vs, VerseBrowser.class));
+   protected int getMannaFragCount() { return chapterManna.count(); }
+   protected Fragment getMannaFragment(int pos) {
+      Fragment verseFrag = new Fragment() {
+         public View onCreateView(LayoutInflater inf, 
+                                  ViewGroup container,
+                                  Bundle savedInstanceState) {
+            TextView tv = (TextView) inf.inflate(R.layout.scriptview, null);
+            tv.setText(getArguments().getString("vtext"));
+            return tv;
          }
       };
+      Bundle b = new Bundle();
+      b.putString("vtext", chapterManna.select(pos+1).whatIsIt());
+      verseFrag.setArguments(b);
+
+      return verseFrag;
    }
 
-   protected void onMannaSelected(int whichManna) { 
-      chapter = book.select(whichManna);
-      session.push(newMannaIntent(chapter, this.getClass()));
+   protected MannaIntent mannaIntent() {
+      Verse v = chapterManna.select(page());
+      MannaIntent sIntent = new MannaIntent(this, v, ScriptBrowser.class);
+      return sIntent;
    }
 
+   /*
    private class VerseAdapter extends ArrayAdapter<Verse> {
       public VerseAdapter(Chapter chapter) { 
          super(ScriptBrowser.this, 0, chapter.manna());
@@ -69,5 +69,6 @@ public class ScriptBrowser extends MannaActivity {
          return textView;
       }
    }
+   */
 }
 

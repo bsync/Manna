@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Button xmlns:android="http://schemas.android.com/apk/res/android" 
-   android:singleLine="true"
+   android:singleLine="false"
+   android:textSize="12sp"
+   android:gravity="left"
    android:layout_height="fill_parent"
    android:layout_width="fill_parent"
    android:background="@drawable/solid_blue"
-   android:textColor="@color/lime"/>
+   android:textColor="@color/white"/>

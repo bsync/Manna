@@ -9,9 +9,9 @@ import java.util.regex.*;
 public class MannaIntent extends Intent {
    MannaIntent(Intent i) { super(i); }
 
-   MannaIntent(Manna m, MannaFragment mf) {
-      super(mf.getActivity().getIntent());
-      putExtra("layout", mf.getId());
+   MannaIntent(Context c, Manna m, Class<?> comClass) {
+      super(c, comClass);
+      Log.i("MI", "Using putExtra with " + m.toString());
       putExtra("MannaXref", m.toString());
    }
 

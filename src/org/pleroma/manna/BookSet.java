@@ -1,5 +1,6 @@
 package org.pleroma.manna;
 import java.util.*;
+import android.util.Log;
 
 public class BookSet extends Manna<Book> {
    public BookSet(Spirit IAM) { super(IAM); }

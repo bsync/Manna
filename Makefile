@@ -3,7 +3,7 @@ test: local.properties Meribah/local.properties emulator assets
 	cd Meribah; ant debug install test 
 
 .phony: install  
-install:	${HOME}/.android/avd/default.ini emulator build
+install:	${HOME}/.android/avd/mannadroid.ini emulator build
 	ant installd 
 
 EMU:=$(shell pgrep -f mannadroid)

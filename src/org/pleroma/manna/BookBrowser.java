@@ -13,39 +13,41 @@ import java.util.*;
 import java.lang.Math;
 import android.util.Log;
 
-public class BookBrowser extends MannaActivity 
-                         implements View.OnClickListener {
-
+public class BookBrowser extends MannaActivity {
    public void onCreate(Bundle savedInstanceState) { 
-      MannaIntent bookIntent = getMannaIntent();
-      bookSet = CanonBrowser.theCanon.selectSet(bookIntent.name());
       super.onCreate(savedInstanceState);
+      books = theCanon.books();
+      Book currentBook = theCanon.select(super.mannaIntent().name());
+      pageIndex(books.indexOf(currentBook));
    }
-   private BookSet bookSet;
+   private List<Book> books;
+
+   protected int getMannaFragCount() { return books.size(); }
+
+   protected Fragment getMannaFragment(int position) {
+      Book book = books.get(position);
+      ListFragment bFrag = new ListFragment();
+      bFrag.setListAdapter(new BookAdapter(book.count()));
+      return bFrag;
+   }
+
+   protected MannaIntent mannaIntent() {
+      Book currentBook = books.get(pageIndex());
+      return new MannaIntent(this, currentBook, BookBrowser.class);
+   }
 
    public void onClick(View v) {
-      String selection = (((Button) v).getText()).toString();
-      Book b = bookSet.select(selection);
-      startActivity(newMannaIntent(b, ChapterBrowser.class));
+      Book currentBook = books.get(pageIndex());
+      int chapterId = v.getId();
+      Chapter c = currentBook.select(chapterId);
+      startActivity(new MannaIntent(this, c, ChapterBrowser.class));
    }
 
-   protected Fragment newFragment() {
-      return new ListFragment() {
-         @Override
-         public void onActivityCreated(Bundle savedInstanceState) {
-            super.onActivityCreated(savedInstanceState);
-            setListAdapter(new BookAdapter(bookSet.books()));
-         }
+   private class BookAdapter extends ArrayAdapter<Integer> {
 
-      };
-   }
-
-   protected int fragCount() { return bookSet.count(); }
-
-   private class BookAdapter extends ArrayAdapter<Book> {
-
-      public BookAdapter(List<Book> bookSet) {
-         super(BookBrowser.this, R.layout.button, bookSet);
+      public BookAdapter(int bookCount) {
+         super(BookBrowser.this, R.layout.button);
+         for(int i = 1; i <= bookCount; i++) { add(i); }
       }
 
       @Override
@@ -59,11 +61,10 @@ public class BookBrowser extends MannaActivity
             int viewHeight=parent.getHeight();
             buttonView.setHeight(viewHeight/Math.min(getCount(), 7));
          }
-         Book selection = getItem(position);
-         if (selection != null) { 
-            buttonView.setText(selection.whatIsIt()); 
-            buttonView.setOnClickListener(BookBrowser.this);
-         }
+         Integer chapter = getItem(position);
+         buttonView.setId(chapter);
+         buttonView.setText(chapter.toString()); 
+         buttonView.setOnClickListener(BookBrowser.this);
          return buttonView;
       }
    }

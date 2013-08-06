@@ -1,7 +1,7 @@
 package org.pleroma.manna;
 
 import org.pleroma.manna.R;
-import android.app.Activity;
+import android.app.ListActivity;
 import android.content.Intent;
 import android.content.Context;
 import android.content.res.*;
@@ -13,66 +13,41 @@ import android.util.Log;
 import java.io.*;
 import java.util.*;
 
-public class ChapterBrowser extends MannaActivity 
-                            implements View.OnKeyListener{ 
+public class ChapterBrowser extends MannaActivity {
 
    public void onCreate(Bundle savedInstanceState) { 
-      MannaIntent chapterIntent = getMannaIntent();
-      bookManna = CanonBrowser.theCanon.select(chapterIntent.name());
       super.onCreate(savedInstanceState);
+      bookManna = theCanon.select(super.mannaIntent().name());
+      page(super.mannaIntent().chapter());
    }
    private Book bookManna;
-   private GridView chapterGrid;
 
-   public boolean onKey(View v, int keyCode, KeyEvent event) {
-      if(keyCode != KeyEvent.KEYCODE_SEARCH) return false;
-      if(event.getAction() == KeyEvent.ACTION_DOWN) { 
-         if(event.isLongPress()) {
-            longPress = true;
-            Log.i("Manna", "Captured long key event for " + keyCode);
-            if(chpButtonsPerRow < 6) { 
-               chapterGrid.setNumColumns(++chpButtonsPerRow); 
-            }
-            KeyEvent.changeAction(event, KeyEvent.ACTION_DOWN);
-         }
-      }
-      else if(event.getAction() == KeyEvent.ACTION_UP) {
-         if(longPress == false) {
-            if(chpButtonsPerRow > 3) { 
-               chapterGrid.setNumColumns(--chpButtonsPerRow); 
-            }
-            Log.i("Manna", "Captured short key event for " + keyCode);
-         }
-         longPress = false;
-      }
-      return true;
-   }
-   private int chpButtonsPerRow = 4;
-   private boolean longPress = false;
+   protected int getMannaFragCount() { return bookManna.count(); }
 
-   protected int fragCount() { return 1; }
-   protected Fragment newFragment() {
-      return new Fragment() {
-         @Override
-         public View onCreateView(LayoutInflater inflater, 
-                                  ViewGroup container,
-                                  Bundle savedInstanceState) {
-            List<Integer> numbers = new ArrayList<Integer>();
-            for(int i = 1; i <= bookManna.count(); i++) { numbers.add(i); }
-            ChapterAdapter ca = new ChapterAdapter(numbers);
-            View v = inflater.inflate(R.layout.chapter_browser, 
-                                      container, false);
-            chapterGrid = (GridView) v.findViewById(R.id.chapterview);
-            chapterGrid.setAdapter(ca);
-            chapterGrid.setOnKeyListener(ChapterBrowser.this);
-            return v;
-         }
-      };
+   protected Fragment getMannaFragment(int position) { 
+      Chapter currentChapter = bookManna.select(position+1);
+      ChapterAdapter ca = new ChapterAdapter(currentChapter);
+      ListFragment chapterFrag = new ListFragment();
+      chapterFrag.setListAdapter(ca);
+      return chapterFrag;
    }
 
-   private class ChapterAdapter extends ArrayAdapter<Integer> {
-      public ChapterAdapter(List<Integer> nums) {
-         super(ChapterBrowser.this, R.layout.button, nums);
+   protected MannaIntent mannaIntent() {
+      Chapter currentChapter = bookManna.select(page());
+      return new MannaIntent(this, currentChapter, ChapterBrowser.class);
+   }
+
+   public void onClick(View v) {
+      int verseId = v.getId();
+      Chapter chapterManna = bookManna.select(page());
+      Verse verseManna = chapterManna.select(verseId);
+      Log.i("CB", "Launching intent for " + verseManna);
+      startActivity(new MannaIntent(this, verseManna, ScriptBrowser.class));
+   }
+
+   private class ChapterAdapter extends ArrayAdapter<Verse> {
+      public ChapterAdapter(Chapter cmanna) {
+         super(ChapterBrowser.this, R.layout.button, cmanna.manna());
       }
 
       @Override
@@ -82,21 +57,12 @@ public class ChapterBrowser extends MannaActivity
             LayoutInflater vi = 
                (LayoutInflater)
                   getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-            buttonView = (Button) vi.inflate(R.layout.button, null);
+            buttonView = (Button) vi.inflate(R.layout.chapter_button, null);
+            buttonView.setOnClickListener(ChapterBrowser.this);
          }
-         Integer chapter = getItem(position);
-         buttonView.setId(chapter);
-         buttonView.setText(chapter.toString()); 
-         buttonView.setOnClickListener(
-            new View.OnClickListener() {
-               public void onClick(View v) {
-                  int chapterId = v.getId();
-                  Chapter chapterManna = bookManna.select(chapterId);
-                  ChapterBrowser.this.startActivity(
-                     newMannaIntent(chapterManna, ScriptBrowser.class));
-               }
-            }
-         );
+         Verse verse = getItem(position);
+         buttonView.setText(verse.whatIsIt()); 
+         buttonView.setId(verse.number);
          return buttonView;
       }
    }

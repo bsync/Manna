@@ -6,12 +6,24 @@
     <application android:label="Manna" 
                  android:debuggable="true"
                  android:theme="@style/Canon">
-       <activity android:name=".MannaActivity" 
-                 android:label="Manna Canon">
+       <activity android:name=".CanonBrowser" 
+                 android:label="Canon Browser">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+       <activity android:name=".SetBrowser" 
+                 android:label="Set Browser">
+       </activity>
+       <activity android:name=".BookBrowser" 
+                 android:label="Book Browser">
+       </activity>
+       <activity android:name=".ChapterBrowser" 
+                 android:label="Chapter Browser">
+       </activity>
+       <activity android:name=".ScriptBrowser" 
+                 android:label="Script Browser">
+       </activity>
     </application>
 </manifest>
