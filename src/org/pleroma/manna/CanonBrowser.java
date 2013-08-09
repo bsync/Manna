@@ -45,7 +45,8 @@ public class CanonBrowser extends MannaActivity {
          Log.i("CB", "Starting book browser for bookset " + setKey);
          startActivity(new MannaIntent(this, bookSet, SetBrowser.class));
       } else {
-         startActivity(new MannaIntent(this, bookSet, BookBrowser.class));
+         Book b = bookSet.books().get(0);
+         startActivity(new MannaIntent(this, b, BookBrowser.class));
       }
    }
 
