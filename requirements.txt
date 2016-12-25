@@ -1,0 +1,8 @@
+flask
+GitPython==0.3.2.1
+argparse==1.2.1
+gitdb==0.6.0
+WTForms==2.1
+Flask-Bootstrap==3.3.7.0
+dominate==2.3.0
+visitor==0.1.3
