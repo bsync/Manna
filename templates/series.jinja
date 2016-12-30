@@ -1,0 +1,48 @@
+{% extends "base.jinja" %}
+{% block scripts %} {{ super() }}
+   <style type="text/css"> .important { color: #336699; } </style>
+   {{ InitDataTable("series") }}
+{% endblock %}
+{% block content %}
+   <div align="center">
+    {% if series.selection %}
+       <video autoplay="True" controls="True" 
+              height="476" width="640">
+          <source src="{{ url_for('static', filename=series.selection.path) }}" 
+                  type="video/mp4">
+          </source>
+       </video>
+    {% else %}
+       <h2 class="important" style="color: red"> 
+            Select a lesson from the {{ series }} series below: 
+       </h2>
+    {% endif %}
+   </div>
+   </br>
+
+   <ul class="nav nav-tabs">
+     <li class="active"><a data-toggle="tab" href="#lessons">Series Lessons</a></li>
+     <li><a data-toggle="tab" href="#scripture">Scripture</a></li>
+   </ul>
+
+   <div class="tab-content">
+     <div id="lessons" class="tab-pane fade in active">
+         <table id="series">
+            <thead><tr> <th>Series</th><th>Lesson</th><th>Age</th> </tr></thead>
+            <tbody>
+               {% for lesson in series.lessons %}
+                     <tr>
+                         <td>{{ lesson.series }}</td>
+                         <td><a href="{{ lesson.rurl }}">{{ lesson }}</a></td>
+                         <td> {{ lesson.age }} </td>
+                     </tr>
+                 {% endfor %}
+            </tbody>
+         </table>
+     </div>
+     <div id="scripture" class="tab-pane fade">
+         <iframe src="/scripture" height="500" width="100%"></iframe>
+     </div>
+   </div>
+   <a href="/"> Back to the Front!</a>
+{% endblock %}

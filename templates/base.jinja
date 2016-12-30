@@ -1,0 +1,37 @@
+{% extends "bootstrap/base.html" %}
+{% macro InitDataTable(name) -%}
+   <script type="text/javascript" class="init">
+      $(document).ready(function() { 
+         $('#{{ name }}').DataTable(); 
+      } ); </script>
+{%- endmacro %}
+
+{% block scripts %}
+{{super()}}
+    <script src="//cdn.datatables.net/1.10.12/js/jquery.dataTables.min.js"> </script>
+{% endblock %}
+
+{% block styles %}
+{{super()}}
+    <link href="//cdn.datatables.net/1.10.12/css/jquery.dataTables.min.css" rel="stylesheet"> 
+{% endblock %}
+
+{% block title %}Manna{% endblock %}
+
+{% block navbar %}
+<div class="navbar navbar-fixed-top">
+      <!-- ... -->
+</div>
+{% endblock %}
+
+{% block content %}
+{% endblock %}
+
+{%- block footer %}
+  <p>
+     Powered by the <a href="http://flask.pocoo.org">Flask</a> microframework 
+     and the Holy Spirit!
+     </br>
+     &copy; Copyright 2016 by <a href="/">Pleroma Bible Church</a>.
+  </p>
+{%- endblock footer %}

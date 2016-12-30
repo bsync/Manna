@@ -1,0 +1,22 @@
+{% extends "base.jinja" %}
+{% block scripts %} {{ super() }}
+    {{ InitDataTable("catalog") }}
+{% endblock %}
+{% block content %}
+	<h1>Series Catalog:</h1>
+   <table id="catalog">
+      <thead><tr> <th>Series</th> <th>Lessons</th> </tr>
+        <tr>
+            <td><a href="/catalog/latest">{{ catalog.latest }}</a></td>
+            <td> {{ catalog.latest|count }} </td>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ser in catalog.series() %}
+            <tr>
+                <td><a href="/catalog/{{ ser }}">{{ ser }}</a></td>
+                <td> {{ ser|count }} </td>
+            </tr>
+        {% endfor %}
+   </table>
+{% endblock %}

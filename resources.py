@@ -1,6 +1,7 @@
 import os, re, fnmatch
 from datetime import date
 import urllib 
+import moviepy.editor
 
 class PathResource(object):
     def __init__(self, path, name=None):
@@ -41,22 +42,55 @@ class PathResource(object):
     def  __repr__(self):
         return self.path
 
-class Lesson(PathResource):
-    @property
-    def series(self):
-        return os.path.basename(os.path.dirname(self.path))
+class Catalog(PathResource):
 
     @property
-    def tags(self):
-        import mutagen.mp4
-        return mutagen.mp4.Open(self.path)
+    def latest(self):
+        series = Series(self.path, name="Latest Lessons")
+        series.sortBy('upload_date')
+        series.limit=10
+        return series
 
-    @property
-    def rurl(self):
-        return urllib.quote(os.path.join(self.series, self.name))
+    def series(self, named=None):
+        if named:
+            if named == 'latest':
+                return self.latest
+            else:
+                return { ser.name:ser for ser in self.series() }[named]
+        else:
+            return [ Series(x) for x in self.directories ]
 
 class Series(PathResource):
     limit = None
+    def __init__(self, path, name=None):
+        """ Normalize the series by renaming the lesson files.
+
+            The lesson files of the series are renamed so that there are no
+            spaces and the lesson numbers in each file name are padded with
+            zeros so that they all have the same number of digits.
+        """
+        PathResource.__init__(self, path, name)
+        mpFiles = self.filesMatching("*.mp*")
+        dlimitPat = "%%0.%dd" % len(str(len(mpFiles))) #number of digits in number of mpFiles
+        def dlimit(x):
+            return dlimitPat % int(x.group())
+        dPat = re.compile(ur'(\d+)')
+        for mpFile in mpFiles:
+            spacelessFile = os.path.basename(mpFile).replace(" ", "")
+            normfile = re.sub(dPat, dlimit, spacelessFile, count=1)
+            opath = mpFile
+            npath = os.path.join(self.path, normfile)
+            #If the original path is different from the normalized path
+            if opath != npath: 
+                #and if they both share the same directory
+                if os.path.dirname(opath) == os.path.dirname(npath):
+                    #and if the normalized path does NOT already exist
+                    if not os.path.exists(npath):
+                        #then rename the original path to the normalized path
+                        os.rename(opath, npath)
+                        print "Renamed %s to %s" % (opath, npath)
+                    else:
+                        print "Refused to clobber %s with %s" % (npath, opath)
 
     @property
     def lessons(self, named=None):
@@ -75,61 +109,35 @@ class Series(PathResource):
             namedLesson = { l.name:l for l in self.lessons }[named]
             return namedLesson
 
-    def normalize(self, dlen=None):
-        """ normalize the series by renaming the lesson files.
-
-            The lesson files of the series are renamed so that there are no
-            spaces and the lesson numbers in each file name are padded with
-            zeros so that they all have the same number of digits.
-        """
-        if not dlen: dlen=len(str(len(self)))
-        dlimitPat = "%%0.%dd" % dlen
-        def dlimit(x):
-            return dlimitPat % int(x.group())
-        dPat = re.compile(ur'(\d+)')
-        for lesson in self.lessons:
-            spacelessFile = os.path.basename(lesson.path).replace(" ", "")
-            normfile = re.sub(dPat, dlimit, spacelessFile, count=1)
-            opath = lesson.path
-            npath = os.path.join(self.path, normfile)
-            #If the original path is different from the normalized path
-            if opath != npath: 
-                #and if they both share the same directory
-                if os.path.dirname(opath) == os.path.dirname(npath):
-                    #and if the normalized path does NOT already exist
-                    if not os.path.exists(npath):
-                        #then rename the original path to the normalized path
-                        os.rename(opath, npath)
-                        print "Renamed %s to %s" % (opath, npath)
-                    else:
-                        print "Refused to clobber %s with %s" % (npath, opath)
-
     def sortBy(self, attr_name):
         pass
 
     def __len__(self):
         return len(self.lessons)
 
-class Catalog(PathResource):
+class Lesson(PathResource):
+    @property
+    def series(self):
+        return os.path.basename(os.path.dirname(self.path))
 
     @property
-    def latest(self):
-        series = Series(self.path, name="Latest Lessons")
-        series.sortBy('upload_date')
-        series.limit=10
-        return series
+    def tags(self):
+        import mutagen.mp4
+        return mutagen.mp4.Open(self.path)
 
-    def series(self, named=None):
-        if named:
-            if named == 'latest':
-                return self.latest
-            else:
-                namedSeries = { ser.name:ser for ser in self.series() }[named]
-                #Normalizing the series ensures all lessons are properly named
-                namedSeries.normalize()
-                return namedSeries
-        else:
-            return [ Series(x) for x in self.directories ]
+    @property
+    def rurl(self):
+        return urllib.quote(os.path.join(self.series, self.name))
+
+    @property
+    def mp3(self):
+        mp3Path = os.path.splitext(self.path)[0]+'.mp3'
+        if not os.path.exists(mp3Path):
+            try:
+                clip = moviepy.editor.VideoFileClip(self.path).subclip(20).audio
+            except KeyError: #This can happen if the Lesson is already audio only!
+                clip = moviepy.editor.AudioFileClip(self.path)
+            clip.write_audiofile(mp3Path, bitrate='80k', ffmpeg_params=['-ac','1'])
 
 class Scripture(PathResource):
    def __init__(self, path):
