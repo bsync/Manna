@@ -3,6 +3,8 @@
 .PHONY: instructions
 instructions: venv
 	@echo "First source the virtual environment ('source venv/bin/activate')!"
+	@echo "Then make one of the following targets:"
+	@echo " mannadev - Runs manna flask app locally in debug mode."
 
 venv:
 	[ $$(which virtualenv) ] || sudo pip install virtualenv
@@ -18,11 +20,18 @@ active_venv: venv
 		echo "Virtual Environment not correct:"; $(MAKE) instructions; exit 2; \
 	fi
 
-mannadev: active_venv
-	FLASK_APP=manna.py FLASK_DEBUG=1 flask run 
-	
-mannadock:
-	docker run -it --net=host -v $(PWD):/code -v /media/jthorine/logostore/Pleroma/lessons:/code/lessons alpython:v5_flaskrun
+massah:
+	PYTHONPATH=$(shell pwd) py.test --ignore=venv
 
+massah-local:
+	PYTHONPATH=$(shell pwd) py.test --ignore=venv -k test_local_catalog
+
+massah-s3:
+	PYTHONPATH=$(shell pwd) py.test --ignore=venv -k test_s3_catalog
+
+mannadev: active_venv
+	#FLASK_APP=manna.py FLASK_DEBUG=1 flask run 
+	PYTHONPATH=$(shell pwd) python manna.py
+	
 print-%:
 	@echo '$*=$($*)'

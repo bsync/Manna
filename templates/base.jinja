@@ -7,22 +7,37 @@
 {%- endmacro %}
 
 {% block scripts %}
-{{super()}}
-    <script src="//cdn.datatables.net/1.10.12/js/jquery.dataTables.min.js"> </script>
+   {{super()}}
+
+	
+	<!-- Jquery CDN scripts -->
+	<script src="https://code.jquery.com/jquery-3.2.1.min.js"
+			  integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
+			  crossorigin="anonymous"></script>
+	<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"
+  			  integrity="sha256-VazP97ZCwtekAsvgPBSUwPFKdrwD3unUfSGVYrahUqU="
+  			  crossorigin="anonymous"></script>
+	<script src="/static/jquery.blockUI.js"></script>
+	<link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+	<script src="/static/js.cookie.js"></script>
+
+	<!-- Datatables CDN script -->
+   <script src="http://cdn.datatables.net/1.10.12/js/jquery.dataTables.min.js"> </script>
+
+	<!-- Bootstrap CDN script -->
+	<script src="http://netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/js/bootstrap.min.js"></script>
+
 {% endblock %}
 
 {% block styles %}
-{{super()}}
-    <link href="//cdn.datatables.net/1.10.12/css/jquery.dataTables.min.css" rel="stylesheet"> 
+   {{super()}}
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <link href="/static/manna.css" rel="stylesheet"> 
+   <link href="//cdn.datatables.net/1.10.12/css/jquery.dataTables.min.css" rel="stylesheet"> 
+	<link href="http://netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/css/bootstrap-combined.min.css"> 
 {% endblock %}
 
 {% block title %}Manna{% endblock %}
-
-{% block navbar %}
-<div class="navbar navbar-fixed-top">
-      <!-- ... -->
-</div>
-{% endblock %}
 
 {% block content %}
 {% endblock %}

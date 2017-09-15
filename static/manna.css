@@ -1,0 +1,11 @@
+body {
+    background-image: url("tabernacle.jpg");
+    background-color: #cccccc;
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    margin:10%;
+}
+
+table td, table tr, table th{
+   background: transparent !important;
+}

@@ -1,0 +1,53 @@
+import pytest
+import os, shutil
+import resources
+import moto
+
+def test_catalog_fallback():
+    with pytest.raises(IOError):
+        cat = resources.Catalog("s3://non-existant")
+
+@pytest.fixture
+def local_catalog():
+    cat = resources.Catalog("/tmp/massah")
+    yield cat
+    shutil.rmtree("/tmp/massah", ignore_errors=True)
+    
+def test_local_catalog(local_catalog):
+    _test_catalog(local_catalog)
+
+@pytest.fixture
+def remote_catalog():
+    mocks3 = moto.mock_s3()
+    mocks3.start()
+    cat = resources.Catalog("s3://massah")
+    yield cat
+    cat.rm()
+    mocks3.stop()
+
+def test_s3_catalog(remote_catalog):
+    _test_catalog(remote_catalog)
+
+def _test_catalog(cat):
+    assert cat.listing == [ ]
+    cat.addSeries("seriesA", description="A Test series")
+    cat.addSeries("seriesB", "Another Test series")
+
+    assert cat.listing == [ "seriesA", "seriesB" ]
+
+    import pdb; pdb.set_trace()
+    seriesList = cat.series()
+    assert len(seriesList) == 2
+    assert seriesList[0].name == 'seriesA'
+    assert seriesList[1].name == 'seriesB'
+    seriesA = seriesList[0]
+    seriesB = seriesList[1]
+
+    _test_series(*seriesList)
+
+def _test_series(seriesA, seriesB):
+    dirpath = os.path.dirname(__file__)
+    assert seriesA.listing + seriesB.listing == []
+    seriesA.addLesson(os.path.join(dirpath,"Lesson#001.mp4"))
+    seriesA.addLesson(os.path.join(dirpath,"Lesson#002.mp4"))
+    assert seriesA.listing == [ "Lesson#001.mp4", "Lesson#002.mp4" ]
