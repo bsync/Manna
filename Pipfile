@@ -1,0 +1,21 @@
+[[source]]
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+flask = "*"
+python-dotenv = "*"
+bs4 = "*"
+ffmpy = "*"
+requests = "*"
+dominate = "*"
+python-dateutil = "*"
+
+[dev-packages]
+jedi = "*"
+neovim = "*"
+ipython = "*"
+
+[requires]
+python_version = "3.7"

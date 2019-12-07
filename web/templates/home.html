@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block extrastyle %} 
+   .mcontainer {
+      display: grid;
+      grid-template-rows: 1fr auto;
+      grid-gap: 10px;
+      grid-template-areas: "image" "notices";
+   }
+   .image {
+      grid-area: image;
+      background-color: darkblue; 
+      padding: 5px; 
+      border-radius: 15px;
+      width: 100%;
+   }
+   .verse {
+      background-color: darkblue; color: white;
+      border: 2px solid #ffa94d;
+      border-radius: 15px;
+      padding: 5px; 
+   }
+   .notices { 
+      grid-area: notices;
+      background-color: black; color: red;
+      border: 2px solid #ffa94d;
+      border-radius: 15px;
+      width: 100%;
+      padding: 5px; 
+   }
+   .events { 
+      background-color: lightgray; color: black;
+      border-radius: 15px;
+      width: 100%;
+      padding: 5px;
+   }
+   .events > ul { list-style: none; padding-left: 0px; }
+   .events > ul > li { padding-bottom: 5px; padding-top: 5px; }
+   .events > b > a { color: black; }
+   .para { 
+      background-color: lightgray; color: black;
+      border-radius: 15px;
+      padding: 8px;
+      margin: 5px; 
+      text-align: left;
+   }
+{% endblock %}
+{% block content %}
+      {% block main %}
+         <div class="mcontainer">
+           <div class="image">
+               {# image page.image height-200 style="display: block; width: 100%; " #}
+               <div class="verse"> <b>{# page.verse|richtext#}</b> </div>
+           </div>
+           <div class="notices">
+              {# page.notice|richtext #}
+           </div>
+         </div>
+      {% endblock %}
+      {% block sidebar %}
+      <div class="events">
+         <b>Upcoming Events:</b>
+         {% if evtBlocks %}
+            <ul>
+            {% for eblock in evtBlocks %}
+               <li> 
+                  <a href="{# evtPage #}#{#eblock.id#}">
+                     {# eblock.value.section|truncatechars:25 #}</a> - 
+                  {# eblock.value.start_date|date:'m-d' #}
+               </li>
+            {% endfor %}
+            </ul>
+         {% else %}
+         <br> Stay tuned...<br>
+         <br>
+         {% endif %}
+         <b>Recent Activity:</b>
+         <ul>
+         {% for repage in recent_pages %}
+            <li> 
+               <a href="{#repage.url#}">
+                  {# repage.title|truncatechars:25 #}</a> - 
+               {# repage.pub_date|date:'m-d' #} 
+            </li>
+         {% endfor %}
+         </ul>
+         <b><a href="/media/lessons/">Latest Lessons:</a></b>
+         <ul> 
+            {% for lesson in lessons %}
+            <li> 
+               {#lesson.album_name#} : </br>
+               <a href="{#lesson.url#}">{#lesson.name#}</a> 
+            </li>
+            {% endfor %}
+         </ul>
+      </div>
+      {% endblock %}
+      {% block footer %}
+      <div class="para">
+         <div class="block"> {# page.paragraph|richtext #} </div>
+      </div>  
+      {% endblock %}
+{% endblock %}

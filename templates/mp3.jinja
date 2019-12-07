@@ -1,9 +1,0 @@
-{% extends "base.jinja" %}
-{% block scripts %} {{ super() }}
-	 <script>
-		$(function () { $("#content").load("{{selection.mp3.url}}"); });
-	 </script>
-{% endblock %}
-{% block content %}
-	<div id="content">Loading...</div>
-{% endblock %}

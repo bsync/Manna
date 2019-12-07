@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html class="no-js">
+    <head>
+        <meta charset="utf-8" />
+        <title>
+            {% block title %} {# self.title #} {% endblock %}
+        </title>
+        <meta name="description" content="" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+         <style>
+            {# image backdrop width-400 as tmp_photo #}
+            body {background-image: url({{ config.BACKGROUND }});
+                  background-position: center;
+                  background-attachment: fixed;
+                  background-size: cover;
+                  font-size: 20px; 
+                  background-color: #ccc; color: black; }
+            .navbar { margin: auto;
+                      border-radius: 15px; 
+                      background-color: darkblue; 
+                      color: white; }
+            .navbar-nav > li > .dropdown-menu { border-radius: 25px;
+                                                background-color: black; 
+                                                padding: 10px; }
+            .navbar-nav > li a { color: yellow; 
+                                 padding: 10px; 
+                                 white-space: nowrap; }
+            .navbar-nav > ul { padding-left:30px; padding-right:30px; }
+            
+            .container {
+               display: grid;
+               grid-template-rows: auto;
+               grid-column-gap: 10px;
+               grid-template-areas: 
+                  "header header header header"
+                  "main main main sidebar"
+                  "footer footer footer sidebar";
+            }
+            @media only screen and (max-width: 800px)  {
+               .container {
+                  grid-template-areas:
+                      "header   header"
+                      "main     main"
+                      "sidebar  sidebar"
+                      "footer   footer";
+                                 }
+            }
+   .header { 
+      grid-area: header; 
+      border-radius: 15px;
+         text-align: center;
+            margin: 5px;
+            }
+            .main { 
+               grid-area: main; 
+               background-color: grey; 
+               border-radius: 15px;
+               width: 100%;
+               margin: 5px; padding: 5px;
+            }
+            .sidebar { 
+               grid-area: sidebar; 
+               margin: 5px; padding: 5px;
+               border-radius: 15px;
+            }
+            .footer { grid-area: footer; }
+         {% block extrastyle %} {% endblock %}
+         </style>
+    </head>
+    <body> 
+    <div class="container">
+       <div class="header">
+       {% block header %}
+         <nav class="navbar navbar-expand-sm">
+               <!-- Brand/Logo -->
+               <a class="navbar-brand" href="/">Pleroma</a>
+               <!-- Navbar toggler  -->
+               <button class="navbar-toggler hamburger hamburger-js" 
+                        type="button" data-toggle="collapse"
+                        data-target="#navbar_main" 
+                        aria-controls="navbarsExampleDefault" 
+                        aria-expanded="false"
+                        aria-label="Toggle navigation">
+                        <span class="hamburger-box">
+                           <span class="hamburger-inner"></span>
+                        </span>
+               </button>
+               <div id="navbar">
+                  {% block menu %} 
+                     {# main_menu #} 
+                  {% endblock %}
+               </div>
+         </nav>
+       {% endblock %}
+       </div>
+       <div class="main"> {% block main %} {% endblock %} </div>
+       <div class="sidebar"> {% block sidebar %} {% endblock %} </div>
+       <div class="footer"> {% block footer %} {% endblock %} </div>
+    </div>
+       <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+       <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+       <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+       <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+        {% block extra_js %}
+            {# Override this in templates to add extra javascript #}
+        {% endblock %}
+    </body>
+</html>
