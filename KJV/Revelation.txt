@@ -623,13 +623,13 @@ hupomena -
 11:14 The second woe is past; and, behold, the third woe cometh quickly.
 
 11:15 And the seventh angel sounded; and there were great voices in heaven,
-		saying, The kingdoms of this world are become the kingdoms of our Lord,
-		and of his Christ; and he shall reign for ever and ever.
+saying, The kingdoms of this world are become the kingdoms of our Lord, and of
+his Christ; and he shall reign for ever and ever.
 
 11:16 And the four and twenty elders, which sat before God on their seats, fell
-		upon their faces, and worshipped God, 11:17 Saying, We give thee thanks, O
-		LORD God Almighty, which art, and wast, and art to come; because thou hast
-		taken to thee thy great power, and hast reigned.
+upon their faces, and worshipped God, 11:17 Saying, We give thee thanks, O LORD
+God Almighty, which art, and wast, and art to come; because thou hast taken to
+thee thy great power, and hast reigned.
 
 11:18 And the nations were angry, and thy wrath is come, and the time of the
 		dead, that they should be judged, and that thou shouldest give reward unto
@@ -939,13 +939,13 @@ hupomena -
 17:4 And the woman was arrayed in purple and scarlet colour, and decked with
 	  gold and precious stones and pearls, having a golden cup in her hand full
 	  of abominations and filthiness of her fornication:
+
 17:5 And upon her forehead was a name written, MYSTERY, BABYLON THE GREAT, THE
 	  MOTHER OF HARLOTS AND ABOMINATIONS OF THE EARTH.
 
 17:6 And I saw the woman drunken with the blood of the saints, and with the
 	  blood of the martyrs of Jesus: and when I saw her, I wondered with great
-	  admiration.
-
+	  admiration.  
 17:7 And the angel said unto me, Wherefore didst thou marvel? I will tell thee
 	  the mystery of the woman, and of the beast that carrieth her, which hath
 	  the seven heads and ten horns.
