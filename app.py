@@ -20,13 +20,13 @@ db = flask_mongoengine.MongoEngine(app)
 lm = flask_login.LoginManager(app)
 lm.login_view = '/login'
 
-class AUser(flask_login.UserMixin):
-    def get_id(self):
+class AUser(flask_login.UserMixin): 
+    def get_id(self): 
         return 0
 
 @lm.user_loader
 def load_user(user_id):
-    if flask.session['maywatch']:
+    if flask.session.get(flask.request.path):
         return AUser()
     else:
         return None
@@ -78,19 +78,26 @@ def login():
     requested_page = flask.request.args.get('next')
     requested_name = unquote(requested_page.split('/')[2])
     form = forms.PasswordForm()
+    error = ""
     if form.validate_on_submit():
-        flask.session['maywatch'] = form.passMatches(requested_name)
-        return flask.redirect(requested_page)
-
+        if form.passMatches(requested_name):
+            flask_login.login_user(AUser(requested_name))
+            return flask.redirect(requested_page)
+        else:
+            error = f"Login with '{form.data['guessword']}' failed for '{requested_name}'"
     page = pages.Page("Password")
     with page.body:
-        ptag.attr(style="background-color:black; color:red; text-align: left;")
+        ptag.attr(style="background-color:black; color:white; text-align: left;")
         ptag.h1("Pleroma Bible Church")
         ptag.h2(f"Provide password to access album '{requested_name}'")
-        with ptag.form(method="POST", action=""):
+        with ptag.form(method="POST"):
             praw(str(form.hidden_tag()))
-            praw(f"{form.guessword.label} : {form.guessword(size=32)}")
+            praw(f"{form.guessword.label} : {form.guessword(size=10)}")
             praw(str(form.submit()))
+            ptag.br()
+            if error: ptag.p(f"{error}")
+            ptag.br()
+            ptag.a("Back to the Front", href="/")
 
     return page.render()
 
