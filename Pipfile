@@ -4,13 +4,16 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-flask = "*"
+Flask = "*"
 python-dotenv = "*"
 bs4 = "*"
 ffmpy = "*"
 requests = "*"
 dominate = "*"
 python-dateutil = "*"
+Flask-PyMongo = "*"
+flask-mongoengine = "*"
+flask-basicauth = "*"
 
 [dev-packages]
 jedi = "*"
