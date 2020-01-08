@@ -20,14 +20,23 @@ db = flask_mongoengine.MongoEngine(app)
 lm = flask_login.LoginManager(app)
 lm.login_view = '/login'
 
-class AUser(flask_login.UserMixin): 
+class PageUser(flask_login.UserMixin): 
+    def __init__(self, page):
+        self.page = page
+
+    def knowsPassword(self, guess):
+        if unquote(self.page).endswith(guess):
+            flask.session[self.page]=True
+        return self.page in flask.session
+
     def get_id(self): 
         return 0
 
 @lm.user_loader
 def load_user(user_id):
-    if flask.session.get(flask.request.path):
-        return AUser()
+    rp = flask.request.path
+    if flask.session.get(rp):
+        return PageUser(rp)
     else:
         return None
 
@@ -75,21 +84,20 @@ def video_page(album, video):
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    requested_page = flask.request.args.get('next')
-    requested_name = unquote(requested_page.split('/')[2])
-    form = forms.PasswordForm()
     error = ""
+    form = forms.PasswordForm()
+    pUser = PageUser(flask.request.args.get('next'))
     if form.validate_on_submit():
-        if form.passMatches(requested_name):
-            flask_login.login_user(AUser(requested_name))
-            return flask.redirect(requested_page)
+        if pUser.knowsPassword(form.data['guessword']):
+            flask_login.login_user(pUser)
+            return flask.redirect(pUser.page)
         else:
-            error = f"Login with '{form.data['guessword']}' failed for '{requested_name}'"
+            error = f"Login with '{form.data['guessword']}' failed for '{pUser.page}'"
     page = pages.Page("Password")
     with page.body:
         ptag.attr(style="background-color:black; color:white; text-align: left;")
         ptag.h1("Pleroma Bible Church")
-        ptag.h2(f"Provide password to access album '{requested_name}'")
+        ptag.h2(f"Provide password to access '{unquote(pUser.page)}'")
         with ptag.form(method="POST"):
             praw(str(form.hidden_tag()))
             praw(f"{form.guessword.label} : {form.guessword(size=10)}")
