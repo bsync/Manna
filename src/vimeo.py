@@ -3,7 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dateutil.parser import parse as dparse
 from datetime import datetime
 import os, sys, subprocess, requests, urllib, pathlib
-from app import db as mdb
+from main import db as mdb
 
 def vimeo_fetch(aurl, fparams=None, ah={}):
     ah.update(Host='api.vimeo.com')
