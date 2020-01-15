@@ -25,6 +25,7 @@ class VimeoRecord(mdb.Document):
 
     @classmethod
     def latest(cls, cnt):
+        sync_latest()
         return cls.objects().order_by('-create_date')[:cnt]
 
 
@@ -96,7 +97,7 @@ def reset_and_resync_all(self):
     AlbumRecord.drop_collection()
     VideoRecord.drop_collection()
     VimeoRecord.drop_collection()
-    self.sync_latest()
+    sync_latest()
 
 
 def sync_latest():

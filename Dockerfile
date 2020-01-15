@@ -9,6 +9,6 @@ FROM base
 COPY --from=builder /install /usr/local
 #dateutil package doesn't seem to honor prefix so reinstall it here
 RUN pip install python-dateutil  
-COPY src /app
 WORKDIR /app
-CMD ["gunicorn", "-b 0.0.0.0:8000", "-w 4", "main:app"]
+COPY src/ .
+ENTRYPOINT [ "./serve" ]

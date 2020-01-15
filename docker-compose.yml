@@ -1,13 +1,14 @@
 version: '2'
 services:
   manna:
+    container_name: manna
     build: .
+    volumes:
+       - ./src/:/app
     ports:
       - "8000:8000"
     depends_on: 
       - mongodb
-    volumes:
-      - .:/app
   mongodb:
     image: 'bitnami/mongodb:4.0'
     ports:

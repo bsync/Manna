@@ -5,16 +5,15 @@ import pages
 from pages import tags as ptag
 from pages import raw as praw
 from urllib.parse import quote, unquote
+from werkzeug.debug import DebuggedApplication
 
 app = flask.Flask(__name__)
 app.config.from_object("config")
-app.config['DEBUG'] = True
-app.config['SECRET_KEY'] = 'super-secret'
-
-# MongoDB Config
-app.config['MONGODB_DB'] = 'pleromadb'
-#app.config['MONGODB_HOST'] = 'localhost'
-#app.config['MONGODB_PORT'] = 27017
+if app.debug:
+   print("FLask running in debug mode!")
+   app.wsgi_app = DebuggedApplication(app.wsgi_app, evalex=True)
+else:
+   print("Flask running in production mode!")
 
 db = flask_mongoengine.MongoEngine(app)
 lm = flask_login.LoginManager(app)
@@ -44,6 +43,7 @@ import vimeo, forms
 
 @app.route("/")
 def root():
+    if app.debug: import pdb; pdb.set_trace() 
     page = pages.Page("Lessons", datatable="latest_table")
     with page.body:
         ptag.attr(style="background-color:black; color:blue;")
