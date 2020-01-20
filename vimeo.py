@@ -93,14 +93,11 @@ class AlbumRecord(VimeoRecord):
         return (f"AlbumRecord of {self.name} dated {self.create_date}" +
                 f"containing videos {self.vidoes}")
 
-
-
-def reset_and_resync_all(self):
+def reset_and_resync_all():
     AlbumRecord.drop_collection()
     VideoRecord.drop_collection()
     VimeoRecord.drop_collection()
     sync_latest()
-
 
 def sync_latest():
     lainfo = vimeo_fetch('/me/albums', 
