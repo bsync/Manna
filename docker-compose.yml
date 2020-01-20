@@ -4,11 +4,13 @@ services:
     container_name: manna
     build: .
     volumes:
-       - ./src/:/app
+       - ./:/app
+       - ./static:/static
     ports:
       - "8000:8000"
     depends_on: 
       - mongodb
+    env_file: secrets
   mongodb:
     image: 'bitnami/mongodb:4.0'
     ports:

@@ -1,9 +1,11 @@
+import os, sys, subprocess, requests, urllib, pathlib
+import flask_mongoengine 
 from ffmpy import FFmpeg
 from concurrent.futures import ThreadPoolExecutor
 from dateutil.parser import parse as dparse
 from datetime import datetime
-import os, sys, subprocess, requests, urllib, pathlib
-from main import db as mdb
+
+mdb = flask_mongoengine.MongoEngine()
 
 def vimeo_fetch(aurl, fparams=None, ah={}):
     ah.update(Host='api.vimeo.com')
@@ -105,6 +107,7 @@ def sync_latest():
                          fparams={'fields': "uri,name,embed,created_time",
                                   'sort': "date",
                                   'direction': "desc"})
+    if 'data' not in lainfo: raise RuntimeError("No data response from vimeo.")
     while('data' in lainfo):
         for ainfo in lainfo['data']: 
             try:

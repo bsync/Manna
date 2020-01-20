@@ -10,5 +10,5 @@ COPY --from=builder /install /usr/local
 #dateutil package doesn't seem to honor prefix so reinstall it here
 RUN pip install python-dateutil  
 WORKDIR /app
-COPY src/ .
+COPY *.py serve ./
 ENTRYPOINT [ "./serve" ]
