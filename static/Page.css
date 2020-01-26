@@ -1,0 +1,40 @@
+body { background-color: grey; }
+.banner { 
+  padding 5px; 
+  border: 2px solid blue;
+  border-radius: 25px;
+}
+.banner a, .banner a:visited { color: yellow; }
+.banner h3 { color: white; }
+
+a:visited { color: midnightblue; }
+a { color: mediumblue; }
+
+table { 
+    background-color: blue; 
+    border: 3px solid black; 
+}
+table.dataTable tbody tr { 
+    background-color: gray; 
+    color: black;
+    text-align: left;
+    margin: 10px; 
+}
+
+.grid-container {
+  display: grid;
+  grid-template-rows: auto;
+                        
+  grid-gap: 10px;
+  background-color: darkgray;
+  padding: 10px;
+}
+
+.grid-container > div {
+  background-color: gray;
+  color: yellow;
+  text-align: center;
+  padding: 10px;
+  font-size: 30px;
+}
+

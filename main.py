@@ -11,7 +11,7 @@ except Exception as e:
 load_dotenv()
 
 def create_app(config=None):
-    app = flask.Flask(__name__)
+    app = flask.Flask(__name__, static_url_path="/manna/static")
     app.config.from_object("config")
     print(f"FLask running in {app.env} mode!")
     vimeo.mdb.init_app(app)
