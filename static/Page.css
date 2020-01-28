@@ -21,7 +21,7 @@ table.dataTable tbody tr {
     margin: 10px; 
 }
 
-.grid-container {
+.row-container {
   display: grid;
   grid-template-rows: auto;
                         
@@ -30,7 +30,7 @@ table.dataTable tbody tr {
   padding: 10px;
 }
 
-.grid-container > div {
+.row-container > div {
   background-color: gray;
   color: yellow;
   text-align: center;
@@ -38,3 +38,12 @@ table.dataTable tbody tr {
   font-size: 30px;
 }
 
+.footer {
+  display: grid;
+  grid-template-columns: auto auto auto;
+  justify-content: space-evenly;
+                        
+  grid-gap: 10px;
+  background-color: darkgray;
+  padding: 10px;
+}

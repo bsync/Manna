@@ -39,17 +39,17 @@ class Page(dom.document):
     @tags.div
     def footer(self):
         tags.attr(cls="footer")
-        tags.h3(tags.a("Latest", href="/manna"))
-        tags.h3(tags.a("Catalog", href="/manna/albums"))
-        tags.h3(tags.a("Back to the Front", href="/joomla"))
+        tags.a("Latest", href="/manna")
+        tags.a("Catalog", href="/manna/albums")
+        tags.a("Back to the Front", href="/joomla")
 
 
 class LatestLessons(Page):
     def __init__(self, count):
         super().__init__("Lessons", table_id="latest_table")
-        with self.body.add(tags.div(cls="grid-container")):
+        with self.body.add(tags.div(cls="row-container")):
             self.banner("Latest Lessons")
-            with tags.div(cls="main"):
+            with tags.div():
                 self.vidTable(
                     lambda : vimeo.VideoRecord.latest(count),
                     "latest_table")
@@ -82,7 +82,7 @@ class VideoPlayer(Page):
     def __init__(self, album, video):
         vid = vimeo.AlbumRecord.named(album).videoNamed(video)
         super().__init__(f"Lesson {vid.name} of {vid.album.name}")
-        with self.body.add(tags.div(cls="grid-container")):
+        with self.body.add(tags.div(cls="row-container")):
             self.banner(f"{vid.name} of {vid.album.name}")
             tags.div(raw(vid.html))
             self.footer()
@@ -93,7 +93,7 @@ class LoginPage(Page):
         super().__init__("Password")
         self.target = target
         self.form = forms.PasswordForm()
-        with self.body.add(tags.div(cls="grid-container")):
+        with self.body.add(tags.div(cls="row-container")):
             tname=os.path.split(target)[-1]
             self.banner(f"Provide password to access '{unquote(tname)}'")
             with tags.form(method="POST"):
@@ -122,7 +122,7 @@ class Album(Page):
     def __init__(self, album):
         alb = vimeo.AlbumRecord.named(album)
         super().__init__(f"Lessons of {alb.name}")
-        with self.body.add(tags.div(cls="grid-container")):
+        with self.body.add(tags.div(cls="row-container")):
             self.banner(f"{alb.name}")
             raw(alb.html)
             self.footer()
@@ -131,10 +131,12 @@ class Album(Page):
 class Catalog(Page):
     def __init__(self):
         super().__init__("Series", table_id="album_table")
-        with self.body.add(tags.div(cls="grid-container")):
+        with self.body.add(tags.div(cls="row-container")):
             self.banner("Series Catalog")
-            with tags.div(cls="main"):
-                self.seriesTable(lambda : vimeo.AlbumRecord.objects, "album_table")
+            with tags.div():
+                self.seriesTable(
+                    lambda : vimeo.AlbumRecord.objects, 
+                    "album_table")
             self.footer()
 
     @tags.table
