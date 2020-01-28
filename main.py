@@ -30,15 +30,6 @@ def create_app(config=None):
         else:
             return None
 
-    @app.route("/manna/")
-    def root():
-        return pages.LatestLessons(10).render()
-
-    @app.route("/manna/albums/<album>/videos/<video>") 
-    #@flask_login.login_required
-    def video_page(album, video):
-        return pages.VideoPlayer(album, video).render()
-
     @app.route('/manna/login', methods=['GET', 'POST'])
     def login():
         lp = pages.LoginPage(flask.request.args.get('next'))
@@ -52,11 +43,24 @@ def create_app(config=None):
         else:
             return lp.render()
 
+    @app.route("/manna/")
+    def root():
+        return pages.LatestLessons(10).render()
+
+    @app.route("/manna/albums")
+    def album_catalog():
+        return pages.Catalog().render()
+
     @app.route("/manna/albums/<album>")
     @flask_login.login_required
     def album_page(album):
         return pages.Album(album).render()
-    
+
+    @app.route("/manna/albums/<album>/videos/<video>") 
+    #@flask_login.login_required
+    def video_page(album, video):
+        return pages.VideoPlayer(album, video).render()
+
     return app
 
 if __name__ == "__main__":
