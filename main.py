@@ -44,23 +44,26 @@ def create_app(config=None):
                 flask.session[unquote(lp.target)]=True
                 return flask.redirect(lp.target)
             else:
-                return lp.render()
+                return str(lp)
         else:
-            return lp.render()
+            return str(lp)
 
     @app.route("/manna/")
     def latest_vids_page():
-        vids = vimeo.VideoRecord.latest(10)
-        return pages.LatestLessons(vids).render()
+        try: #to query vids
+            vids = vimeo.VideoRecord.latest(10)
+        except Exception as err:
+            vids = None
+        return str(pages.LatestLessons(vids))
 
     @app.route("/manna/latest/<video>") 
     def latest_page(video):
         video = vimeo.VideoRecord.objects(uri__contains=video).first()
-        return pages.VideoPlayer(video).render()
+        return str(pages.VideoPlayer(video))
 
     @app.route("/manna/albums")
     def catalog_page():
-        return pages.Catalog(vimeo.AlbumRecord.objects).render()
+        return str(pages.Catalog(vimeo.AlbumRecord.objects))
 
     @app.route("/manna/albums/edit")
     @flask_login.login_required
@@ -71,12 +74,12 @@ def create_app(config=None):
     @flask_login.login_required
     def series_page(album):
         alb = vimeo.AlbumRecord.named(album)
-        return pages.Album(alb).render()
+        return str(pages.Album(alb))
 
     @app.route("/manna/videos/<video>") 
     @flask_login.login_required
     def video_page(video):
-        return pages.VideoPlayer(video).render()
+        return str(pages.VideoPlayer(video))
 
     @app.route("/manna/albums/<album>/audios/<audio>") 
     def audio_response(album, audio):

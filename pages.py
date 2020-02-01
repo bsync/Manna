@@ -65,14 +65,16 @@ class LatestLessons(Page):
         self.use_table("latest_table", order=[[0,"desc"]])
         with self.container:
             self.banner("Latest Lessons")
-            try: #to query vids
-                with tags.table(id="latest_table"):
-                    with tags.thead():
-                        tags.th("Date", _class="dt-head-left")
-                        tags.th("Name", _class="dt-head-left")
-                        tags.th("Album", _class="dt-head-left")
-                        tags.th("Duration", _class="dt-head-left")
-                    with tags.tbody():
+            with tags.table(id="latest_table"):
+                with tags.thead():
+                    tags.th("Date", _class="dt-head-left")
+                    tags.th("Name", _class="dt-head-left")
+                    tags.th("Album", _class="dt-head-left")
+                    tags.th("Duration", _class="dt-head-left")
+                with tags.tbody():
+                    if len(vids) == 0:
+                        tags.h3("No Connection to Videos, try again later...")
+                    else: 
                         for x in vids: 
                             with tags.tr():
                                 tags.attr()
@@ -82,9 +84,6 @@ class LatestLessons(Page):
                                 aurl = quote(f"albums/{x.album.name}")
                                 tags.td(tags.a(x.album.name, href=aurl))
                                 tags.td(f"{int(x.duration/60)} mins")
-            except Exception as err:
-                tags.div(
-                    tags.h3("No Connection to Videos, try again later..."))
             self.footer()
 
 
