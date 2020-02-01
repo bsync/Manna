@@ -4,9 +4,10 @@ from urllib.parse import unquote
 from dotenv import load_dotenv 
 try:
     import passcheck
-    passcheck("fail early", "if it passcheck doesn't work")
+    passcheck("fail early", "if passcheck doesn't work")
 except Exception as e:
-    passcheck = lambda t,p : unquote(t).endswith(p)
+    #passcheck = lambda t,p : unquote(t).endswith(p)
+    passcheck = None
 
 load_dotenv()
 
@@ -16,7 +17,7 @@ def create_app(config=None):
     print(f"FLask running in {app.env} mode!")
     vimeo.mdb.init_app(app)
     lm = flask_login.LoginManager(app)
-    lm.login_view = 'login'
+    lm.login_view = 'auth'
 
     class PageUser(flask_login.UserMixin): 
         def get_id(self): 
@@ -24,19 +25,23 @@ def create_app(config=None):
 
     @lm.user_loader
     def load_user(user_id):
-        rp = flask.request.path
-        if flask.session.get(rp):
+        if flask.session.get(flask.request.path):
             return PageUser()
         else:
             return None
 
-    @app.route('/manna/login', methods=['GET', 'POST'])
-    def login():
-        lp = pages.LoginPage(flask.request.args.get('next'))
+    @app.route('/manna/auth', methods=['GET', 'POST'])
+    def auth():
+        target = flask.request.args.get('next')
+        if passcheck is None: 
+            flask_login.login_user(PageUser())
+            flask.session[unquote(target)]=True
+            return flask.redirect(target)
+        lp = pages.PasswordPage(target)
         if lp.hasValidSubmission:
             if passcheck(lp.target, lp.guess):
                 flask_login.login_user(PageUser())
-                flask.session[lp.target]=True
+                flask.session[unquote(lp.target)]=True
                 return flask.redirect(lp.target)
             else:
                 return lp.render()
@@ -44,22 +49,40 @@ def create_app(config=None):
             return lp.render()
 
     @app.route("/manna/")
-    def root():
-        return pages.LatestLessons(10).render()
+    def latest_vids_page():
+        vids = vimeo.VideoRecord.latest(10)
+        return pages.LatestLessons(vids).render()
+
+    @app.route("/manna/latest/<video>") 
+    def latest_page(video):
+        video = vimeo.VideoRecord.objects(uri__contains=video).first()
+        return pages.VideoPlayer(video).render()
 
     @app.route("/manna/albums")
-    def album_catalog():
-        return pages.Catalog().render()
+    def catalog_page():
+        return pages.Catalog(vimeo.AlbumRecord.objects).render()
+
+    @app.route("/manna/albums/edit")
+    @flask_login.login_required
+    def catalog_edit_page():
+        return str(pages.Catalog(vimeo.AlbumRecord.objects, edit=True))
 
     @app.route("/manna/albums/<album>")
     @flask_login.login_required
-    def album_page(album):
-        return pages.Album(album).render()
+    def series_page(album):
+        alb = vimeo.AlbumRecord.named(album)
+        return pages.Album(alb).render()
 
-    @app.route("/manna/albums/<album>/videos/<video>") 
-    #@flask_login.login_required
-    def video_page(album, video):
-        return pages.VideoPlayer(album, video).render()
+    @app.route("/manna/videos/<video>") 
+    @flask_login.login_required
+    def video_page(video):
+        return pages.VideoPlayer(video).render()
+
+    @app.route("/manna/albums/<album>/audios/<audio>") 
+    def audio_response(album, audio):
+        def generate_mp3():
+            yield 'This feature is coming soon!'
+        return flask.Response(generate_mp3(), mimetype="text/plain")
 
     return app
 

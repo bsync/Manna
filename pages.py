@@ -6,29 +6,40 @@ from dominate.util import raw
 from urllib.parse import quote, unquote
 
 class Page(dom.document):
-    def __init__(self, title, table_id=None):
+
+    def __new__(_cls, *args, **kwargs):
+        "Disables decorators from this subclass onward."
+        return object.__new__(_cls)
+
+    def __init__(self, title):
         doc = super().__init__(title)
         with self.head:
             for css in [ "Page.css", f"{type(self).__name__}.css" ]:
                 if os.path.exists(f"static/{css}"):
                     tags.link(rel="stylesheet", type="text/css", 
                               href=flask.url_for('static', filename=css))
-            if table_id:
-                self._use_table(table_id, "1.10.20")
+            tags.script("""
+                function edit(event, slink) { 
+                    if (event.shiftKey)
+                        window.location.href = slink.href.concat('/edit')
+                    return true; 
+                }
+            """)
 
-    def _use_table(self, table_id, version):
+    def use_table(self, table_id, **options):
         with self.head:
             tags.script(crossorigin="anonymous",
                         src="https://code.jquery.com/jquery-3.4.1.slim.min.js")
-            cdnbase = f"https://cdn.datatables.net/{version}"
+            cdnbase = f"https://cdn.datatables.net/1.10.20"
             tags.link(rel="stylesheet", type="text/css", 
                       href=cdnbase + "/css/jquery.dataTables.css")
+            tags.link(rel="stylesheet", type="text/css", 
+                      href=flask.url_for('static', filename="tables.css"))
             tags.script(type="text/javascript", charset="utf8",
                         src=cdnbase + "/js/jquery.dataTables.js")
-            tags.script("$(document).ready( function () { $('#"
-                         + "{}".format(table_id) 
-                         + "').DataTable(); } );",
-                             type="text/javascript")
+            tags.script("$(document).ready( function () { "
+               + f"$('#{table_id}').DataTable({options});" + "});",
+                        type="text/javascript")
 
     @tags.div
     def banner(self, subtitle):
@@ -36,73 +47,72 @@ class Page(dom.document):
         tags.h2(tags.a("Tullahoma Bible Church", href="/joomla")) 
         tags.h3(subtitle) 
 
+    @property
+    def container(self):
+        return self.body.add(tags.div(cls="row-container"))
+
     @tags.div
     def footer(self):
         tags.attr(cls="footer")
         tags.a("Latest", href="/manna")
-        tags.a("Catalog", href="/manna/albums")
         tags.a("Back to the Front", href="/joomla")
+        tags.a("Catalog", href="/manna/albums", onclick="edit(event, this)")
 
 
 class LatestLessons(Page):
-    def __init__(self, count):
-        super().__init__("Lessons", table_id="latest_table")
-        with self.body.add(tags.div(cls="row-container")):
+    def __init__(self, vids):
+        super().__init__("Lessons")
+        self.use_table("latest_table", order=[[0,"desc"]])
+        with self.container:
             self.banner("Latest Lessons")
-            with tags.div():
-                self.vidTable(
-                    lambda : vimeo.VideoRecord.latest(count),
-                    "latest_table")
+            try: #to query vids
+                with tags.table(id="latest_table"):
+                    with tags.thead():
+                        tags.th("Date", _class="dt-head-left")
+                        tags.th("Name", _class="dt-head-left")
+                        tags.th("Album", _class="dt-head-left")
+                        tags.th("Duration", _class="dt-head-left")
+                    with tags.tbody():
+                        for x in vids: 
+                            with tags.tr():
+                                tags.attr()
+                                tags.td(str(x.create_date))
+                                vurl = quote(f"latest/{x.vimid}")
+                                tags.td(tags.a(x.name, href=vurl))
+                                aurl = quote(f"albums/{x.album.name}")
+                                tags.td(tags.a(x.album.name, href=aurl))
+                                tags.td(f"{int(x.duration/60)} mins")
+            except Exception as err:
+                tags.div(
+                    tags.h3("No Connection to Videos, try again later..."))
             self.footer()
-
-    @tags.table
-    def vidTable(self, vids, tbl_id):
-        try: #to query vids
-            tags.attr(id=tbl_id)
-            with tags.thead():
-                tags.th("Date", _class="dt-head-left")
-                tags.th("Name", _class="dt-head-left")
-                tags.th("Album", _class="dt-head-left")
-                tags.th("Duration", _class="dt-head-left")
-            with tags.tbody():
-                for x in vids(): 
-                    with tags.tr():
-                        tags.attr()
-                        tags.td(str(x.create_date))
-                        vurl = quote(f"albums/{x.album.name}/videos/{x.name}")
-                        tags.td(tags.a(x.name, href=vurl))
-                        aurl = quote(f"albums/{x.album.name}")
-                        tags.td(tags.a(x.album.name, href=aurl))
-                        tags.td(f"{int(x.duration/60)} mins")
-        except Exception as err:
-            tags.div(tags.h3("No Connection to Videos, try again later..."))
 
 
 class VideoPlayer(Page):
-    def __init__(self, album, video):
-        vid = vimeo.AlbumRecord.named(album).videoNamed(video)
+    def __init__(self, vid):
         super().__init__(f"Lesson {vid.name} of {vid.album.name}")
-        with self.body.add(tags.div(cls="row-container")):
+        with self.container:
             self.banner(f"{vid.name} of {vid.album.name}")
             tags.div(raw(vid.html))
+            tags.div(
+                tags.a("click to play audio?",
+                        href="/manna/albums/{album.name}/audios/{vid.name}"))
             self.footer()
 
 
-class LoginPage(Page):
+class PasswordPage(Page):
     def __init__(self, target):
         super().__init__("Password")
-        self.target = target
-        self.form = forms.PasswordForm()
-        with self.body.add(tags.div(cls="row-container")):
-            tname=os.path.split(target)[-1]
-            self.banner(f"Provide password to access '{unquote(tname)}'")
-            with tags.form(method="POST"):
-                raw(str(self.form.hidden_tag()))
-                raw(f"{self.form.guessword.label} : {self.form.guessword(size=10)}")
-                raw(str(self.form.submit()))
+        self.form = forms.PasswordForm(
+                    'Provide password to access "'
+                    + f'{unquote(os.path.split(target)[-1])}"')
+        with self.container:
+            self.banner("Authorization Required")
+            with self.form.as_dom_tag:
                 tags.br()
                 tags.p(f"{self.error}")
             self.footer()
+        self.target = target
 
     @property
     def guess(self):    
@@ -119,41 +129,41 @@ class LoginPage(Page):
 
 
 class Album(Page):
-    def __init__(self, album):
-        alb = vimeo.AlbumRecord.named(album)
+    def __init__(self, alb):
         super().__init__(f"Lessons of {alb.name}")
-        with self.body.add(tags.div(cls="row-container")):
+        with self.container: 
             self.banner(f"{alb.name}")
             raw(alb.html)
             self.footer()
 
 
 class Catalog(Page):
-    def __init__(self):
-        super().__init__("Series", table_id="album_table")
-        with self.body.add(tags.div(cls="row-container")):
+    def __init__(self, series, edit=False):
+        super().__init__("Series")
+        self.use_table("album_table")
+        with self.container:
             self.banner("Series Catalog")
-            with tags.div():
-                self.seriesTable(
-                    lambda : vimeo.AlbumRecord.objects, 
-                    "album_table")
+            if edit:
+                self.form=forms.CatalogEditor()
+                tags.div(self.form.as_dom_tag)
+            try: #to query albums
+                with tags.table(id="album_table"):
+                    with tags.thead():
+                        tags.th("Date", _class="dt-head-left")
+                        tags.th("Album", _class="dt-head-left")
+                        tags.th("Lesson Count", _class="dt-head-left")
+                    with tags.tbody():
+                        @tags.tr
+                        def _row(x):
+                            tags.td(str(x.create_date))
+                            tags.td(tags.a(x.name, 
+                                    href=quote(f"/manna/albums/{x.name}"),
+                                    onclick="edit(event, this)"))
+                            tags.td(f"{len(x.videos)}")
+                        for x in series: _row(x)
+            except Exception as err:
+                tags.div(
+                    tags.h3("No Connection to Catalog, try again later..."))
             self.footer()
+    
 
-    @tags.table
-    def seriesTable(self, albums, tbl_id):
-        try: #to query albums
-            tags.attr(id=tbl_id)
-            with tags.thead():
-                tags.th("Date", _class="dt-head-left")
-                tags.th("Album", _class="dt-head-left")
-                tags.th("Lesson Count", _class="dt-head-left")
-            with tags.tbody():
-                for x in albums(): 
-                    with tags.tr():
-                        tags.attr()
-                        tags.td(str(x.create_date))
-                        aurl = quote(f"albums/{x.name}")
-                        tags.td(tags.a(x.name, href=aurl))
-                        tags.td(f"{len(x.videos)}")
-        except Exception as err:
-            tags.div(tags.h3("No Connection to Series, try again later..."))

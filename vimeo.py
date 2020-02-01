@@ -30,11 +30,57 @@ class VimeoRecord(mdb.Document):
         sync_latest()
         return cls.objects().order_by('-create_date')[:cnt]
 
+    @classmethod
+    def latest2(cls, cnt):
+        info = vimeo_fetch('/me/videos', 
+                           fparams={'fields': "uri,name,embed,created_time",
+                                    'sort': "date",
+                                    'direction': "desc"})
+        if 'data' not in info: 
+            raise RuntimeError("No data response from vimeo.")
+        while('data' in info):
+            for vinfo in info['data']: 
+                try:
+                    vid = VideoRecord.objects(uri=vinfo['uri']).first()
+                    if not vid:
+                        vid = VideoRecord(uri=vinfo['uri'], 
+                                          name=vinfo['name'],
+                                          html=vinfo['embed']['html'],
+                                          create_date=vinfo['created_time'],)
+                    if not vid.update(vinfo['name']): break;
+                except mdb.ValidationError as mve:
+                   print(f"Skipping import of {vinfo['name']} due to {mve}")
+            nextpage = info.get('paging', {}).get('next', False)
+            if nextpage:
+                info = vimeo_fetch(nextpage)
+            else:
+                info = {}
+
 
 class VideoRecord(VimeoRecord):
     albums = mdb.ListField(mdb.ReferenceField('AlbumRecord'))
     duration = mdb.IntField(required=True)
    
+    def update(self, name, albums):
+        if name != self.name:
+            self.name = name
+
+        vainfo = vimeo_fetch(f"{self.uri}/albums/")
+        while('data' in vainfo):
+            for ainfo in vainfo['data']: 
+                alb = AlbumRecord.objects(uri=ainfo['uri']).first()
+                if not alb:
+                    alb = AlbumRecord(uri=ainfo['uri'], 
+                                      name=ainfo['name'],
+                                      html=ainfo['embed']['html'],
+                                      create_date=ainfo['created_time'],)
+                    alb.save()
+                if alb not in self.albums: 
+                    self.albums.append(alb)
+                    updated=True
+            updated=True
+        return updated
+        
     @classmethod 
     def matching_id(cls, vimid):
         return cls.objects(uri=f"/videos/{vimid}").first()
@@ -60,10 +106,11 @@ class AlbumRecord(VimeoRecord):
 
     def synchronize(self):
         avinfo = vimeo_fetch(f"{self.uri}/videos",
-                             fparams={'fields': "uri,name,embed,created_time,duration,"
-                                              + "metadata.connections.albums",
-                                       'sort': "date",
-                                       'direction': "desc"})
+                             fparams={'fields': 
+                                      "uri,name,embed,created_time,duration,"
+                                      + "metadata.connections.albums",
+                                      'sort': "date",
+                                      'direction': "desc"})
         while ('data' in avinfo):
             for vinfo in avinfo['data']:
                 try:
@@ -74,7 +121,10 @@ class AlbumRecord(VimeoRecord):
                                           html=vinfo['embed']['html'],
                                           create_date=vinfo['created_time'],
                                           duration=vinfo['duration'])
-                        print(f"Created video {vid.name} for album {self.name}")
+                        print(f"Created vid {vid.name} for album {self.name}")
+                    else:
+                        #Update existing vid with any potential changes...
+                        vid.name = vinfo['name']
                     if vid not in self.videos: self.videos.append(vid)
                     if self not in vid.albums: vid.albums.append(self)
                     vid.save()
