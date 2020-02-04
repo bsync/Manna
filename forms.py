@@ -5,7 +5,7 @@ from flask_wtf import FlaskForm
 from wtforms.validators import DataRequired
 
 class DomForm(FlaskForm):
-    submit = wtforms.SubmitField('Submit')
+    submitField = wtforms.SubmitField('Submit')
 
     def __init__(self, title=None):
         super().__init__()
@@ -32,5 +32,16 @@ class PasswordForm(DomForm):
     guessword = wtforms.PasswordField("Password", validators=[DataRequired()])
 
 class CatalogEditor(DomForm):
-    series = wtforms.StringField("Series", validators=[DataRequired()])
-    submit = wtforms.SubmitField('Add')
+    seriesField = wtforms.StringField("Series", validators=[DataRequired()])
+    descriptField = wtforms.StringField("Description", 
+                                        validators=[DataRequired()])
+    submitField = wtforms.SubmitField('Add')
+
+    @property
+    def series(self):
+        return self.seriesField.data
+
+    @property
+    def description(self):
+        return self.descriptField.data
+

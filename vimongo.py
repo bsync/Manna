@@ -1,24 +1,23 @@
-import os, sys, subprocess, requests, urllib, pathlib
-import flask_mongoengine 
-from ffmpy import FFmpeg
-from concurrent.futures import ThreadPoolExecutor
-from dateutil.parser import parse as dparse
+import os, flask_mongoengine, vimeo
 from datetime import datetime
 
 mdb = flask_mongoengine.MongoEngine()
+vc = vimeo.VimeoClient(
+        os.getenv('VIMEO_TOKEN'),
+        os.getenv('VIMEO_CLIENT_ID'),
+        os.getenv('VIMEO_CLIENT_SECRET'))
 
-def vimeo_fetch(aurl, fparams=None, ah={}):
-    ah.update(Host='api.vimeo.com')
-    ah.update(Authorization='bearer {}'.format(os.getenv("VIMEO_TOKEN")))
-    return requests.get('https://api.vimeo.com' 
-                        + aurl, params=fparams, 
-                        headers=ah).json()
+def vcget(url, **kwargs):
+    return vc.get(url, params=kwargs).json()
+
+def vcpost(url, **kwargs):
+    return vc.post(url, data=kwargs).json()
 
 class VimeoRecord(mdb.Document):
     meta = {'allow_inheritance': True}
     uri = mdb.StringField(required=True, primary_key=True)
     name = mdb.StringField(required=True)
-    html = mdb.StringField(required=True)
+    html = mdb.StringField()
     create_date = mdb.DateField(required=True, default=datetime.utcnow)
 
     @property
@@ -27,34 +26,8 @@ class VimeoRecord(mdb.Document):
 
     @classmethod
     def latest(cls, cnt):
-        sync_latest()
+        sync_mongo_and_vimeo()
         return cls.objects().order_by('-create_date')[:cnt]
-
-    @classmethod
-    def latest2(cls, cnt):
-        info = vimeo_fetch('/me/videos', 
-                           fparams={'fields': "uri,name,embed,created_time",
-                                    'sort': "date",
-                                    'direction': "desc"})
-        if 'data' not in info: 
-            raise RuntimeError("No data response from vimeo.")
-        while('data' in info):
-            for vinfo in info['data']: 
-                try:
-                    vid = VideoRecord.objects(uri=vinfo['uri']).first()
-                    if not vid:
-                        vid = VideoRecord(uri=vinfo['uri'], 
-                                          name=vinfo['name'],
-                                          html=vinfo['embed']['html'],
-                                          create_date=vinfo['created_time'],)
-                    if not vid.update(vinfo['name']): break;
-                except mdb.ValidationError as mve:
-                   print(f"Skipping import of {vinfo['name']} due to {mve}")
-            nextpage = info.get('paging', {}).get('next', False)
-            if nextpage:
-                info = vimeo_fetch(nextpage)
-            else:
-                info = {}
 
 
 class VideoRecord(VimeoRecord):
@@ -65,7 +38,7 @@ class VideoRecord(VimeoRecord):
         if name != self.name:
             self.name = name
 
-        vainfo = vimeo_fetch(f"{self.uri}/albums/")
+        vainfo = vcget(f"{self.uri}/albums/")
         while('data' in vainfo):
             for ainfo in vainfo['data']: 
                 alb = AlbumRecord.objects(uri=ainfo['uri']).first()
@@ -101,16 +74,31 @@ class AlbumRecord(VimeoRecord):
     def named(cls, aname):
         return cls.objects(name=aname).first()
 
+    @classmethod
+    def addAlbum(cls, aform):
+        if AlbumRecord.objects(name=aform.series).count() > 0:
+            raise Exception(f"Album {aform.series} already exists.")
+        resp = vcpost('/me/albums', 
+                      name=aform.series, 
+                      description=aform.description)
+        alb = AlbumRecord(uri=resp['uri'], 
+                          name=resp['name'],
+                          html=resp['embed']['html'],
+                          create_date=resp['created_time'],)
+        alb.save()
+        return alb
+
+        
+
     def videoNamed(self, vname):
         return { x.name:x for x in self.videos }[vname]
 
     def synchronize(self):
-        avinfo = vimeo_fetch(f"{self.uri}/videos",
-                             fparams={'fields': 
-                                      "uri,name,embed,created_time,duration,"
-                                      + "metadata.connections.albums",
-                                      'sort': "date",
-                                      'direction': "desc"})
+        avinfo = vcget(f"{self.uri}/videos",
+                       fields="uri,name,embed,created_time,duration,"
+                             +"metadata.connections.albums",
+                       sort="date",
+                       direction="desc")
         while ('data' in avinfo):
             for vinfo in avinfo['data']:
                 try:
@@ -133,7 +121,7 @@ class AlbumRecord(VimeoRecord):
                    print(f"Skipping import of {vinfo['name']} due to {mve}")
             nextpage = avinfo.get('paging', {}).get('next', False)
             if nextpage:
-                avinfo = vimeo_fetch(nextpage)
+                avinfo = vcget(nextpage)
             else:
                 avinfo = {}
     
@@ -147,13 +135,13 @@ def reset_and_resync_all():
     AlbumRecord.drop_collection()
     VideoRecord.drop_collection()
     VimeoRecord.drop_collection()
-    sync_latest()
+    sync_mongo_and_vimeo()
 
-def sync_latest():
-    lainfo = vimeo_fetch('/me/albums', 
-                         fparams={'fields': "uri,name,embed,created_time",
-                                  'sort': "date",
-                                  'direction': "desc"})
+def sync_mongo_and_vimeo():
+    lainfo = vcget('/me/albums', 
+                   fields="uri,name,embed,created_time",
+                   sort="date",
+                   direction="desc")
     if 'data' not in lainfo: raise RuntimeError("No data response from vimeo.")
     while('data' in lainfo):
         for ainfo in lainfo['data']: 
@@ -172,7 +160,6 @@ def sync_latest():
                print(f"Skipping import of {ainfo['name']} due to {mve}")
         nextpage = lainfo.get('paging', {}).get('next', False)
         if nextpage:
-            lainfo = vimeo_fetch(nextpage)
+            lainfo = vcget(nextpage)
         else:
             lainfo = {}
-

@@ -1,12 +1,12 @@
-import flask, flask_login
-import pages, vimeo
+import flask, flask_login, sys
+import pages, vimongo
+from werkzeug.exceptions import HTTPException
 from urllib.parse import unquote
 from dotenv import load_dotenv 
 try:
     import passcheck
     passcheck("fail early", "if passcheck doesn't work")
 except Exception as e:
-    #passcheck = lambda t,p : unquote(t).endswith(p)
     passcheck = None
 
 load_dotenv()
@@ -15,7 +15,7 @@ def create_app(config=None):
     app = flask.Flask(__name__, static_url_path="/manna/static")
     app.config.from_object("config")
     print(f"FLask running in {app.env} mode!")
-    vimeo.mdb.init_app(app)
+    vimongo.mdb.init_app(app)
     lm = flask_login.LoginManager(app)
     lm.login_view = 'auth'
 
@@ -50,30 +50,35 @@ def create_app(config=None):
 
     @app.route("/manna/")
     def latest_vids_page():
-        try: #to query vids
-            vids = vimeo.VideoRecord.latest(10)
-        except Exception as err:
-            vids = None
+        vids = vimongo.VideoRecord.latest(10)
         return str(pages.LatestLessons(vids))
 
     @app.route("/manna/latest/<video>") 
     def latest_page(video):
-        video = vimeo.VideoRecord.objects(uri__contains=video).first()
+        video = vimongo.VideoRecord.objects(uri__contains=video).first()
         return str(pages.VideoPlayer(video))
 
     @app.route("/manna/albums")
     def catalog_page():
-        return str(pages.Catalog(vimeo.AlbumRecord.objects))
+        return str(pages.Catalog(vimongo.AlbumRecord.objects))
 
-    @app.route("/manna/albums/edit")
+    @app.route("/manna/albums/edit", methods=['GET', 'POST'])
     @flask_login.login_required
     def catalog_edit_page():
-        return str(pages.Catalog(vimeo.AlbumRecord.objects, edit=True))
+        cat = pages.Catalog(vimongo.AlbumRecord.objects, edit=True)
+        if cat.hasValidSubmission:
+            try:
+                ar = vimongo.AlbumRecord.addAlbum(cat.form)
+                cat.status=f"Added album {ar.name} to catalog."
+            except Exception as e:
+                cat.status=f"Failed to create album: {str(e)}"
+                
+        return str(cat)
 
     @app.route("/manna/albums/<album>")
     @flask_login.login_required
     def series_page(album):
-        alb = vimeo.AlbumRecord.named(album)
+        alb = vimongo.AlbumRecord.named(album)
         return str(pages.Album(alb))
 
     @app.route("/manna/videos/<video>") 
@@ -86,6 +91,10 @@ def create_app(config=None):
         def generate_mp3():
             yield 'This feature is coming soon!'
         return flask.Response(generate_mp3(), mimetype="text/plain")
+
+    @app.errorhandler(HTTPException)
+    def error_page(err):
+        return str(pages.ErrorPage(err.original_exception))
 
     return app
 
