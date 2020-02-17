@@ -1,6 +1,7 @@
 import os, flask_mongoengine, vimeo
 from datetime import datetime
 
+status = "N/A"
 mdb = flask_mongoengine.MongoEngine()
 vc = vimeo.VimeoClient(
         os.getenv('VIMEO_TOKEN'),
@@ -8,10 +9,18 @@ vc = vimeo.VimeoClient(
         os.getenv('VIMEO_CLIENT_SECRET'))
 
 def vcget(url, **kwargs):
-    return vc.get(url, params=kwargs).json()
+    return check_response(vc.get(url, params=kwargs))
 
 def vcpost(url, **kwargs):
-    return vc.post(url, data=kwargs).json()
+    return check_response(vc.post(url, data=kwargs))
+
+def vcdel(url, **kwargs):
+    return check_response(vc.delete(url, params=kwargs))
+
+def check_response(resp):
+    if resp.status_code > 399:
+        raise Exception(f"Vimeo Response: {resp.json()}")
+    return resp
 
 class VimeoRecord(mdb.Document):
     meta = {'allow_inheritance': True}
@@ -26,7 +35,6 @@ class VimeoRecord(mdb.Document):
 
     @classmethod
     def latest(cls, cnt):
-        sync_mongo_and_vimeo()
         return cls.objects().order_by('-create_date')[:cnt]
 
 
@@ -38,7 +46,7 @@ class VideoRecord(VimeoRecord):
         if name != self.name:
             self.name = name
 
-        vainfo = vcget(f"{self.uri}/albums/")
+        vainfo = vcget(f"{self.uri}/albums/").json()
         while('data' in vainfo):
             for ainfo in vainfo['data']: 
                 alb = AlbumRecord.objects(uri=ainfo['uri']).first()
@@ -75,12 +83,12 @@ class AlbumRecord(VimeoRecord):
         return cls.objects(name=aname).first()
 
     @classmethod
-    def addAlbum(cls, aform):
-        if AlbumRecord.objects(name=aform.series).count() > 0:
-            raise Exception(f"Album {aform.series} already exists.")
+    def addAlbum(cls, aname, adescription):
+        if AlbumRecord.objects(name=aname).count() > 0:
+            raise Exception(f"Series {aname} already exists.")
         resp = vcpost('/me/albums', 
-                      name=aform.series, 
-                      description=aform.description)
+                      name=aname, 
+                      description=adescription).json()
         alb = AlbumRecord(uri=resp['uri'], 
                           name=resp['name'],
                           html=resp['embed']['html'],
@@ -88,7 +96,9 @@ class AlbumRecord(VimeoRecord):
         alb.save()
         return alb
 
-        
+    def delete(self):
+        super().delete()
+        vcdel(self.uri) 
 
     def videoNamed(self, vname):
         return { x.name:x for x in self.videos }[vname]
@@ -98,7 +108,7 @@ class AlbumRecord(VimeoRecord):
                        fields="uri,name,embed,created_time,duration,"
                              +"metadata.connections.albums",
                        sort="date",
-                       direction="desc")
+                       direction="desc").json()
         while ('data' in avinfo):
             for vinfo in avinfo['data']:
                 try:
@@ -109,7 +119,8 @@ class AlbumRecord(VimeoRecord):
                                           html=vinfo['embed']['html'],
                                           create_date=vinfo['created_time'],
                                           duration=vinfo['duration'])
-                        print(f"Created vid {vid.name} for album {self.name}")
+                        print(f"Created vid {vid.name} "
+                            + f"for album {self.name}")
                     else:
                         #Update existing vid with any potential changes...
                         vid.name = vinfo['name']
@@ -121,7 +132,7 @@ class AlbumRecord(VimeoRecord):
                    print(f"Skipping import of {vinfo['name']} due to {mve}")
             nextpage = avinfo.get('paging', {}).get('next', False)
             if nextpage:
-                avinfo = vcget(nextpage)
+                avinfo = vcget(nextpage).json()
             else:
                 avinfo = {}
     
@@ -141,8 +152,9 @@ def sync_mongo_and_vimeo():
     lainfo = vcget('/me/albums', 
                    fields="uri,name,embed,created_time",
                    sort="date",
-                   direction="desc")
-    if 'data' not in lainfo: raise RuntimeError("No data response from vimeo.")
+                   direction="desc").json()
+    if 'data' not in lainfo: 
+        raise RuntimeError("No data response from vimeo.")
     while('data' in lainfo):
         for ainfo in lainfo['data']: 
             try:
@@ -153,13 +165,16 @@ def sync_mongo_and_vimeo():
                                       html=ainfo['embed']['html'],
                                       create_date=ainfo['created_time'],)
                     alb.save()
+                alb.synchronize()
+                print(f"Processed {alb.name}")
+                status=alb.name
                 # If the synchronize effort adds no new videos to the latest
                 # modified album then we must be done
-                if len(alb.videos) == alb.synchronize(): break 
+                #if len(alb.videos) == alb.synchronize(): break 
             except mdb.ValidationError as mve:
                print(f"Skipping import of {ainfo['name']} due to {mve}")
         nextpage = lainfo.get('paging', {}).get('next', False)
         if nextpage:
-            lainfo = vcget(nextpage)
+            lainfo = vcget(nextpage).json()
         else:
             lainfo = {}

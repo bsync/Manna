@@ -5,14 +5,16 @@ import forms
 from dominate.util import raw
 from urllib.parse import quote, unquote
 
+
 class Page(dom.document):
 
     def __new__(_cls, *args, **kwargs):
         "Disables decorators from this subclass onward."
         return object.__new__(_cls)
 
-    def __init__(self, title):
-        doc = super().__init__(title)
+    def __init__(self, subtitle):
+        doc = super().__init__(subtitle)
+        self.ext_hash={}
         with self.head:
             for css in [ "Page.css", f"{type(self).__name__}.css" ]:
                 if os.path.exists(f"static/{css}"):
@@ -24,50 +26,89 @@ class Page(dom.document):
                     return true; 
                 } """)
 
-    def use_table(self, table_id, **options):
+        self.grid = self.body.add(tags.div(id="topgrid", cls="container"))
+        self.header = self.grid.add(tags.div(id="header"))
+        self.header.add(tags.h2(tags.a("Tullahoma Bible Church", href="/joomla"))) 
+        self.subtitle = self.header.add(tags.h3(subtitle, id="subtitle"))
+        self.content = self.grid.add(tags.div(id="content"))
+        self.footer = self.grid.add(tags.div(id="footer"))
+        with self.footer:
+            tags.a("Latest", href="/manna")
+            tags.a("Back to the Front", href="/joomla")
+            tags.a("Catalog", href="/manna/albums", onclick="edit(event, this)")
+           
+    def csslink(self, *cssfiles):
         with self.head:
-            tags.script(crossorigin="anonymous",
-                        src="https://code.jquery.com/jquery-3.4.1.slim.min.js")
-            cdnbase = f"https://cdn.datatables.net/1.10.20"
-            tags.link(rel="stylesheet", type="text/css", 
-                      href=cdnbase + "/css/jquery.dataTables.css")
-            tags.link(rel="stylesheet", type="text/css", 
-                      href=flask.url_for('static', filename="tables.css"))
-            tags.script(type="text/javascript", charset="utf8",
-                        src=cdnbase + "/js/jquery.dataTables.js")
-            tags.script("$(document).ready( function () { "
-               + f"$('#{table_id}').DataTable({options});" + "});",
-                        type="text/javascript")
+            for cssfile in cssfiles:
+                if cssfile not in self.ext_hash:
+                    tags.link(rel="stylesheet", type="text/css", href=cssfile)
+                    self.ext_hash[cssfile]=True
 
-    @tags.div
-    def banner(self, subtitle):
-        tags.attr(cls="banner")
-        tags.h2(tags.a("Tullahoma Bible Church", href="/joomla")) 
-        tags.h3(subtitle) 
+    def jscript(self, scriptage, *jsfiles):
+        with self.head:
+            for jsfile in jsfiles:
+                if jsfile not in self.ext_hash:
+                    tags.script(crossorigin="anonymous", src=jsfile)
+                    self.ext_hash[jsfile]=True
+            tags.script(raw(scriptage), type="text/javascript")
 
-    @property
-    def container(self):
-        return self.body.add(tags.div(cls="row-container"))
+    def jquery(self, qscriptage, *jsfiles):
+        self.jscript(qscriptage, 
+                    "https://code.jquery.com/jquery-3.4.1.min.js", 
+                    *jsfiles)
 
-    @tags.div
-    def footer(self):
-        tags.attr(cls="footer")
-        tags.a("Latest", href="/manna")
-        tags.a("Back to the Front", href="/joomla")
-        tags.a("Catalog", href="/manna/albums", onclick="edit(event, this)")
+    def use_table(self, table_id, **options):
+        cdnbase = "https://cdn.datatables.net/1.10.20"
+        self.csslink(f"{cdnbase}/css/jquery.dataTables.css",
+                     flask.url_for('static', filename="tables.css"))
+        self.jquery(f"""$(document).ready( function() {{ 
+                            $('#{table_id}').DataTable({options}); }})""",
+                    f"{cdnbase}/js/jquery.dataTables.js")
 
+    def addDomForm(self, form):
+        if hasattr(form, 'scriptage'):
+            self.jscript(form.scriptage)
+        if hasattr(form, 'qscriptage'):
+            self.jquery(form.qscriptage)
+        self.content.add(form.content)
+        fname = form.__class__.__name__
+        fname = fname[0].lower() + fname[1:]
+        setattr(self, fname, form)
+
+
+class Catalog(Page):
+    def __init__(self, series, edit=False):
+        super().__init__("Series Catalog")
+        self.use_table("album_table", order=[[0,"desc"]])
+        if edit:
+            self.addDomForm(forms.EditCatalogForm(series))
+        with self.content:
+            with tags.table(id="album_table"):
+                with tags.thead():
+                    tags.th("Date", _class="dt-head-left")
+                    tags.th("Series", _class="dt-head-left")
+                    tags.th("Lesson Count", _class="dt-head-left")
+                with tags.tbody():
+                    @tags.tr
+                    def _row(x):
+                        tags.td(str(x.create_date))
+                        tags.td(tags.a(x.name, 
+                                href=quote(f"/manna/albums/{x.name}"),
+                                onclick="edit(event, this)"))
+                        tags.td(f"{len(x.videos)}")
+                    for x in series.objects: _row(x)
+    
 
 class LatestLessons(Page):
     def __init__(self, vids):
-        super().__init__("Lessons")
+        super().__init__("Latest Lessons")
         self.use_table("latest_table", order=[[0,"desc"]])
-        with self.container:
-            self.banner("Latest Lessons")
+        with self.content:
             with tags.table(id="latest_table"):
                 with tags.thead():
                     tags.th("Date", _class="dt-head-left")
                     tags.th("Name", _class="dt-head-left")
-                    tags.th("Album", _class="dt-head-left")
+                    tags.th("Series", _class="dt-head-left")
                     tags.th("Duration", _class="dt-head-left")
                 with tags.tbody():
                     if len(vids) == 0:
@@ -80,103 +121,50 @@ class LatestLessons(Page):
                                 vurl = quote(f"latest/{x.vimid}")
                                 tags.td(tags.a(x.name, href=vurl))
                                 aurl = quote(f"albums/{x.album.name}")
-                                tags.td(tags.a(x.album.name, href=aurl))
+                                tags.td(tags.a(x.album.name, href=aurl,
+                                               onclick="edit(event, this)"))
                                 tags.td(f"{int(x.duration/60)} mins")
-            self.footer()
+
+
+class Series(Page):
+    def __init__(self, alb, edit=False):
+        super().__init__(f"Lessons of {alb.name}")
+        if edit:
+            self.addDomForm(forms.SeriesForm(alb))
+
+        if alb.html:
+            self.content.add(raw(alb.html))
 
 
 class VideoPlayer(Page):
     def __init__(self, vid):
-        super().__init__(f"Lesson {vid.name} of {vid.album.name}")
-        with self.container:
-            self.banner(f"{vid.name} of {vid.album.name}")
+        super().__init__(f"{vid.name} of {vid.album.name}")
+        with self.content:
             tags.div(raw(vid.html))
-            tags.div(
-                tags.a("click to play audio?",
-                        href="/manna/albums/{album.name}/audios/{vid.name}"))
-            self.footer()
-
-class FormPage(Page):
-    def __init__(self, form):
-        super().__init__(form.title)
-        self.form = form
-
-    @property
-    def hasValidSubmission(self):    
-        return self.form.validate_on_submit()
+            tags.a("click to play audio?",
+                   href="/manna/albums/{album.name}/audios/{vid.name}")
 
 
-class PasswordPage(FormPage):
+class PasswordPage(Page):
     def __init__(self, target):
-        super().__init__(forms.PasswordForm(
-                'Provide password to access "'
-                + f'{unquote(os.path.split(target)[-1])}"'))
-        with self.container:
-            self.banner("Authorization Required")
-            with self.form.as_dom_tag:
-                tags.br()
-                tags.p(f"{self.error}")
-            self.footer()
-        self.target = target
+        super().__init__("Authorization Required")
+        self.addDomForm(forms.PasswordForm(target))
+        self.target=target
 
     @property
-    def guess(self):    
-        return self.form.data['guessword']
-
-    @property
-    def error(self):
-        "TODO: Report errors!"
-        return ""
-
-
-class Album(Page):
-    def __init__(self, alb):
-        super().__init__(f"Lessons of {alb.name}")
-        with self.container: 
-            self.banner(f"{alb.name}")
-            raw(alb.html)
-            self.footer()
-
-
-class Catalog(FormPage):
-    def __init__(self, series, edit=False):
-        super().__init__(forms.CatalogEditor())
-        self.use_table("album_table")
-        with self.container:
-            self.banner("Series Catalog")
-            if edit:
-                tags.div(self.form.as_dom_tag)
-            tags.div(id="status")
-            with tags.table(id="album_table"):
-                with tags.thead():
-                    tags.th("Date", _class="dt-head-left")
-                    tags.th("Album", _class="dt-head-left")
-                    tags.th("Lesson Count", _class="dt-head-left")
-                with tags.tbody():
-                    @tags.tr
-                    def _row(x):
-                        tags.td(str(x.create_date))
-                        tags.td(tags.a(x.name, 
-                                href=quote(f"/manna/albums/{x.name}"),
-                                onclick="edit(event, this)"))
-                        tags.td(f"{len(x.videos)}")
-                    for x in series: _row(x)
-            self.footer()
-    
-    @property
-    def status(self):
-        return self.getElementById('status')
-        
-    @status.setter
-    def status(self, value):
-        self.getElementById('status').add(value)
+    def passes(self):    
+        try:
+            import passcheck
+            if self.passwordForm.validate_on_submit():
+                return passcheck(self.target, self.passwordForm.data['guessword'])
+            else:
+                return False
+        except Exception as e:
+            return True
 
 
 class ErrorPage(Page):
     def __init__(self, err):
-        super().__init__("Error")
-        with self.container: 
-            self.banner("Trouble in Paradise...")
-            tags.div(str(err))
-            self.footer()
+        super().__init__("Trouble in Paradise...")
+        self.content.add(tags.div(str(err)))
 

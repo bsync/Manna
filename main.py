@@ -2,14 +2,7 @@ import flask, flask_login, sys
 import pages, vimongo
 from werkzeug.exceptions import HTTPException
 from urllib.parse import unquote
-from dotenv import load_dotenv 
-try:
-    import passcheck
-    passcheck("fail early", "if passcheck doesn't work")
-except Exception as e:
-    passcheck = None
-
-load_dotenv()
+from dotenv import load_dotenv; load_dotenv()
 
 def create_app(config=None):
     app = flask.Flask(__name__, static_url_path="/manna/static")
@@ -30,23 +23,19 @@ def create_app(config=None):
         else:
             return None
 
+    @app.route('/manna/vsync')
+    def vsync():
+        return flask.Response(vimongo.status)
+
     @app.route('/manna/auth', methods=['GET', 'POST'])
     def auth():
         target = flask.request.args.get('next')
-        if passcheck is None: 
+        lp = pages.PasswordPage(target)
+        if lp.passes:
             flask_login.login_user(PageUser())
             flask.session[unquote(target)]=True
             return flask.redirect(target)
-        lp = pages.PasswordPage(target)
-        if lp.hasValidSubmission:
-            if passcheck(lp.target, lp.guess):
-                flask_login.login_user(PageUser())
-                flask.session[unquote(lp.target)]=True
-                return flask.redirect(lp.target)
-            else:
-                return str(lp)
-        else:
-            return str(lp)
+        return str(lp)
 
     @app.route("/manna/")
     def latest_vids_page():
@@ -60,26 +49,24 @@ def create_app(config=None):
 
     @app.route("/manna/albums")
     def catalog_page():
-        return str(pages.Catalog(vimongo.AlbumRecord.objects))
+        return str(pages.Catalog(vimongo.AlbumRecord))
 
     @app.route("/manna/albums/edit", methods=['GET', 'POST'])
     @flask_login.login_required
     def catalog_edit_page():
-        cat = pages.Catalog(vimongo.AlbumRecord.objects, edit=True)
-        if cat.hasValidSubmission:
-            try:
-                ar = vimongo.AlbumRecord.addAlbum(cat.form)
-                cat.status=f"Added album {ar.name} to catalog."
-            except Exception as e:
-                cat.status=f"Failed to create album: {str(e)}"
-                
-        return str(cat)
+        return str(pages.Catalog(vimongo.AlbumRecord, edit=True))
 
     @app.route("/manna/albums/<album>")
     @flask_login.login_required
     def series_page(album):
         alb = vimongo.AlbumRecord.named(album)
-        return str(pages.Album(alb))
+        return str(pages.Series(alb))
+
+    @app.route("/manna/albums/<album>/edit", methods=['GET', 'POST'])
+    @flask_login.login_required
+    def series_edit_page(album):
+        alb = vimongo.AlbumRecord.named(album)
+        return str(pages.Series(alb, edit=True))
 
     @app.route("/manna/videos/<video>") 
     @flask_login.login_required
