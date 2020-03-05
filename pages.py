@@ -3,7 +3,7 @@ import dominate as dom
 import dominate.tags as tags
 import forms
 from dominate.util import raw
-from urllib.parse import quote, unquote
+from urllib.parse import quote
 
 
 class Page(dom.document):
@@ -14,7 +14,6 @@ class Page(dom.document):
 
     def __init__(self, subtitle):
         doc = super().__init__(subtitle)
-        self.ext_hash={}
         with self.head:
             for css in [ "Page.css", f"{type(self).__name__}.css" ]:
                 if os.path.exists(f"static/{css}"):
@@ -22,68 +21,99 @@ class Page(dom.document):
                               href=flask.url_for('static', filename=css))
             tags.script(""" function edit(event, slink) { 
                     if (event.shiftKey)
-                        window.location.href = slink.href.concat('/edit')
+                        window.location.href = 
+                            slink.href.replace('\/manna\/', '\/manna\/edit\/')
                     return true; 
                 } """)
 
         self.grid = self.body.add(tags.div(id="topgrid", cls="container"))
         self.header = self.grid.add(tags.div(id="header"))
         self.header.add(tags.h2(tags.a("Tullahoma Bible Church", href="/joomla"))) 
+        self.status = self.header.add(tags.div(id="status"))
         self.subtitle = self.header.add(tags.h3(subtitle, id="subtitle"))
         self.content = self.grid.add(tags.div(id="content"))
+        self.controls = self.content.add(tags.div(id="controls"))
         self.footer = self.grid.add(tags.div(id="footer"))
         with self.footer:
             tags.a("Latest", href="/manna")
             tags.a("Back to the Front", href="/joomla")
             tags.a("Catalog", href="/manna/albums", onclick="edit(event, this)")
+        self.status.add(flask.get_flashed_messages())
+        self.forms=[]
            
-    def csslink(self, *cssfiles):
-        with self.head:
-            for cssfile in cssfiles:
-                if cssfile not in self.ext_hash:
-                    tags.link(rel="stylesheet", type="text/css", href=cssfile)
-                    self.ext_hash[cssfile]=True
+    @property
+    def response(self):
+        "Returns the first form with a response or the page itself."
+        for form in self.forms:
+            if form.response:
+                return flask.redirect(form.response)
+        return str(self)
 
-    def jscript(self, scriptage, *jsfiles):
-        with self.head:
-            for jsfile in jsfiles:
-                if jsfile not in self.ext_hash:
-                    tags.script(crossorigin="anonymous", src=jsfile)
-                    self.ext_hash[jsfile]=True
-            tags.script(raw(scriptage), type="text/javascript")
+    def csslink(self, cssfile):
+        if cssfile not in self.head:
+            return tags.link(rel="stylesheet", type="text/css", href=cssfile)
 
-    def jquery(self, qscriptage, *jsfiles):
-        self.jscript(qscriptage, 
-                    "https://code.jquery.com/jquery-3.4.1.min.js", 
-                    *jsfiles)
+    def scriptfiles(self, *urls):
+        for url in urls:
+            if url not in str(self.head):
+                self.head.add(tags.script(crossorigin="anonymous", src=url))
 
-    def use_table(self, table_id, **options):
+    def jscript(self, scriptage):
+        return tags.script(raw(scriptage), type="text/javascript")
+
+    def jquery(self, scriptage, on_ready=True):
+        self.scriptfiles("https://code.jquery.com/jquery-3.4.1.min.js")
+        if on_ready:
+            scriptage = f"$(document).ready( function() {{ {scriptage} }})" 
+        return self.jscript(scriptage)
+
+    def datatable(self, table_id, **options):
         cdnbase = "https://cdn.datatables.net/1.10.20"
-        self.csslink(f"{cdnbase}/css/jquery.dataTables.css",
-                     flask.url_for('static', filename="tables.css"))
-        self.jquery(f"""$(document).ready( function() {{ 
-                            $('#{table_id}').DataTable({options}); }})""",
-                    f"{cdnbase}/js/jquery.dataTables.js")
+        with self.head:
+            self.csslink(f"{cdnbase}/css/jquery.dataTables.css")
+            self.csslink(flask.url_for('static', filename="tables.css"))
+            self.jquery(f"$('#{table_id}').DataTable({options})")
+            self.scriptfiles(f"{cdnbase}/js/jquery.dataTables.js")
+        return tags.table(id=f"{table_id}")
 
-    def addDomForm(self, form):
-        if hasattr(form, 'scriptage'):
-            self.jscript(form.scriptage)
-        if hasattr(form, 'qscriptage'):
-            self.jquery(form.qscriptage)
-        self.content.add(form.content)
-        fname = form.__class__.__name__
-        fname = fname[0].lower() + fname[1:]
-        setattr(self, fname, form)
+    def integrateForm(self, form, container=None):
+        """Integrates the given form into the page using container
 
+            Integration means: 
+            
+            1)  augmenting the page head to source any external scriptfiles
+                associated with the form,
+            2)  augmenting the page head with any raw javascript or jquery
+                scriptage associated with the form, 
+            3)  merging the DOM content of the form itself into the given
+                container which defaults to the Page's internal content
+                element,
+            4)  and finally, associating the form with the Page instance as
+                an accessible attribute. The attribute name is formed from the
+                form's type name by lower casing the first letter of that type
+                name. So, for example, integrating a form of type PasswordForm
+                will result in a new 'passwordForm' attribute on the Page. 
+        """
+        self.forms.append(form)
+        if container is None: container = self.content
+        with self.head: #Augment page's head content
+            if hasattr(form, 'scriptage'):
+                self.jscript(f"{form.scriptage}")
+            if hasattr(form, 'qscriptage'):
+                self.jquery(f"{form.qscriptage}")
+            if hasattr(form, 'scriptfiles'):
+                self.scriptfiles(*form.scriptfiles)
+        container.add(form.content) #Merge DOM content
+        formTypeName = type(form).__name__
+        formTypeName = formTypeName[0].lower() + formTypeName[1:]
+        setattr(self, formTypeName, form) #Store form as an attribute of page
+        
 
-class Catalog(Page):
-    def __init__(self, series, edit=False):
-        super().__init__("Series Catalog")
-        self.use_table("album_table", order=[[0,"desc"]])
-        if edit:
-            self.addDomForm(forms.EditCatalogForm(series))
+class CatalogPage(Page):
+    def __init__(self, catalog, title="Series Catalog"):
+        super().__init__(title)
         with self.content:
-            with tags.table(id="album_table"):
+            with self.datatable("album_table", order=[[0,"desc"]]):
                 with tags.thead():
                     tags.th("Date", _class="dt-head-left")
                     tags.th("Series", _class="dt-head-left")
@@ -96,15 +126,29 @@ class Catalog(Page):
                                 href=quote(f"/manna/albums/{x.name}"),
                                 onclick="edit(event, this)"))
                         tags.td(f"{len(x.videos)}")
-                    for x in series.objects: _row(x)
+                    for x in catalog.objects: _row(x)
     
 
-class LatestLessons(Page):
+class CatalogEditorPage(CatalogPage):
+    def __init__(self, catalog, title="Catalog Editor"):
+        super().__init__(catalog, title)
+        with self.head:
+            self.jquery("""function vSync() {
+                $.ajax({ url: '/manna/vsync/status', 
+                         success: function(data) { $('#sync').html(data); },
+                         complete: function() { 
+                            if( $('#sync').text() != 'Done' ) { 
+                                setTimeout(vSync, 5000)}}})}""")
+        with self.controls as ctls:
+            self.integrateForm(forms.AddSeriesForm(catalog), ctls)
+            #self.integrateForm(forms.SyncToVimeoForm(catalog), ecg)
+
+
+class LatestLessonsPage(Page):
     def __init__(self, vids):
         super().__init__("Latest Lessons")
-        self.use_table("latest_table", order=[[0,"desc"]])
         with self.content:
-            with tags.table(id="latest_table"):
+            with self.datatable("latest_table", order=[[0,"desc"]]):
                 with tags.thead():
                     tags.th("Date", _class="dt-head-left")
                     tags.th("Name", _class="dt-head-left")
@@ -119,21 +163,29 @@ class LatestLessons(Page):
                                 tags.attr()
                                 tags.td(str(x.create_date))
                                 vurl = quote(f"latest/{x.vimid}")
-                                tags.td(tags.a(x.name, href=vurl))
+                                tags.td(tags.a(x.name, href=vurl,
+                                               onclick="edit(event, this)"))
                                 aurl = quote(f"albums/{x.album.name}")
                                 tags.td(tags.a(x.album.name, href=aurl,
                                                onclick="edit(event, this)"))
                                 tags.td(f"{int(x.duration/60)} mins")
 
 
-class Series(Page):
-    def __init__(self, alb, edit=False):
+class SeriesPage(Page):
+    def __init__(self, alb):
         super().__init__(f"Lessons of {alb.name}")
-        if edit:
-            self.addDomForm(forms.SeriesForm(alb))
+        with self.content:
+            if alb.html:
+                raw(alb.html)
 
-        if alb.html:
-            self.content.add(raw(alb.html))
+
+class SeriesEditorPage(SeriesPage):
+    def __init__(self, alb):
+        super().__init__(alb)
+        with self.controls as ctls:
+           self.integrateForm(forms.AddVideosForm(alb), ctls)
+           self.integrateForm(forms.SyncToVimeoForm(alb), ctls)
+           self.integrateForm(forms.DeleteSeriesForm(alb), ctls)
 
 
 class VideoPlayer(Page):
@@ -145,22 +197,21 @@ class VideoPlayer(Page):
                    href="/manna/albums/{album.name}/audios/{vid.name}")
 
 
+class VideoEditor(VideoPlayer):
+    def __init__(self, vid):
+        super().__init__(vid)
+        with self.controls as ctls:
+           self.integrateForm(forms.PurgeVideoForm(vid), ctls)
+
+
 class PasswordPage(Page):
     def __init__(self, target):
         super().__init__("Authorization Required")
-        self.addDomForm(forms.PasswordForm(target))
-        self.target=target
+        self.integrateForm(forms.PasswordForm(target))
 
     @property
-    def passes(self):    
-        try:
-            import passcheck
-            if self.passwordForm.validate_on_submit():
-                return passcheck(self.target, self.passwordForm.data['guessword'])
-            else:
-                return False
-        except Exception as e:
-            return True
+    def passes(self):
+        return self.passwordForm.passes
 
 
 class ErrorPage(Page):

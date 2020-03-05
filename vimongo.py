@@ -14,6 +14,9 @@ def vcget(url, **kwargs):
 def vcpost(url, **kwargs):
     return check_response(vc.post(url, data=kwargs))
 
+def vcput(url, **kwargs):
+    return check_response(vc.put(url, data=kwargs))
+
 def vcdel(url, **kwargs):
     return check_response(vc.delete(url, params=kwargs))
 
@@ -74,6 +77,8 @@ class VideoRecord(VimeoRecord):
         return (f"VideoRecord of {self.name}" + 
                 f" dated {self.create_date} from album {self.albums}")
 
+    def delete(self):
+        super().delete()
 
 class AlbumRecord(VimeoRecord):
     videos = mdb.ListField(mdb.ReferenceField(VideoRecord))
