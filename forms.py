@@ -2,7 +2,6 @@ import os
 import dominate.tags as tags
 import flask
 import wtforms as wtf
-import vimongo
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField
 from dominate.util import raw
@@ -99,7 +98,7 @@ class AddSeriesForm(DomForm):
 
 
 class DeleteSeriesForm(DomForm):
-    "Delete video from series"
+    "Delete series from catalog"
     deleteField = wtf.SubmitField('Delete Empty Series...')
     qscriptage = """$('#{deleteFieldId}').prop("disabled", {disabled})
                     $('#{deleteFieldId}').click( 
@@ -113,6 +112,7 @@ class DeleteSeriesForm(DomForm):
                                 deleteFieldId=self.deleteField.id,
                                 disabled=str(len(series.videos) > 0).lower(),
                                 alb_name=series.name)
+
         if self.valid_submission_with(self.deleteField):
             try:
                if len(series.videos): 
@@ -128,31 +128,29 @@ def wtf_require(ftype, title, **kwargs):
 
 class AddVideosForm(DomForm):
     "Add video to the series"
-    videoNameField = wtf_require(wtf.StringField, "Video title:")
-    videoDescField = wtf_require(wtf.TextAreaField,"Video description:")
+    vidName = wtf_require(wtf.StringField, "Video title:")
+    vidDesc = wtf.TextAreaField("Video description:")
     recordedDate = wtf_require(DateField,"Recorded on", default=date.today)
     submitUpload = wtf.SubmitField("Begin upload...")
 
     def __init__(self, alb):
         super().__init__()
-        if self.valid_submission_with(self.submitUpload):
-            del self.submitUpload
-            vub=dict(
-                 upload=dict(approach="post", redirect_url=flask.request.url),
-                 name=self.videoNameField.data,
-                 description=self.videoDescField.data)
-            vu = vimongo.vcpost("/me/videos", **vub).json()
-            self.formTail.add(raw(vu['upload']['form']))
+        if not flask.request.form:
+            #Initialize form
+            latest_vid = alb.videos[-1]
+            self.vidName.data = latest_vid.next_name
+            self.vidDesc.data = latest_vid.description
         else:
-            import pdb; pdb.set_trace()
-            preName = alb.videos[-1].name
-            self.videoNameField.data = preName
-            self.videoDescField.data = "preset goes here"
+            #Modify form to present vimeo sponsored upload_form content
+            del self.submitUpload
+            up_form = alb.up_form_gen(self.vidName.data, 
+                                      self.vidDesc.data,
+                                      redir=flask.request.url)
+            self.formTail.add(raw(up_form))
 
         viduri=flask.request.args.get('video_uri', False)
         if viduri:
-            vp = vimongo.vcput(f"{alb.id}{viduri}")
-            alb.synchronize()
+            alb.addVideo(viduri)
             flask.flash(f"Video {viduri} added to vimeo")
             self.response=f"/manna/{viduri}"
 
@@ -161,14 +159,11 @@ class SyncToVimeoForm(DomForm):
     "Syncronize album or entire catalog with vimeo content"
     syncField = wtf.SubmitField('Syncronize')
 
-    def __init__(self, catalb):
-        if isinstance(catalb, vimongo.AlbumRecord):
-            super().__init__("Syncronize the series with vimeo")
-        else:
-            super().__init__("Syncronize the catalog with vimeo")
+    def __init__(self, alb):
+        super().__init__("Syncronize the series with vimeo")
         if self.valid_submission_with(self.syncField):
-            catalb.synchronize()
-            flask.flash(f"Series {catalb.name} now synchronized with vimeo")
+            alb.synchronize()
+            flask.flash(f"Series {alb.name} now synchronized with vimeo")
 
 
 class PurgeVideoForm(DomForm):
@@ -185,7 +180,9 @@ class PurgeVideoForm(DomForm):
                                 purgeFieldId=self.purgeField.id,
                                 vid_name=vid.name)
         if self.valid_submission_with(self.purgeField):
+            for album in vid.albums:
+                album.synchronize()
             vid.delete()
             flask.flash(f"Video {vid.name} purged from catalog")
-            flask.redirect("/")
+            self.response = "/manna"
 

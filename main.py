@@ -75,7 +75,8 @@ def create_app(config=None):
     @app.route("/manna/videos/<video>") 
     @flask_login.login_required
     def video_page(video):
-        return pages.VideoPlayer(video).response
+        vid = vimongo.VideoRecord.objects(uri__contains=video).first()
+        return pages.VideoPlayer(vid).response
 
     @app.route("/manna/edit/videos/<video>", methods=['GET', 'POST'])
     @flask_login.login_required

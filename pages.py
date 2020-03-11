@@ -5,7 +5,6 @@ import forms
 from dominate.util import raw
 from urllib.parse import quote
 
-
 class Page(dom.document):
 
     def __new__(_cls, *args, **kwargs):
@@ -29,8 +28,8 @@ class Page(dom.document):
         self.grid = self.body.add(tags.div(id="topgrid", cls="container"))
         self.header = self.grid.add(tags.div(id="header"))
         self.header.add(tags.h2(tags.a("Tullahoma Bible Church", href="/joomla"))) 
-        self.status = self.header.add(tags.div(id="status"))
         self.subtitle = self.header.add(tags.h3(subtitle, id="subtitle"))
+        self.status = self.header.add(tags.div(id="status"))
         self.content = self.grid.add(tags.div(id="content"))
         self.controls = self.content.add(tags.div(id="controls"))
         self.footer = self.grid.add(tags.div(id="footer"))
@@ -88,11 +87,6 @@ class Page(dom.document):
             3)  merging the DOM content of the form itself into the given
                 container which defaults to the Page's internal content
                 element,
-            4)  and finally, associating the form with the Page instance as
-                an accessible attribute. The attribute name is formed from the
-                form's type name by lower casing the first letter of that type
-                name. So, for example, integrating a form of type PasswordForm
-                will result in a new 'passwordForm' attribute on the Page. 
         """
         self.forms.append(form)
         if container is None: container = self.content
@@ -104,9 +98,7 @@ class Page(dom.document):
             if hasattr(form, 'scriptfiles'):
                 self.scriptfiles(*form.scriptfiles)
         container.add(form.content) #Merge DOM content
-        formTypeName = type(form).__name__
-        formTypeName = formTypeName[0].lower() + formTypeName[1:]
-        setattr(self, formTypeName, form) #Store form as an attribute of page
+        return form
         
 
 class CatalogPage(Page):
@@ -182,6 +174,7 @@ class SeriesPage(Page):
 class SeriesEditorPage(SeriesPage):
     def __init__(self, alb):
         super().__init__(alb)
+        alb.synchronize() #Ensure we are working with up to date content
         with self.controls as ctls:
            self.integrateForm(forms.AddVideosForm(alb), ctls)
            self.integrateForm(forms.SyncToVimeoForm(alb), ctls)
@@ -192,7 +185,7 @@ class VideoPlayer(Page):
     def __init__(self, vid):
         super().__init__(f"{vid.name} of {vid.album.name}")
         with self.content:
-            tags.div(raw(vid.html))
+            tags.div(raw(vid.html), id="player")
             tags.a("click to play audio?",
                    href="/manna/albums/{album.name}/audios/{vid.name}")
 
@@ -207,11 +200,11 @@ class VideoEditor(VideoPlayer):
 class PasswordPage(Page):
     def __init__(self, target):
         super().__init__("Authorization Required")
-        self.integrateForm(forms.PasswordForm(target))
+        self.passForm = self.integrateForm(forms.PasswordForm(target))
 
     @property
     def passes(self):
-        return self.passwordForm.passes
+        return self.passForm.passes
 
 
 class ErrorPage(Page):

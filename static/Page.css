@@ -14,8 +14,8 @@ a { color: mediumblue; }
 #header a, #header a:visited { color: yellow; }
 #header h3 { margin: 5px; color: white; }
 #header h2 { margin: 5px; }
-
-#status h2 { color: red; }
+#status { background-color: black; color: red; }
+#player { text-align: center; }
 
 fieldset {
   margin: 10px; 
