@@ -686,6 +686,7 @@ into the hill.
 7:9 Know therefore that the LORD thy God, he is God, the faithful God, which
 	 keepeth covenant and mercy with them that love him and keep his commandments
 	 to a thousand generations; 
+
 7:10 And repayeth them that hate him to their face, to destroy them: he will not
 	  be slack to him that hateth him, he will
 	 repay him to his face.  
@@ -968,7 +969,8 @@ into the hill.
 
 10:17 For the LORD your God is God of gods, and Lord of lords, a great God, a
 		mighty, and a terrible, which regardeth not persons, nor taketh reward:
-		10:18 He doth execute the judgment of the fatherless and widow, and loveth
+
+10:18 He doth execute the judgment of the fatherless and widow, and loveth
 		the stranger, in giving him food and raiment.
 
 10:19 Love ye therefore the stranger: for ye were strangers in the land of
