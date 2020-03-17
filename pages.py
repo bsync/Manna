@@ -124,16 +124,9 @@ class CatalogPage(Page):
 class CatalogEditorPage(CatalogPage):
     def __init__(self, catalog, title="Catalog Editor"):
         super().__init__(catalog, title)
-        with self.head:
-            self.jquery("""function vSync() {
-                $.ajax({ url: '/manna/vsync/status', 
-                         success: function(data) { $('#sync').html(data); },
-                         complete: function() { 
-                            if( $('#sync').text() != 'Done' ) { 
-                                setTimeout(vSync, 5000)}}})}""")
         with self.controls as ctls:
             self.integrateForm(forms.AddSeriesForm(catalog), ctls)
-            #self.integrateForm(forms.SyncToVimeoForm(catalog), ecg)
+            self.integrateForm(forms.SyncToVimeoForm("Catalog", catalog.sync_all), ctls)
 
 
 class LatestLessonsPage(Page):
@@ -150,17 +143,24 @@ class LatestLessonsPage(Page):
                     if len(vids) == 0:
                         tags.h3("No Connection to Videos, try again later...")
                     else: 
-                        for x in vids: 
-                            with tags.tr():
-                                tags.attr()
-                                tags.td(str(x.create_date))
-                                vurl = quote(f"latest/{x.vimid}")
-                                tags.td(tags.a(x.name, href=vurl,
-                                               onclick="edit(event, this)"))
-                                aurl = quote(f"albums/{x.album.name}")
-                                tags.td(tags.a(x.album.name, href=aurl,
-                                               onclick="edit(event, this)"))
-                                tags.td(f"{int(x.duration/60)} mins")
+                        self._make_vid_rows(vids)
+
+    def _make_vid_rows(self, vids):
+        for x in vids: 
+            with tags.tr():
+                try:
+                    tags.attr()
+                    tags.td(str(x.create_date))
+                    vurl = quote(f"latest/albums/{x.album.name}/videos/{x.name}")
+                    tags.td(tags.a(x.name, href=vurl,
+                                   onclick="edit(event, this)"))
+                    aurl = quote(f"albums/{x.album.name}")
+                    tags.td(tags.a(x.album.name, href=aurl,
+                                   onclick="edit(event, this)"))
+                    tags.td(f"{int(x.duration/60)} mins")
+                except Exception as e:
+                    flask.flash(f"Removing corrupt video {x} from mongoDB!")
+                    x.delete()
 
 
 class SeriesPage(Page):
@@ -174,10 +174,9 @@ class SeriesPage(Page):
 class SeriesEditorPage(SeriesPage):
     def __init__(self, alb):
         super().__init__(alb)
-        alb.synchronize() #Ensure we are working with up to date content
         with self.controls as ctls:
            self.integrateForm(forms.AddVideosForm(alb), ctls)
-           self.integrateForm(forms.SyncToVimeoForm(alb), ctls)
+           self.integrateForm(forms.SyncToVimeoForm(alb.name, alb.synchronized), ctls)
            self.integrateForm(forms.DeleteSeriesForm(alb), ctls)
 
 

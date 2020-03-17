@@ -39,49 +39,51 @@ def create_app(config=None):
 
     @app.route("/manna/")
     def latest_vids_page():
-        vids = vimongo.VideoRecord.latest(10)
+        vids = vimongo.Video.latest(10)
         return pages.LatestLessonsPage(vids).response
 
-    @app.route("/manna/latest/<video>") 
-    def latest_page(video):
-        video = vimongo.VideoRecord.objects(uri__contains=video).first()
-        return pages.VideoPlayer(video).response
+    @app.route("/manna/latest/albums/<album>/videos/<video>") 
+    def latest_video_page(album, video):
+        import pdb; pdb.set_trace()
+        vid = vimongo.VideoSeries.named(album).get_video_named(video)
+        return pages.VideoPlayer(vid).response
 
-    @app.route("/manna/edit/latest/<video>") 
-    def latest_edit_page(video):
-        return flask.redirect(flask.url_for('video_editor_page', video=video))
+    @app.route("/manna/edit/latest/albums/<album>/videos/<video>") 
+    def latest_video_editor_page(album, video):
+        return flask.redirect(
+                flask.url_for('video_editor_page', album=album, video=video))
 
     @app.route("/manna/albums")
     def catalog_page():
-        return pages.CatalogPage(vimongo.AlbumRecord).response
+        return pages.CatalogPage(vimongo.VideoSeries).response
 
     @app.route("/manna/edit/albums", methods=['GET', 'POST'])
     @flask_login.login_required
     def catalog_editor_page():
-        return pages.CatalogEditorPage(vimongo.AlbumRecord).response
+        return pages.CatalogEditorPage(vimongo.VideoSeries).response
 
     @app.route("/manna/albums/<album>")
     @flask_login.login_required
     def series_page(album):
-        alb = vimongo.AlbumRecord.named(album)
+        alb = vimongo.VideoSeries.named(album)
         return pages.SeriesPage(alb).response
 
     @app.route("/manna/edit/albums/<album>", methods=['GET', 'POST', 'DELETE'])
     @flask_login.login_required
     def series_editor_page(album):
-        alb = vimongo.AlbumRecord.named(album)
+        alb = vimongo.VideoSeries.named(album)
         return pages.SeriesEditorPage(alb).response
 
-    @app.route("/manna/videos/<video>") 
+    @app.route("/manna/albums/<album>/videos/<video>") 
     @flask_login.login_required
-    def video_page(video):
-        vid = vimongo.VideoRecord.objects(uri__contains=video).first()
+    def video_page(album, video):
+        vid = vimongo.VideoSeries.named(album).get_video_named(video)
         return pages.VideoPlayer(vid).response
 
-    @app.route("/manna/edit/videos/<video>", methods=['GET', 'POST'])
+    @app.route("/manna/edit/albums/<album>/videos/<video>", methods=['GET', 'POST'])
     @flask_login.login_required
-    def video_editor_page(video):
-        vid = vimongo.VideoRecord.objects(uri__contains=video).first()
+    def video_editor_page(album, video):
+        vid = vimongo.VideoSeries.named(album).get_video_named(video)
         return pages.VideoEditor(vid).response
 
     @app.route("/manna/albums/<album>/audios/<audio>") 
@@ -92,7 +94,7 @@ def create_app(config=None):
 
     @app.errorhandler(HTTPException)
     def error_page(err):
-        return pages.ErrorPage(err.original_exception).response
+        return pages.ErrorPage(err.description).response
 
     return app
 

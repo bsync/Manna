@@ -27,7 +27,8 @@ class DomForm(FlaskForm):
     def __init__(self, title=False):
         super().__init__()
         self.frame = groupedTags(title if title else self.__doc__)
-        self.formTag = tags.form(method="POST", action="", target="_self")
+        self.formTag = tags.form(method="POST", action="", 
+                                 target="_self", name=self.__class__.__name__)
         self.formTail = tags.div()
 
     @property
@@ -69,12 +70,12 @@ class PasswordForm(DomForm):
     submitField = wtf.SubmitField('submit')
 
     def __init__(self, target):
-        super().__init__(f"Provide a password for {target}")
+        super().__init__(f"Provide a password for {unquote(target)}")
         import passcheck
         if self.valid_submission_with(self.submitField):
             self.passes = passcheck(target, self.data['guessword'])
             if not self.passes:
-                flask.flash(f"Wrong password for {target}")
+                flask.flash(f"Wrong password for {unquote(target)}")
         else:
             self.passes = False
 
@@ -91,8 +92,9 @@ class AddSeriesForm(DomForm):
             name = self.seriesName.data
             description = self.seriesDesc.data
             try:
-                seriesCatalog.addAlbum(name, description)
-                flask.flash(f"Added album {name}")
+                seriesCatalog.add_new(name, description)
+                flask.flash(f"Added album {unquote(name)}")
+                self.response=f"/manna/albums"
             except Exception as e:
                 flask.flash(f"Failed to create album: {str(e)}")
 
@@ -116,12 +118,13 @@ class DeleteSeriesForm(DomForm):
         if self.valid_submission_with(self.deleteField):
             try:
                if len(series.videos): 
-                    flask.flash(f"Album {series.name} not empty!")
+                    flask.flash(f"Album {unquote(series.name)} not empty!")
                else:
-                    series.delete()
-                    flask.flash(f"Deleted {series.name}")
+                    series.remove()
+                    flask.flash(f"Deleted {unquote(series.name)}")
+                    self.response=f"/manna/albums"
             except Exception as e:
-                flask.flash(f"Failed deleting {series.name}: {e}")
+                flask.flash(f"Failed deleting {unquote(series.name)}: {e}")
 
 def wtf_require(ftype, title, **kwargs):
     return ftype(title, [DataRequired()], **kwargs)
@@ -137,10 +140,13 @@ class AddVideosForm(DomForm):
         super().__init__()
         if not flask.request.form:
             #Initialize form
-            latest_vid = alb.videos[-1]
-            self.vidName.data = latest_vid.next_name
-            self.vidDesc.data = latest_vid.description
-        else:
+            if len(alb.videos):
+                latest_vid = alb.videos[-1]
+                self.vidName.data = latest_vid.next_name
+                self.vidDesc.data = latest_vid.description
+            else:
+                self.vidName.data = "Lesson #1"
+        elif self.valid_submission_with(self.submitUpload):
             #Modify form to present vimeo sponsored upload_form content
             del self.submitUpload
             up_form = alb.up_form_gen(self.vidName.data, 
@@ -150,20 +156,30 @@ class AddVideosForm(DomForm):
 
         viduri=flask.request.args.get('video_uri', False)
         if viduri:
-            alb.addVideo(viduri)
-            flask.flash(f"Video {viduri} added to vimeo")
-            self.response=f"/manna/{viduri}"
+            import pdb; pdb.set_trace()
+            vid = alb.add_video(viduri)
+            flask.flash(f"Video {vid.name} added to {vid.album.name}")
+            self.response=f"{alb.uri}/videos/{vid.name}"
 
 
 class SyncToVimeoForm(DomForm):
     "Syncronize album or entire catalog with vimeo content"
     syncField = wtf.SubmitField('Syncronize')
-
-    def __init__(self, alb):
+    qscriptage = """function vSync() { 
+                        $.ajax({ url: '/manna/vsync', 
+                             success: function(data) { 
+                                $('#status').html(data); },
+                             complete: function() { 
+                                if( $('#status').text() != 'done' ) { 
+                                    setTimeout(vSync, 1000)}}}); }
+                    var sform = document.forms["SyncToVimeoForm"];
+                    sform.addEventListener('submit',  vSync);"""
+    def __init__(self, name, sync_func):
         super().__init__("Syncronize the series with vimeo")
         if self.valid_submission_with(self.syncField):
-            alb.synchronize()
-            flask.flash(f"Series {alb.name} now synchronized with vimeo")
+            sync_func()
+            flask.flash(f"Series {name} now synchronized with vimeo")
+            self.response = flask.request.url
 
 
 class PurgeVideoForm(DomForm):
@@ -181,7 +197,7 @@ class PurgeVideoForm(DomForm):
                                 vid_name=vid.name)
         if self.valid_submission_with(self.purgeField):
             for album in vid.albums:
-                album.synchronize()
+                album.synchronized()
             vid.delete()
             flask.flash(f"Video {vid.name} purged from catalog")
             self.response = "/manna"

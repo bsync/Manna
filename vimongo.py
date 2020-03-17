@@ -1,7 +1,7 @@
 import os, flask_mongoengine, vimeo
 from datetime import datetime
 
-status = "N/A"
+status = "ready"
 mdb = flask_mongoengine.MongoEngine()
 vc = vimeo.VimeoClient(
         os.getenv('VIMEO_TOKEN'),
@@ -20,10 +20,11 @@ def vcput(url, **kwargs):
 def vcdel(url, **kwargs):
     return check_response(vc.delete(url, params=kwargs))
 
-
 def check_response(resp):
+    class VimeoException(Exception):
+        pass
     if resp.status_code > 399:
-        raise Exception(f"Vimeo Response: {resp.json()}")
+        raise VimeoException(f"Vimeo Response: {resp.json()}")
     return resp
 
 class VimeoRecord(mdb.Document):
@@ -43,40 +44,28 @@ class VimeoRecord(mdb.Document):
         return cls.objects().order_by('-create_date')[:cnt]
 
 
-class VideoRecord(VimeoRecord):
-    albums = mdb.ListField(mdb.ReferenceField('AlbumRecord'))
+class Video(VimeoRecord):
+    album = mdb.ReferenceField('VideoSeries')
     duration = mdb.IntField(required=True)
    
-    def update(self, name, albums):
-        if name != self.name:
-            self.name = name
+    @classmethod
+    def create_or_update(cls, vinfo):
+        vid = cls.objects(uri=vinfo['uri']).first()
+        if vid: 
+            vid.name = vinfo['name']
+            vid.html = vinfo['embed']['html']
+        else:
+            vid = Video(uri=vinfo['uri'], 
+                        name=vinfo['name'],
+                        html=vinfo['embed']['html'],
+                        create_date=vinfo['created_time'],
+                        duration=vinfo['duration'])
+            print(f"Created new Video from vimeo source {vid.name}")
+        return vid
 
-        vainfo = vcget(f"{self.uri}/albums/").json()
-        while('data' in vainfo):
-            for ainfo in vainfo['data']: 
-                alb = AlbumRecord.objects(uri=ainfo['uri']).first()
-                if not alb:
-                    alb = AlbumRecord(uri=ainfo['uri'], 
-                                      name=ainfo['name'],
-                                      html=ainfo['embed']['html'],
-                                      create_date=ainfo['created_time'],)
-                    alb.save()
-                if alb not in self.albums: 
-                    self.albums.append(alb)
-                    updated=True
-            updated=True
-        return updated
-        
     @classmethod 
     def matching_id(cls, vimid):
         return cls.objects(uri=f"/videos/{vimid}").first()
-
-    @property
-    def album(self):
-        return self.albums[0]
-
-    def delete(self):
-        super().delete()
 
     @property
     def next_name(self):
@@ -88,21 +77,34 @@ class VideoRecord(VimeoRecord):
         return nextname
 
 
-class AlbumRecord(VimeoRecord):
-    videos = mdb.ListField(mdb.ReferenceField(VideoRecord))
+class VideoSeries(VimeoRecord):
+    videos = mdb.ListField(mdb.ReferenceField(Video, mdb.PULL))
+
+    @classmethod
+    def create_or_update(cls, ainfo):
+        alb = cls.objects(uri=ainfo['uri']).first()
+        if alb:
+            alb = alb.synchronized()
+        else:
+            alb = VideoSeries(uri=ainfo['uri'], 
+                              name=ainfo['name'],
+                              html=ainfo['embed']['html'],
+                              create_date=ainfo['created_time'],)
+            alb._sync_vids()
+            alb.save()
+        return alb
+
 
     @classmethod
     def named(cls, aname):
         return cls.objects(name=aname).first()
 
     @classmethod
-    def addAlbum(cls, aname, adescription):
-        if AlbumRecord.objects(name=aname).count() > 0:
-            raise Exception(f"Series {aname} already exists.")
-        resp = vcpost('/me/albums', 
-                      name=aname, 
-                      description=adescription).json()
-        alb = AlbumRecord(uri=resp['uri'], 
+    def add_new(cls, aname, adescription):
+        if VideoSeries.objects(name=aname).count() > 0:
+            raise Exception(f"VideoSeries {aname} already exists.")
+        resp = vcpost('/me/albums', name=aname, description=adescription).json()
+        alb = VideoSeries(uri=resp['uri'], 
                           name=resp['name'],
                           html=resp['embed']['html'],
                           create_date=resp['created_time'],)
@@ -117,84 +119,76 @@ class AlbumRecord(VimeoRecord):
         vp = vp.json()
         return vp['upload']['form']
 
-    def addVideo(self, viduri):
+    def add_video(self, viduri):
         vcput(f"{self.id}{viduri}")
-        self.synchronize()
+        vid = Video.objects(uri=viduri).first()
+        return vid
 
-    def delete(self):
-        super().delete()
-        vcdel(self.uri) 
-
-    def videoNamed(self, vname):
+    def get_video_named(self, vname):
         return { x.name:x for x in self.videos }[vname]
 
-    def synchronize(self):
-        avinfo = vcget(f"{self.uri}/videos",
+    def remove(self):
+        vimeourl = self.uri
+        self.delete()
+        vcdel(vimeourl) 
+
+    @classmethod
+    def sync_all(cls):
+        global status
+        if status == 'ready':
+            lainfo = vcget('/me/albums', 
+                           fields="uri,name,embed,created_time",
+                           sort="date",
+                           direction="desc").json()
+            while('data' in lainfo):
+                for ainfo in lainfo['data']: 
+                    try:
+                        status = VideoSeries.create_or_update(ainfo).name
+                    except mdb.ValidationError as mve:
+                       print(f"Skipping import of {ainfo['name']} due to {mve}")
+                nextpage = lainfo.get('paging', {}).get('next', False)
+                if nextpage:
+                    lainfo = vcget(nextpage).json()
+                else:
+                    lainfo = {}
+            status = 'ready'
+
+    def synchronized(self):
+        ainfo = vcget(self.uri,
+                      fields="uri,name,embed,created_time",
+                      sort="date",
+                      direction="desc").json()
+        self.name=ainfo['name']
+        self.html=ainfo['embed']['html']
+        self._sync_vids()
+        self.save()
+        return self
+
+    def _sync_vids(self):
+        vlinfo = vcget(f"{self.uri}/videos",
                        fields="uri,name,embed,created_time,duration,"
                              +"metadata.connections.albums",
                        sort="date",
                        direction="asc").json()
-        if 'data' in avinfo: 
+        if 'data' in vlinfo: 
             self.videos.clear()
-        while ('data' in avinfo):
-            for vinfo in avinfo['data']:
+        while ('data' in vlinfo):
+            for vinfo in vlinfo['data']:
                 try:
-                    vid = VideoRecord.objects(uri=vinfo['uri']).first()
-                    if not vid: 
-                        vid = VideoRecord(uri=vinfo['uri'], 
-                                          name=vinfo['name'],
-                                          html=vinfo['embed']['html'],
-                                          create_date=vinfo['created_time'],
-                                          duration=vinfo['duration'])
-                        print(f"Created vid {vid.name} "
-                            + f"for album {self.name}")
-                    else:
-                        #Update existing vid with any potential changes...
-                        vid.name = vinfo['name']
+                    vid = Video.create_or_update(vinfo)
                     self.videos.append(vid)
-                    if self not in vid.albums: vid.albums.append(self)
+                    vid.album = self
                     vid.save()
                 except mdb.ValidationError as mve:
                    print(f"Skipping import of {vinfo['name']} due to {mve}")
-            nextpage = avinfo.get('paging', {}).get('next', False)
+            nextpage = vlinfo.get('paging', {}).get('next', False)
             if nextpage:
-                avinfo = vcget(nextpage).json()
+                vlinfo = vcget(nextpage).json()
             else:
-                avinfo = {}
-        self.save()
-        return len(self.videos)
+                vlinfo = {}
 
-
-def reset_and_resync_all():
-    AlbumRecord.drop_collection()
-    VideoRecord.drop_collection()
+def _drop_all():
+    VideoSeries.drop_collection()
+    Video.drop_collection()
     VimeoRecord.drop_collection()
-    sync_mongo_and_vimeo()
 
-def sync_mongo_and_vimeo():
-    lainfo = vcget('/me/albums', 
-                   fields="uri,name,embed,created_time",
-                   sort="date",
-                   direction="desc").json()
-    if 'data' not in lainfo: 
-        raise RuntimeError("No data response from vimeo.")
-    while('data' in lainfo):
-        for ainfo in lainfo['data']: 
-            try:
-                alb = AlbumRecord.objects(uri=ainfo['uri']).first()
-                if not alb:
-                    alb = AlbumRecord(uri=ainfo['uri'], 
-                                      name=ainfo['name'],
-                                      html=ainfo['embed']['html'],
-                                      create_date=ainfo['created_time'],)
-                    alb.save()
-                alb.synchronize()
-                print(f"Processed {alb.name}")
-                status=alb.name
-            except mdb.ValidationError as mve:
-               print(f"Skipping import of {ainfo['name']} due to {mve}")
-        nextpage = lainfo.get('paging', {}).get('next', False)
-        if nextpage:
-            lainfo = vcget(nextpage).json()
-        else:
-            lainfo = {}
