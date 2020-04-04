@@ -6,3 +6,4 @@ gen
 local.properties
 proguard-project.txt
 passcheck.py
+secrets
