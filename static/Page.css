@@ -1,6 +1,6 @@
 body { background-color: grey; }
-a:visited { color: midnightblue; }
-a { color: mediumblue; }
+a:visited { color: lightyellow; }
+a { color: yellow; }
 
 #header { 
   padding 5px; 
