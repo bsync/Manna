@@ -13,6 +13,7 @@ def init_app(app):
     vimongo.init_app(app)
     Page.title = app.config.get("title", Page.title)
 
+
 class Page(dominate.document):
     title = "Manna"
 
@@ -161,8 +162,8 @@ class LatestPage(Page):
             with self.datatable("latest_table", order=[[0,"desc"]]): 
                 with tags.thead():
                     tags.th("Date", _class="dt-head-left")
-                    tags.th("Name", _class="dt-head-left")
                     tags.th("Series", _class="dt-head-left")
+                    tags.th("Name", _class="dt-head-left")
                     tags.th("Duration", _class="dt-head-left")
                 with tags.tbody():
                     if len(vids) == 0:
@@ -177,11 +178,11 @@ class LatestPage(Page):
                 tags.attr()
                 tags.td(str(vid.create_date))
                 vurl = quote(f"latest/albums/{vid.album.name}/videos/{vid.name}")
-                tags.td(tags.a(vid.name, href=vurl, onclick="edit(event, this)"))
                 tags.td(
                     tags.a(vid.album.name, 
                            href=quote(f"albums/{vid.album.name}"),
                            onclick="edit(event, this)"))
+                tags.td(tags.a(vid.name, href=vurl, onclick="edit(event, this)"))
                 tags.td(f"{int(vid.duration/60)} mins")
             except Exception as e:
                 print(f"Removing corrupt video {vid.name} from mongoDB!")
@@ -219,6 +220,7 @@ class CatalogEditorPage(CatalogPage):
             self.jquery("sync_status()")
             ex.submit(vimongo.VideoSeries.sync_all)
 
+
 class SeriesPage(Page):
 
     def __init__(self, alb):
@@ -235,17 +237,18 @@ class SeriesEditorPage(SeriesPage):
         super().__init__(alb)
         album = vimongo.VideoSeries.named(alb)
         self.integrate(forms.AddVideosForm(album))
-        sac = self.integrate(forms.SyncWithVimeoForm(f"Sync {alb} with vimeo"))
+        sav = self.integrate(forms.SyncWithVimeoForm(f"Sync {alb} with vimeo"))
         self.integrate(forms.DeleteSeriesForm(album))
 
-        if sac.validate():
+        if sav.validate():
             self.jquery("sync_status()")
             ex.submit(album.synchronize)
+
 
 class VideoPlayer(Page):
 
     def __init__(self, alb, vid=None):
-        super().__init__(f"{alb} of {vid}" if vid else f"{alb}")
+        super().__init__(f"{vid} of {alb}" if vid else f"{alb}")
         album = vimongo.VideoSeries.named(alb)
         with self.content:
             if vid:
