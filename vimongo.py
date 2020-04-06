@@ -106,8 +106,10 @@ class VideoSeries(VimeoRecord):
 
     @classmethod
     def add_new(cls, aname, adescription):
-        if VideoSeries.objects(name=aname).count() > 0: raise Exception(f"VideoSeries {aname} already exists.")
-        resp = vc.post('/me/albums', name=aname, description=adescription).json()
+        if VideoSeries.objects(name=aname).count() > 0: 
+            raise Exception(f"VideoSeries {aname} already exists.")
+        resp = vcpost('/me/albums', name=aname, description=adescription).json()
+        resp2 = vcpost('/me/projects', name=aname).json()
         alb = VideoSeries(uri=resp['uri'], 
                           name=resp['name'],
                           html=resp['embed']['html'],
@@ -116,7 +118,7 @@ class VideoSeries(VimeoRecord):
         return alb
 
     def upload_action(self, vid_name, vid_desc, redir="/"):
-        vp = vc.post("/me/videos", 
+        vp = vcpost("/me/videos", 
                     **dict(name=vid_name,
                            description=vid_desc,
                            upload=dict(approach="post", redirect_url=redir)))
@@ -124,7 +126,7 @@ class VideoSeries(VimeoRecord):
         return vp['upload']['upload_link']
 
     def add_video(self, viduri):
-        resp = vc.put(f"{self.id}{viduri}")
+        resp = vcput(f"{self.id}{viduri}")
         if resp.ok:
             resp = vcget(viduri)
             while resp.json()['status'] != 'available':
@@ -139,7 +141,7 @@ class VideoSeries(VimeoRecord):
     def remove(self):
         vimeourl = self.uri
         self.delete()
-        vc.delete(vimeourl) 
+        vcdel(vimeourl) 
 
     @classmethod
     def sync_all(cls):

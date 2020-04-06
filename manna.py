@@ -6,32 +6,16 @@ bp = flask.Blueprint('mannabp', __name__,
                      url_prefix='/manna', 
                      static_folder='static')
 
-class PageUser(flask_login.UserMixin): 
-    def get_id(self): 
-        return 0
-
-def load_user(user_id):
-    if flask.session.get(flask.request.path):
-        return PageUser()
-    else:
-        return None
-
 @bp.record
 def record(state):
     lm = flask_login.LoginManager(state.app)
-    lm.user_loader(load_user)
     lm.login_view = 'mannabp.auth'
-    pages.init_app(state.app) 
+    pages.init_app(state.app, lm) 
 
 @bp.route('auth', methods=['GET', 'POST'])
 def auth():
     target = flask.request.args.get('next')
-    lp = pages.PasswordPage(target)
-    if lp.passes:
-        flask_login.login_user(PageUser())
-        flask.session[unquote(target)]=True
-        return flask.redirect(target)
-    return lp.response
+    return pages.PasswordPage(target).response
 
 @bp.route("/")
 def latest():
