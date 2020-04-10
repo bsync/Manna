@@ -30,7 +30,6 @@ def init_app(app):
     db.init_app(app)
     db.status = "ready"
 
-
 class VimeoRecord(db.Document):
     meta = {'allow_inheritance': True}
     uri = db.StringField(required=True, primary_key=True)
@@ -45,7 +44,8 @@ class VimeoRecord(db.Document):
 
     @classmethod
     def latest(cls, cnt):
-        return cls.objects().order_by('-create_date')[:cnt]
+        vids = cls.objects().order_by('-create_date')[:cnt]
+        return vids
 
 
 class Video(VimeoRecord):
@@ -106,8 +106,10 @@ class VideoSeries(VimeoRecord):
 
     @classmethod
     def add_new(cls, aname, adescription):
-        if VideoSeries.objects(name=aname).count() > 0: raise Exception(f"VideoSeries {aname} already exists.")
-        resp = vc.post('/me/albums', name=aname, description=adescription).json()
+        if VideoSeries.objects(name=aname).count() > 0: 
+            raise Exception(f"VideoSeries {aname} already exists.")
+        resp = vcpost('/me/albums', name=aname, description=adescription).json()
+        resp2 = vcpost('/me/projects', name=aname).json()
         alb = VideoSeries(uri=resp['uri'], 
                           name=resp['name'],
                           html=resp['embed']['html'],
@@ -116,22 +118,27 @@ class VideoSeries(VimeoRecord):
         return alb
 
     def upload_action(self, vid_name, vid_desc, redir="/"):
-        vp = vc.post("/me/videos", 
+        db.status = "Waiting for upload to begin..."
+        vp = vcpost("/me/videos", 
                     **dict(name=vid_name,
                            description=vid_desc,
                            upload=dict(approach="post", redirect_url=redir)))
-        vp = vp.json()
-        return vp['upload']['upload_link']
+        return vp.json()['upload']['upload_link']
 
     def add_video(self, viduri):
-        resp = vc.put(f"{self.id}{viduri}")
+        db.status = "Upload complete waiting for vid to become avaialble..."
+        resp = vcput(f"{self.id}{viduri}")
         if resp.ok:
-            resp = vcget(viduri)
-            while resp.json()['status'] != 'available':
-                time.sleep(3)
-                resp = vcget(viduri)
+            resp = vcget(viduri).json()
+            secs = 0
+            while  resp['status'] != 'available':
+                time.sleep(5)
+                secs += 5
+                resp = vcget(viduri).json()
+                db.status = f"Status after {secs} seconds: {resp['status']}"
         self.synchronize()
-        return Video.objects(uri=viduri).first()
+        db.status = "ready"
+        #return Video.objects(uri=viduri).first()
 
     def get_video_named(self, vname):
         return { x.name:x for x in self.videos }[vname]
@@ -139,7 +146,7 @@ class VideoSeries(VimeoRecord):
     def remove(self):
         vimeourl = self.uri
         self.delete()
-        vc.delete(vimeourl) 
+        vcdel(vimeourl) 
 
     @classmethod
     def sync_all(cls):

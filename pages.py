@@ -1,17 +1,29 @@
-import flask, os
+import os, re, flask, flask_login
 import vimongo, forms
 import dominate
 import dominate.tags as tags
 from dominate.util import raw
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 from flask_executor import Executor
 
 ex = Executor()
 
-def init_app(app):
+class PageUser(flask_login.UserMixin): 
+    def get_id(self): 
+        return 0
+
+def load_user(user_id):
+    if flask.session.get(flask.request.path):
+        return PageUser()
+    else:
+        return None
+
+def init_app(app, login_manager):
+    login_manager.user_loader(load_user)
     ex.init_app(app)
     vimongo.init_app(app)
     Page.title = app.config.get("title", Page.title)
+
 
 class Page(dominate.document):
     title = "Manna"
@@ -31,12 +43,13 @@ class Page(dominate.document):
                               href=flask.url_for('.static', filename=css))
         self.jquery(self._scriptage, on_ready=False)
 
+        style_str="display: none;" if self.status == 'ready' else ""
         with self.body.add(tags.div(cls="container")):
             self.header = tags.div(id="header")
             with self.header.add(tags.h2()):
                 tags.a(self.title, href='/', id="title")
                 tags.h3(self.subtitle, id="subtitle")
-                tags.h4(f"{self.status}", id="status", style="display: none;") 
+                tags.h4(self.status, id="status", style=style_str)
             self.controls = tags.div(id="controls")
             self.content = tags.div(id="content")
             self.footer = tags.div(id="footer")
@@ -48,7 +61,13 @@ class Page(dominate.document):
 
     @property
     def status(self):
-        return vimongo.db.status
+        msgs = " ".join(flask.get_flashed_messages()) 
+        if len(msgs):
+            if vimongo.db.status != 'ready':
+                msgs += vimongo.db.status
+        else:
+            msgs = vimongo.db.status
+        return msgs
 
     @property
     def _scriptage(self):
@@ -61,7 +80,7 @@ class Page(dominate.document):
                                 if (status.startsWith('redirect:')) {{
                                     window.location.href=status.split(':')[1]; 
                                 }} else if (status != 'ready') {{ 
-                                    setTimeout(sync_status, 1000); 
+                                    //setTimeout(sync_status, 1000); 
                                 }}
                             }}
                         }})}} 
@@ -129,19 +148,25 @@ class Page(dominate.document):
                 self.scriptfiles(*form.scriptfiles)
         if container is None: container = self.controls
         container.add(form.content) 
+        setattr(self, form.__class__.__name__, form)
         return form
 
+    def redirect(self, url, **kwargs):
+        return flask.redirect(flask.url_for(url, **kwargs))
 
 class PasswordPage(Page):
 
     def __init__(self, target):
         super().__init__("Authorization Required")
-        self.passForm = self.integrate(forms.PasswordForm(target))
+        self.integrate(forms.PasswordForm(target))
 
     @property
-    def passes(self):
-        return self.passForm.passes
-
+    def response(self):
+        if self.PasswordForm.passes:
+            flask_login.login_user(PageUser())
+            flask.session[unquote(self.PasswordForm.target)]=True
+            return flask.redirect(self.PasswordForm.target)
+        return str(self)
 
 class ErrorPage(Page):
 
@@ -161,8 +186,8 @@ class LatestPage(Page):
             with self.datatable("latest_table", order=[[0,"desc"]]): 
                 with tags.thead():
                     tags.th("Date", _class="dt-head-left")
-                    tags.th("Name", _class="dt-head-left")
                     tags.th("Series", _class="dt-head-left")
+                    tags.th("Name", _class="dt-head-left")
                     tags.th("Duration", _class="dt-head-left")
                 with tags.tbody():
                     if len(vids) == 0:
@@ -177,11 +202,11 @@ class LatestPage(Page):
                 tags.attr()
                 tags.td(str(vid.create_date))
                 vurl = quote(f"latest/albums/{vid.album.name}/videos/{vid.name}")
-                tags.td(tags.a(vid.name, href=vurl, onclick="edit(event, this)"))
                 tags.td(
                     tags.a(vid.album.name, 
                            href=quote(f"albums/{vid.album.name}"),
                            onclick="edit(event, this)"))
+                tags.td(tags.a(vid.name, href=vurl, onclick="edit(event, this)"))
                 tags.td(f"{int(vid.duration/60)} mins")
             except Exception as e:
                 print(f"Removing corrupt video {vid.name} from mongoDB!")
@@ -213,11 +238,30 @@ class CatalogEditorPage(CatalogPage):
 
     def __init__(self):
         super().__init__("Series Catalog Editor")
-        self.integrate(forms.AddSeriesForm(vimongo.VideoSeries))
-        scf = self.integrate(forms.SyncWithVimeoForm("Sync Catalog with Vimeo"))
-        if scf.validate():
+        self.integrate(forms.AddSeriesForm("Add a series to the Catalog"))
+        self.integrate(forms.SyncWithVimeoForm("Sync Catalog with Vimeo"))
+        self.integrate(forms.ResetToVimeoForm("Reset Catalog to Vimeo"))
+
+    @property
+    def response(self):
+        if self.SyncWithVimeoForm.was_submitted:
             self.jquery("sync_status()")
             ex.submit(vimongo.VideoSeries.sync_all)
+        elif self.ResetToVimeoForm.was_submitted:
+            vimongo.VideoSeries._drop_all()
+            self.jquery("sync_status()")
+            ex.submit(vimongo.VideoSeries.sync_all)
+        elif self.AddSeriesForm.was_submitted:
+            name = self.AddSeriesForm.seriesName.data
+            description = self.AddSeriesForm.seriesDesc.data
+            try:
+                vimongo.VideoSeries.add_new(name, description)
+                flask.flash(f"Added album {unquote(name)}")
+                return self.redirect(".catalog")
+            except Exception as e:
+                flask.flash(f"Failed to create album: {str(e)}")
+        return str(self)
+
 
 class SeriesPage(Page):
 
@@ -233,24 +277,48 @@ class SeriesEditorPage(SeriesPage):
 
     def __init__(self, alb):
         super().__init__(alb)
-        album = vimongo.VideoSeries.named(alb)
-        self.integrate(forms.AddVideosForm(album))
-        sac = self.integrate(forms.SyncWithVimeoForm(f"Sync {alb} with vimeo"))
-        self.integrate(forms.DeleteSeriesForm(album))
+        self.album = vimongo.VideoSeries.named(alb)
+        self.integrate(forms.AddVideosForm(self.album))
+        self.integrate(forms.SyncWithVimeoForm(f"Sync {alb} with vimeo"))
+        self.integrate(forms.DeleteSeriesForm(f"Delete empty {alb} album"))
+        self.upload_uri = flask.request.args.get('video_uri', False)
 
-        if sac.validate():
+    @property
+    def response(self):
+        if self.upload_uri:
             self.jquery("sync_status()")
-            ex.submit(album.synchronize)
+            if vimongo.db.status.startswith("Waiting"): 
+                ex.submit(self.album.add_video, self.upload_uri)
+        elif self.DeleteSeriesForm.was_submitted:
+            try:
+                self.jquery(
+                    f"""$('#{self.DeleteSeriesForm.submitField.id}').click(
+                        function () {{ 
+                            return confirm("Delete series: {self.album.name} ?") 
+                                    }} ) """)
+                self.album.remove()
+                flask.flash(f"Deleted {unquote(self.album.name)}")
+                return self.redirect(".catalog")
+            except Exception as e:
+                flask.flash(f"Failed deleting {unquote(self.album.name)}: {e}")
+        elif self.SyncWithVimeoForm.was_submitted:
+            self.jquery("sync_status()")
+            ex.submit(self.album.synchronize)
+        return str(self)
+
 
 class VideoPlayer(Page):
 
     def __init__(self, alb, vid=None):
-        super().__init__(f"{alb} of {vid}" if vid else f"{alb}")
+        super().__init__(f"{vid} of {alb}" if vid else f"{alb}")
         album = vimongo.VideoSeries.named(alb)
         with self.content:
             if vid:
                 video = album.get_video_named(vid)
-                tags.div(raw(video.html), id="player")
+                res720html = re.sub('width=.*height="\d+"', 
+                                    'width="1280" height="720"', 
+                                    video.html)
+                tags.div(raw(res720html), id="player")
                 tags.a("click to play audio?",
                        href=flask.url_for('.audio_response', 
                                           album=album.name, 
@@ -263,10 +331,22 @@ class VideoEditor(VideoPlayer):
 
     def __init__(self, album, vid):
         super().__init__(album, vid)
-        album = vimongo.VideoSeries.named(album)
-        video = album.get_video_named(vid)
-        self.integrate(forms.PurgeVideoForm(video))
+        self.album = vimongo.VideoSeries.named(album)
+        self.video = self.album.get_video_named(vid)
+        self.integrate(forms.PurgeVideoForm(self.video))
 
+    @property
+    def response(self):
+        if self.PurgeVideoForm.was_submitted:
+            self.jquery(f"""$('#{self.submitField.id}').click( 
+                                    function () {{ 
+                                        return confirm("Purge video: {vid.name} ?") 
+                                    }} )""")
+            self.video.delete()
+            self.album.synchronize()
+            flask.flash(f"Video {vid.name} purged from catalog")
+            return self.redirect(".latest")
+        return str(self)
 
 class AudioPage(Page):
 

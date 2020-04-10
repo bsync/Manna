@@ -4,8 +4,8 @@ services:
     container_name: frontend
     build: nginx
     restart: unless-stopped
-    environment:
-      - STAGING=0
+    depends_on: 
+      - manna
     env_file:
       - ./nginx/nginx-certbot.env
     ports:
@@ -25,6 +25,7 @@ services:
       - mongodb
     env_file: secrets
   mongodb:
+    container_name: mongo
     image: 'bitnami/mongodb:4.0'
     ports:
       - "27017:27017"
