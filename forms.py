@@ -88,30 +88,40 @@ class AddVideosForm(DomForm):
 
     def __init__(self, alb):
         super().__init__(f"Add video to {unquote(alb.name)}")
-        if self.was_submitted:
-            self.submitField.render_kw = {'disabled': 'disabled'}
-            self.formTail.add(
-                tags.form(
-                    tags.input(name="file_data", type="file"), 
-                    tags.input(type="submit"),
-                    method="POST",
-                    enctype="multipart/form-data",
-                    name="upload", 
-                    action=alb.upload_action(self.vidName.data, 
-                                             self.vidDesc.data, 
-                                             flask.request.url)))
-        else: #Initialize form
+        if not self.was_submitted: #Initialize main form configuration
             if len(alb.videos):
                 latest_vid = alb.videos[-1]
                 self.vidName.data = latest_vid.next_name
                 self.vidDesc.data = latest_vid.description
             else:
                 self.vidName.data = "Lesson #1"
+        else:
+            self.integrate_upload_form( 
+                alb.upload_action(
+                    self.vidName.data, 
+                    self.vidDesc.data, 
+                    flask.request.url
+                    )
+                )
+
+    def integrate_upload_form(self, upurl):
+        self.submitField.render_kw = {'disabled': 'disabled'}
+        self.formTail.add(
+            tags.form(
+                tags.input(name="file_data", type="file"), 
+                tags.input(type="submit"),
+                method="POST",
+                enctype="multipart/form-data",
+                name="upload", 
+                action=upurl))
 
 class SyncWithVimeoForm(DomForm):
     "Syncronize album or entire catalog with vimeo content"
     submitField = wtf.SubmitField('Syncronize')
 
+class ResetToVimeoForm(DomForm):
+    "Syncronize album or entire catalog with vimeo content"
+    submitField = wtf.SubmitField('Reset')
 
 class PurgeVideoForm(DomForm):
     "Purge video from catalog (but NOT from vimeo)"
