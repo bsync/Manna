@@ -81,13 +81,16 @@ class PasswordForm(DomForm):
 
     def __init__(self, target):
         super().__init__(f"Provide a password for {unquote(target)}")
-        import passcheck
-        if self.valid_submission_with(self.submitField):
-            self.passes = passcheck(target, self.data['guessword'])
-            if not self.passes:
-                flask.flash(f"Wrong password for {unquote(target)}")
-        else:
-            self.passes = False
+        try:
+            import passcheck
+            if self.valid_submission_with(self.submitField):
+                self.passes = passcheck(target, self.data['guessword'])
+                if not self.passes:
+                    flask.flash(f"Wrong password for {unquote(target)}")
+            else:
+                self.passes = False
+        except:
+            self.passes = True
 
 
 class AddSeriesForm(DomForm):

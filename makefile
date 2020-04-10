@@ -5,7 +5,7 @@ down:
 	docker-compose down
 
 build:
-	docker-compose build manna
+	docker-compose build nginx manna
 
 restart:
 	docker-compose restart manna
