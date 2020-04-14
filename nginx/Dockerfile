@@ -1,2 +1,2 @@
 FROM jonasal/nginx-certbot:latest
-COPY manna.conf /etc/nginx/conf.d/
+COPY pleroma.conf /etc/nginx/conf.d/

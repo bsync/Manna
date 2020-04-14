@@ -1,55 +1,59 @@
-version: '2'
+version: '3.1'
 services:
   nginx:
-    container_name: frontend
+    container_name: nginx
     build: nginx
     restart: unless-stopped
     depends_on: 
-      - manna
       - joomla
-    env_file:
-      - ./nginx/nginx-certbot.env
+      - manna
+    env_file: secrets
     ports:
       - 80:80
       - 443:443
     volumes:
+      - ./static:/var/www/html/manna/static
+      - joomla_html:/var/www/html
       - nginx_secrets:/etc/letsencrypt
   joomla:
-    image: joomla
+    container_name: joomla
+    image: joomla:3.9-fpm-alpine
     restart: unless-stopped
     links:
       - joomladb:mysql
     depends_on: 
       - joomladb
+    env_file: secrets
     ports:
-      - 8080:80
-    environment:
-      JOOMLA_DB_HOST: joomladb
-      JOOMLA_DB_PASSWORD: example
+      - 9000:9000
+    volumes:
+      - joomla_html:/var/www/html
   joomladb:
-    image: mysql:5.6
+    container_name: joomladb
+    image: mysql:5.7
     restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: example
+    env_file: secrets
+    volumes:
+      - mysql_data:/var/lib/mysql
   manna:
     container_name: manna
     build: .
     volumes:
-       - ./:/app
-       - ./static:/static
+      - ./:/app
     ports:
-      - "8000:8000"
+      - 8001:8001
     depends_on: 
       - mongodb
     env_file: secrets
   mongodb:
-    container_name: mongo
-    image: 'bitnami/mongodb:4.0'
+    container_name: mongodb
+    image: bitnami/mongodb:4.0
     ports:
-      - "27017:27017"
+      - 27017:27017
     volumes:
-      - 'mongodb_data:/bitnami'
+      - mongodb_data:/bitnami
 volumes:
   mongodb_data:
-    driver: local
   nginx_secrets:
+  joomla_html:
+  mysql_data:

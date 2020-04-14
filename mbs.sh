@@ -9,4 +9,10 @@ docker-compose --version
 git clone https://github.com/bsync/Manna.git
 sudo groupadd docker
 sudo usermod -aG docker $USER
-echo "Logout and back on to use docker without sudo"
+sudo fallocate -l 4G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo "To make swap file permanent you need to update /etc/fstab with"
+echo "echo '/swapfile   none    swap    sw    0   0' >> /etc/fstab"
+echo "Also, logout and back on to use docker without sudo"
