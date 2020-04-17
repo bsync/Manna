@@ -60,7 +60,7 @@ class PasswordForm(DomForm):
         self.target = target
         try:
             import passcheck
-            if self.valid_submission_with(self.submitField):
+            if self.was_submitted:
                 self.passes = passcheck(target, self.data['guessword'])
                 if not self.passes:
                     flask.flash(f"Wrong password for {unquote(target)}")
