@@ -1,0 +1,9 @@
+
+#options {
+  display: grid;
+  grid-template-columns: auto auto;
+  text-align: center;
+  grid-gap: 10px;
+  background-color: darkblue;
+  padding: 10px;
+}
