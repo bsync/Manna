@@ -29,7 +29,8 @@ class DomForm(FlaskForm):
         self.formTag = tags.form(method="POST", action="", 
                                  target="_self", name=self.__class__.__name__)
         self.formTail = tags.div()
-        self.submitField.name = str(self.__class__.__name__) + "SubmitField"
+        self.submitField.id = self.submitField.name = \
+                str(self.__class__.__name__) + "SubmitField"
         
     @property
     def content(self):
@@ -56,6 +57,7 @@ class PasswordForm(DomForm):
 
     def __init__(self, target):
         super().__init__(f"Provide a password for {unquote(target)}")
+        self.target = target
         try:
             import passcheck
             if self.valid_submission_with(self.submitField):
