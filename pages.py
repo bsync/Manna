@@ -19,10 +19,10 @@ def load_user(user_id):
     else:
         return None
 
-def init_app(app, login_manager):
+def init_flask(app, login_manager):
     login_manager.user_loader(load_user)
     ex.init_app(app)
-    catalog.init_app(app)
+    catalog.init_flask(app)
     Page.title = app.config.get("title", Page.title)
 
 
@@ -167,7 +167,7 @@ class Page(dominate.document):
         return flask.redirect(flask.url_for(url, **kwargs))
 
 
-class PasswordPage(Page):
+class AuthenticationPage(Page):
     def __init__(self, target):
         super().__init__("Authorization Required")
         self.integrate(forms.PasswordForm(target))

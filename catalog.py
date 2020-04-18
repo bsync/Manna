@@ -26,7 +26,7 @@ def check_response(resp):
 
 db = MongoEngine()
 
-def init_app(app):
+def init_flask(app):
     db.init_app(app)
 
 def sync_each_series():

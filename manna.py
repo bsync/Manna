@@ -1,6 +1,5 @@
-import os, flask, flask_login, pages
+import flask, flask_login, pages
 from werkzeug.exceptions import HTTPException
-from urllib.parse import unquote
 
 bp = flask.Blueprint('mannabp', __name__, 
                      url_prefix='/manna', 
@@ -10,12 +9,12 @@ bp = flask.Blueprint('mannabp', __name__,
 def record(state):
     lm = flask_login.LoginManager(state.app)
     lm.login_view = 'mannabp.auth'
-    pages.init_app(state.app, lm) 
+    pages.init_flask(state.app, lm) 
 
 @bp.route('auth', methods=['GET', 'POST'])
 def auth():
     target = flask.request.args.get('next')
-    return pages.PasswordPage(target).response
+    return pages.AuthenticationPage(target).response
 
 @bp.route("/")
 def latest():
