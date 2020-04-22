@@ -20,6 +20,11 @@ def auth():
 def latest():
     return pages.LatestPage(10).response
 
+@bp.route("/roku")
+def roku():
+    print("TODO: update roku showcase")
+    return pages.LatestPage(10).feed
+
 @bp.route("/latest/albums/<album>/videos/<video>") 
 def latest_player(album, video):
     return pages.VideoPlayer(album, video).response

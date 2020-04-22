@@ -29,16 +29,17 @@ db = MongoEngine()
 def init_flask(app):
     db.init_app(app)
 
-def sync_each_series():
+def sync_series(sname=None):
     yield "Syncronizing "
-    lainfo = vcget('/me/albums', 
-                   fields="uri,name,embed,created_time",
+    lainfo = vcget('/me/projects', 
+                   fields="uri,name,created_time",
                    sort="date",
                    direction="desc").json()
     while('data' in lainfo):
         for ainfo in lainfo['data']: 
             try:
-               yield "Synchronizing " + VideoSeries.create_or_update(ainfo).name
+               if ainfo['name'] == sname or sname is None:
+                   yield "Synchronizing " + VideoSeries.create_or_update(ainfo).name
             except db.ValidationError as mve:
                print(f"Skipping import of {ainfo['name']} due to {mve}")
         nextpage = lainfo.get('paging', {}).get('next', False)
@@ -54,7 +55,6 @@ class VimeoRecord(db.Document):
     uri = db.StringField(required=True, primary_key=True)
     name = db.StringField(required=True)
     description = db.StringField()
-    html = db.StringField()
     create_date = db.DateField(required=True, default=dt.datetime.utcnow)
 
     @property
@@ -69,6 +69,7 @@ class VimeoRecord(db.Document):
 class Video(VimeoRecord):
     album = db.ReferenceField('VideoSeries')
     duration = db.IntField(required=True)
+    html = db.StringField()
     vlink = db.StringField(required=True)
     dlink = db.StringField(required=True)
 
@@ -119,24 +120,26 @@ class VideoSeries(VimeoRecord):
         else:
             alb = VideoSeries(uri=ainfo['uri'], 
                               name=ainfo['name'],
-                              html=ainfo['embed']['html'],
                               create_date=ainfo['created_time'],)
             alb._sync_vids()
         return alb
 
     @classmethod
     def named(cls, aname):
-        return cls.objects(name=aname).first()
+        existing = cls.objects(name=aname).first()
+        if not existing:
+            for stat in  sync_series(aname):
+                print(f"Got {stat}")
+            existing = cls.objects(name=aname).first()
+        return existing
 
     @classmethod
     def add_new(cls, aname, adescription):
         if VideoSeries.objects(name=aname).count() > 0: 
             raise Exception(f"VideoSeries {aname} already exists.")
-        resp = vcpost('/me/albums', name=aname, description=adescription).json()
-        resp2 = vcpost('/me/projects', name=aname).json()
+        resp = vcpost('/me/project', name=aname, description=adescription).json()
         alb = VideoSeries(uri=resp['uri'], 
                           name=resp['name'],
-                          html=resp['embed']['html'],
                           create_date=resp['created_time'],)
         alb.save()
         return alb
@@ -177,14 +180,13 @@ class VideoSeries(VimeoRecord):
                       sort="date",
                       direction="desc").json()
         self.name=ainfo['name']
-        self.html=ainfo['embed']['html']
         self._sync_vids()
         return self
 
     def _sync_vids(self):
         vlinfo = vcget(f"{self.uri}/videos",
-                       fields="uri,name,embed,files,download,created_time,duration,"
-                             +"metadata.connections.albums",
+               fields="uri,name,embed,files,download,created_time,duration,"
+                     +"metadata.connections.albums",
                        sort="date",
                        direction="asc").json()
         if 'data' in vlinfo: 
@@ -204,6 +206,12 @@ class VideoSeries(VimeoRecord):
             else:
                 vlinfo = {}
         self.save()
+
+    def replace_videos(self, vids):
+        vuri_list = ",".join([ v.uri for v in vids ])
+        resp = vcput(f'/me/albums/{self.vimid}/videos', videos=vuri_list)
+        #self.synchronize()
+        #self.save()
 
 def _drop_all():
     VideoSeries.drop_collection()

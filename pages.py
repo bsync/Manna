@@ -1,7 +1,8 @@
-import os, re, flask, flask_login
+import os, re, flask, flask_login, requests
 import catalog, forms
 import dominate
 import dominate.tags as tags
+from datetime import timedelta
 from dominate.util import raw
 from urllib.parse import quote, unquote
 from flask_executor import Executor
@@ -115,14 +116,48 @@ class Page(dominate.document):
             scriptage = f"""$(document).ready( function() {{ {scriptage} }})"""
         self.jscript(scriptage)
 
-    def datatable(self, table_id, **options):
+    def datatable(self, **options):
         cdnbase = "https://cdn.datatables.net/1.10.20"
+        table_id = f"{self.__class__.__name__}_table"
         with self.head:
             self.csslink(f"{cdnbase}/css/jquery.dataTables.css")
             self.csslink(flask.url_for('.static', filename="tables.css"))
             self.jquery(f"$('#{table_id}').DataTable({options})")
             self.scriptfiles(f"{cdnbase}/js/jquery.dataTables.js")
         return tags.table(id=f"{table_id}")
+
+    def video_table(self, vids, **kwargs):
+        with self.datatable(**kwargs): 
+            with tags.thead():
+                tags.th("Date", _class="dt-head-left")
+                tags.th("Series", _class="dt-head-left")
+                tags.th("Name", _class="dt-head-left")
+                tags.th("Duration", _class="dt-head-left")
+            with tags.tbody():
+                if len(vids) == 0:
+                    tags.h3("No Connection to Videos, try again later...")
+                else: 
+                    for vid in vids: 
+                        self.make_table_row(vid)
+
+    def make_table_row(self, vid):
+        with tags.tr():
+            try:
+                tags.attr()
+                tags.td(str(vid.create_date))
+                tags.td(
+                    tags.a(vid.album.name, 
+                           href=flask.url_for('.series_page', album=vid.album.name),
+                           onclick="check_edit(event, this)"))
+                tags.td(tags.a(vid.name, 
+                               href=flask.url_for('.latest_player', 
+                                                  album=vid.album.name,
+                                                  video=vid.name),
+                               onclick="check_edit(event, this)"))
+                tags.td(f"{int(vid.duration/60)} mins")
+            except Exception as e:
+                print(f"Removing corrupt video {vid.name} from mongoDB!")
+                vid.delete()
 
     def integrate(self, form, container=None):
         """Integrates the given form into the page using container
@@ -192,46 +227,27 @@ class ErrorPage(Page):
 class LatestPage(Page):
     def __init__(self, count=10):
         super().__init__(f"Latest {count} Lessons")
-        vids = catalog.Video.latest(count)
+        self.vids = catalog.Video.latest(count)
         with self.content:
-            with self.datatable("latest_table", order=[[0,"desc"]]): 
-                with tags.thead():
-                    tags.th("Date", _class="dt-head-left")
-                    tags.th("Series", _class="dt-head-left")
-                    tags.th("Name", _class="dt-head-left")
-                    tags.th("Duration", _class="dt-head-left")
-                with tags.tbody():
-                    if len(vids) == 0:
-                        tags.h3("No Connection to Videos, try again later...")
-                    else: 
-                        for vid in vids: 
-                            self._make_vid_row(vid)
+            self.video_table(self.vids, order=[[0,"desc"]])
 
-    def _make_vid_row(self, vid):
-        with tags.tr():
-            try:
-                tags.attr()
-                tags.td(str(vid.create_date))
-                tags.td(
-                    tags.a(vid.album.name, 
-                           href=flask.url_for('.series_page', album=vid.album.name),
-                           onclick="check_edit(event, this)"))
-                tags.td(tags.a(vid.name, 
-                               href=flask.url_for('.latest_player', 
-                                                  album=vid.album.name,
-                                                  video=vid.name),
-                               onclick="check_edit(event, this)"))
-                tags.td(f"{int(vid.duration/60)} mins")
-            except Exception as e:
-                print(f"Removing corrupt video {vid.name} from mongoDB!")
-                vid.delete()
+
+    @property
+    def feed(self):
+        #roku_showcase = catalog.VideoSeries.named('Roku')
+        #roku_showcase.replace_videos(self.vids)
+        r = requests.get(
+                "https://vimeo.com/showcase/7028576/feed/roku/bd4c2f777e")
+        r = flask.Response(r.text, mimetype='application/json')
+        print(f"Feeding roku {r.get_data()}")
+        return r
 
 
 class CatalogPage(Page):
     def __init__(self, subtitle="Series Catalog"):
         super().__init__(subtitle)
         with self.content:
-            with self.datatable("album_table", order=[[0,"desc"]]):
+            with self.datatable(order=[[0,"desc"]]):
                 with tags.thead():
                     tags.th("Date", _class="dt-head-left")
                     tags.th("Series", _class="dt-head-left")
@@ -241,8 +257,9 @@ class CatalogPage(Page):
                     def _row(x):
                         tags.td(str(x.create_date))
                         tags.td(tags.a(x.name, 
-                                href=flask.url_for('.series_page', album=x.name),
-                                onclick="check_edit(event, this)"))
+                                       href=flask.url_for('.series_page', 
+                                                          album=x.name),
+                                       onclick="check_edit(event, this)"))
                         tags.td(f"{len(x.videos)}")
                     for x in catalog.VideoSeries.objects: _row(x)
         
@@ -257,10 +274,10 @@ class CatalogEditorPage(CatalogPage):
     @property
     def response(self):
         if self.SyncWithVimeoForm.was_submitted:
-            self.monitor(catalog.sync_each_series)
+            self.monitor(catalog.sync_series)
         elif self.ResetToVimeoForm.was_submitted:
             catalog.VideoSeries._drop_all()
-            self.monitor(catalog.sync_each_series)
+            self.monitor(catalog.sync_series)
         elif self.AddSeriesForm.was_submitted:
             name = self.AddSeriesForm.seriesName.data
             description = self.AddSeriesForm.seriesDesc.data
@@ -278,8 +295,9 @@ class SeriesPage(Page):
         super().__init__(f"Lessons of {alb}")
         album = catalog.VideoSeries.named(alb)
         with self.content:
-            if album.html:
-                raw(album.html)
+            self.video_table(album.videos)
+            #if album.html:
+            #    raw(album.html)
                 
 
 class SeriesEditorPage(SeriesPage):
@@ -289,6 +307,7 @@ class SeriesEditorPage(SeriesPage):
         self.integrate(forms.AddVideosForm(self.album))
         self.integrate(forms.SyncWithVimeoForm(f"Sync {alb} with vimeo"))
         self.integrate(forms.DeleteSeriesForm(f"Delete empty {alb} album"))
+        self.integrate(forms.DateSeriesForm(f"Modify {alb} start Date"))
         self.upload_uri = flask.request.args.get('video_uri', False)
 
     @property
@@ -300,18 +319,28 @@ class SeriesEditorPage(SeriesPage):
         elif self.DeleteSeriesForm.was_submitted:
             try:
                 self.jquery(
-                    f"""$('#{self.DeleteSeriesForm.submitField.id}').click(
-                        function () {{ 
-                            return confirm("Delete series: {self.album.name} ?") 
+                f"""
+                $('#{self.DeleteSeriesForm.submitField.id}').click(
+                    function () {{ 
+                        return confirm("Delete series: {self.album.name} ?") 
                                     }} ) """)
                 self.album.remove()
                 flask.flash(f"Deleted {unquote(self.album.name)}")
                 return self.redirect(".catalog")
             except Exception as e:
-                flask.flash(f"Failed deleting {unquote(self.album.name)}: {e}")
+                flask.flash(
+                   f"Failed deleting {unquote(self.album.name)}: {e}")
         elif self.SyncWithVimeoForm.was_submitted:
             self.jquery("monitor_status()")
             ex.submit(self.album.synchronize)
+            flask.flash(f"Sync {self.album.name} with vimeo")
+        elif self.DateSeriesForm.was_submitted:
+            sdate = self.DateSeriesForm.data['recordedDate']
+            for vid in self.album.videos:
+                vid.create_date = sdate
+                sdate += timedelta(days=3)
+                vid.save()
+            flask.flash(f"Redated {self.album.name} starting at {sdate}")
         return str(self)
 
 
@@ -322,11 +351,12 @@ class VideoPlayer(Page):
         with self.content:
             if vid:
                 video = album.get_video_named(vid)
-                res720html = re.sub('width=.*height="\d+"', 
-                                    'width="1280" height="720"', 
-                                    video.html)
+                #res720html = re.sub('width=.*height="\d+"', 
+                #                    'width="1280" height="720"', 
+                #                    video.html)
                 tags.div(
-                    raw(res720html), 
+                    #raw(res720html), 
+                    raw(video.html), 
                     tags.div(
                         tags.a(tags.button("Play Audio"),
                                href=flask.url_for('.audio_response', 

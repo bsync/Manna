@@ -81,6 +81,13 @@ class DeleteSeriesForm(DomForm):
     "Delete series from catalog"
     submitField = wtf.SubmitField('Delete Series...')
 
+class DateSeriesForm(DomForm):
+    "Date series from catalog"
+    recordedDate = wtf.DateField("Started on", 
+                                 [DataRequired()], 
+                                 default=date.today)
+    submitField = wtf.SubmitField('Date Series...')
+
 class AddVideosForm(DomForm):
     "Add video to the series"
     vidName = wtf.StringField("Video title:", [DataRequired()])
