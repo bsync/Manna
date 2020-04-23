@@ -138,7 +138,11 @@ class Page(dominate.document):
                     tags.h3("No Connection to Videos, try again later...")
                 else: 
                     for vid in vids: 
-                        self.make_table_row(vid)
+                        if vid in vid.album.videos:
+                            self.make_table_row(vid)
+                        else:
+                            print(f"Removing {vid.name} not in {vid.album.name}")
+                            vid.delete()
 
     def make_table_row(self, vid):
         with tags.tr():
@@ -351,11 +355,7 @@ class VideoPlayer(Page):
         with self.content:
             if vid:
                 video = album.get_video_named(vid)
-                #res720html = re.sub('width=.*height="\d+"', 
-                #                    'width="1280" height="720"', 
-                #                    video.html)
                 tags.div(
-                    #raw(res720html), 
                     raw(video.html), 
                     tags.div(
                         tags.a(tags.button("Play Audio"),
