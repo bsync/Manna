@@ -1,3 +1,7 @@
+#player {
+   width: 700px    !important;
+   height: auto   !important;
+}
 
 #options {
   display: grid;

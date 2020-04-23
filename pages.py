@@ -41,6 +41,8 @@ class Page(dominate.document):
                     tags.link(rel="stylesheet", type="text/css", 
                               href=flask.url_for('.static', filename=css))
         self.jquery(self._scriptage, on_ready=False)
+        self.scriptfiles(flask.url_for('.static', filename="jquery.fitvids.js"))
+        self.jquery("""$('#content').fitVids();""")
         style_str="display: none;" if self.status == 'ready' else ""
         with self.body.add(tags.div(cls="container")):
             self.header = tags.div(id="header")
