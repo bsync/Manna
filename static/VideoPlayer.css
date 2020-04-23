@@ -1,6 +1,7 @@
 #player {
-   width: 700px    !important;
+   width: 80%    !important;
    height: auto   !important;
+   display: inline-block;
 }
 
 #options {

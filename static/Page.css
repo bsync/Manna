@@ -38,6 +38,7 @@ fieldset {
   color: yellow;
   text-align: center;
   font-size: 30px;
+  width: 100%;
 }
 #header a, #header a:visited { color: yellow; }
 #header h3 { margin: 5px; color: white; }
@@ -50,7 +51,7 @@ fieldset {
 #controls input { width: 100%; }
 #controls textarea { width: 100%; height: 100px; }
 
-#content { grid-area: main; }
+#content { grid-area: main; width: 100%; text-align: center; }
 
 #footer { grid-area: foot; }
 #footer {
@@ -60,4 +61,5 @@ fieldset {
   grid-gap: 10px;
   background-color: darkgray;
   padding: 10px;
+  width: 100%;
 }
