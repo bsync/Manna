@@ -133,17 +133,18 @@ class Page(dominate.document):
             with tags.thead():
                 tags.th("Date", _class="dt-head-left")
                 tags.th("Series", _class="dt-head-left")
-                tags.th("Name", _class="dt-head-left")
+                tags.th("Lesson", _class="dt-head-left")
                 tags.th("Duration", _class="dt-head-left")
             with tags.tbody():
                 if len(vids) == 0:
                     tags.h3("No Connection to Videos, try again later...")
                 else: 
                     for vid in vids: 
-                        if vid in vid.album.videos:
-                            self.make_table_row(vid)
-                        else:
-                            print(f"Removing {vid.name} not in {vid.album.name}")
+                        try:
+                            if vid in vid.album.videos:
+                                self.make_table_row(vid)
+                        except Exception as e:
+                            print(f"Removing {vid.name} because: {e}")
                             vid.delete()
 
     def make_table_row(self, vid):
@@ -151,10 +152,7 @@ class Page(dominate.document):
             try:
                 tags.attr()
                 tags.td(str(vid.create_date))
-                tags.td(
-                    tags.a(vid.album.name, 
-                           href=flask.url_for('.series_page', album=vid.album.name),
-                           onclick="check_edit(event, this)"))
+                tags.td(vid.album.name) 
                 tags.td(tags.a(vid.name, 
                                href=flask.url_for('.latest_player', 
                                                   album=vid.album.name,
