@@ -1,34 +1,24 @@
-import os, re, flask, flask_login, requests
+import sys, os, re
+import flask, requests
 import catalog, forms
 import dominate
 import dominate.tags as tags
+from login import login_user
+from executor import ex
 from datetime import timedelta
 from dominate.util import raw
 from urllib.parse import quote, unquote
-from flask_executor import Executor
+from pathlib import Path
 
-ex = Executor()
-ex.status = "ready"
-
-class PageUser(flask_login.UserMixin): 
-    def get_id(self): 
-        return 0
-
-def load_user(user_id):
-    if flask.session.get(flask.request.path):
-        return PageUser()
-    else:
-        return None
-
-def init_flask(app, login_manager):
-    login_manager.user_loader(load_user)
-    ex.init_app(app)
+def init_flask(app):
+    import executor 
+    executor.init_flask(app)
     catalog.init_flask(app)
     Page.title = app.config.get("title", Page.title)
-
+    return sys.modules[__name__] #Basically just use this module as the page manager
 
 class Page(dominate.document):
-    title = "Manna"
+    title = "Tullahoma Bible Church"
     def __new__(_cls, *args, **kwargs):
         "Disables decorators from this subclass onward."
         return object.__new__(_cls)
@@ -214,8 +204,9 @@ class AuthenticationPage(Page):
     @property
     def response(self):
         if self.PasswordForm.passes:
-            flask_login.login_user(PageUser())
-            flask.session[unquote(self.PasswordForm.target)]=True
+            login_user()
+            tbase = Path(self.PasswordForm.target).name
+            flask.session[unquote(tbase)]=True
             return flask.redirect(self.PasswordForm.target)
         return str(self)
 
