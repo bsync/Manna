@@ -53,6 +53,7 @@ class DomForm(FlaskForm):
 
 class PasswordForm(DomForm):
     "Provide a password"
+    user = wtf.StringField("User", default="guest", validators=[DataRequired()])
     guessword = wtf.PasswordField("Password", validators=[DataRequired()])
 
     def __init__(self, target):
@@ -61,7 +62,7 @@ class PasswordForm(DomForm):
         try:
             import passcheck
             if self.was_submitted:
-                self.passes = passcheck(target, self.data['guessword'])
+                self.passes = passcheck(target, self.data)
                 if not self.passes:
                     flask.flash(f"Wrong password for {unquote(target)}")
             else:

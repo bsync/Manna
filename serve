@@ -2,8 +2,8 @@
 echo "Serving up the Manna since 2020!"
 
 if [ "$FLASK_ENV" == "development" ]; then
-	export FLASK_APP=tbc SCRIPT_NAME=/manna
+	export FLASK_APP=manna
 	exec flask run --host 0.0.0.0 --port 8001 
 else
-	exec gunicorn -b 0.0.0.0:8001 -w ${WORKERS:-4} 'tbc:app'
+   exec gunicorn -b 0.0.0.0:8001 -e -w ${WORKERS:-4} 'manna:app'
 fi

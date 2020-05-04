@@ -1,19 +1,16 @@
 import sys, os, re
 import flask, requests
-import catalog, forms
-import dominate
-import dominate.tags as tags
+import dominate, dominate.tags as tags
+import executor, mongo, forms
 from login import login_user
-from executor import ex
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from dominate.util import raw
 from urllib.parse import quote, unquote
 from pathlib import Path
 
 def init_flask(app):
-    import executor 
     executor.init_flask(app)
-    catalog.init_flask(app)
+    mongo.init_flask(app)
     Page.title = app.config.get("title", Page.title)
     return sys.modules[__name__] #Basically just use this module as the page manager
 
@@ -33,7 +30,13 @@ class Page(dominate.document):
         self.jquery(self._scriptage, on_ready=False)
         self.scriptfiles(flask.url_for('.static', filename="jquery.fitvids.js"))
         self.jquery("""$('#content').fitVids();""")
-        style_str="display: none;" if self.status == 'ready' else ""
+        if len(executor.futures):
+            if executor.futures.done(executor.fk):
+                executor.futures.pop(executor.fk)
+                print(f"Finished with {executor.fk}")
+            else:
+                self.head.add(tags.meta(http_equiv="refresh", content="1"))
+        style_str="display: none;" if self.status.startswith('done') else ""
         with self.body.add(tags.div(cls="container")):
             self.header = tags.div(id="header")
             with self.header.add(tags.h2()):
@@ -53,29 +56,15 @@ class Page(dominate.document):
     def status(self):
         msgs = " ".join(flask.get_flashed_messages()) 
         if len(msgs):
-            if ex.status != 'ready':
-                msgs += ex.status
+            if not executor.status.startswith('done'):
+                msgs += executor.status
         else:
-            msgs = ex.status
+            msgs = executor.status
         return msgs
 
     @property
     def _scriptage(self):
-        return f""" function monitor_status() {{ 
-                $('#status').show()
-                $.ajax({{url: window.location.href + '/status', 
-                         success:  function(data) {{ $('#status').html(data); }},
-                         complete: function() {{ 
-                                var status = $('#status').text()
-                                if (status.startsWith('redirect:')) {{
-                                    window.location.href=status.split(':')[1]; 
-                                }} else if (status != 'ready') {{ 
-                                    setTimeout(monitor_status, 1000); 
-                                }}
-                            }}
-                        }})}} 
-
-                function check_edit(event, slink) {{ 
+        return f""" function check_edit(event, slink) {{ 
                     var pre = slink.pathname.split('/')[1];
                     if (event.shiftKey)
                         event.preventDefault();
@@ -131,7 +120,7 @@ class Page(dominate.document):
                 else: 
                     for vid in vids: 
                         try:
-                            if vid in vid.album.videos:
+                            if vid in vid.series.videos:
                                 self.make_table_row(vid)
                         except Exception as e:
                             print(f"Removing {vid.name} because: {e}")
@@ -142,10 +131,10 @@ class Page(dominate.document):
             try:
                 tags.attr()
                 tags.td(str(vid.create_date))
-                tags.td(vid.album.name) 
+                tags.td(vid.series.name) 
                 tags.td(tags.a(vid.name, 
                                href=flask.url_for('.latest_player', 
-                                                  album=vid.album.name,
+                                                  series=vid.series.name,
                                                   video=vid.name),
                                onclick="check_edit(event, this)"))
                 tags.td(f"{int(vid.duration/60)} mins")
@@ -179,18 +168,15 @@ class Page(dominate.document):
         return form
 
     def monitor(self, func):
-        # Arrange for the monitor_status java script function to kick off on page
-        # load. monitor_status will make ajax calls every second or so to acquire
-        # the status of the given function. The given function must be a
-        # generator which yields status as it runs... the yielded status will
-        # be assigned to ex.status which iteratively forms the response to each
-        # ajax status query... Note that not every status will be captured by the
-        # ajax queries but only a sample taken every second or so.
-        self.jquery("monitor_status()")
-        def watcher(yielder):
-            for status in yielder():
-                ex.status = status
-        ex.submit(watcher, func)
+        fname = func.__name__
+        if fname not in executor.futures:
+            def watcher(yielder):
+                for status in yielder():
+                    print(f"{fname} yielded {status}")
+                    executor.status = status
+            executor.submit_stored(fname, watcher, func)
+            self.head.add(tags.meta(http_equiv="refresh", content="1"))
+            executor.fk = fname
 
     def redirect(self, url, **kwargs):
         return flask.redirect(flask.url_for(url, **kwargs))
@@ -222,20 +208,44 @@ class ErrorPage(Page):
 class LatestPage(Page):
     def __init__(self, count=10):
         super().__init__(f"Latest {count} Lessons")
-        self.vids = catalog.Video.latest(count)
+        self.vids = mongo.Video.latest(count)
         with self.content:
             self.video_table(self.vids, order=[[0,"desc"]])
 
 
     @property
     def feed(self):
-        #roku_showcase = catalog.VideoSeries.named('Roku')
-        #roku_showcase.replace_videos(self.vids)
-        r = requests.get(
-                "https://vimeo.com/showcase/7028576/feed/roku/bd4c2f777e")
-        r = flask.Response(r.text, mimetype='application/json')
-        print(f"Feeding roku {r.get_data()}")
-        return r
+        tstamp = datetime.now(tz=timezone.utc)
+        tstamp = tstamp.isoformat(timespec="seconds")
+        rfeed = dict(
+            providerName="Pleroma Videos",
+            lastUpdated=tstamp,
+            language='en',
+            movies=[dict(id=x.uri.split('/')[2],
+                        title=x.name,
+                        genres=["faith"],
+                        tags=["faith"],
+                        thumbnail=x.plink,
+                        content=dict(
+                             dateAdded=x.create_date.isoformat(),
+                             duration=x.duration,
+                             videos=[
+                                dict(url=x.vlink, 
+                                     quality="HD", 
+                                     videoType="MP4"), ],
+                             ),
+                       releaseDate=tstamp,
+                       shortDescription=x.series.name,)
+                    for i,x in enumerate(self.vids) ],)
+        return flask.jsonify(rfeed)
+        #roku_sc = mongo.ShowCase.named('Roku')
+        #roku_sc.replace_videos(self.vids)
+        #roku = requests.get(
+        #        "https://vimeo.com/showcase/7028576/feed/roku/bd4c2f777e")
+        #rokmovs = roku.json()['movies']
+        #for vid, content in zip(self.vids, rokmovs):
+        #    content['title']=vid.series.name
+        #roku = flask.Response(rfeed, mimetype='application/json')
 
 
 class CatalogPage(Page):
@@ -253,10 +263,11 @@ class CatalogPage(Page):
                         tags.td(str(x.create_date))
                         tags.td(tags.a(x.name, 
                                        href=flask.url_for('.series_page', 
-                                                          album=x.name),
+                                                          series=x.name),
                                        onclick="check_edit(event, this)"))
                         tags.td(f"{len(x.videos)}")
-                    for x in catalog.VideoSeries.objects: _row(x)
+                    for x in mongo.VideoSeries.objects(): 
+                        _row(x)
         
 
 class CatalogEditorPage(CatalogPage):
@@ -269,124 +280,123 @@ class CatalogEditorPage(CatalogPage):
     @property
     def response(self):
         if self.SyncWithVimeoForm.was_submitted:
-            self.monitor(catalog.sync_series)
+            self.monitor(mongo.VideoSeries.sync_gen)
         elif self.ResetToVimeoForm.was_submitted:
-            catalog.VideoSeries._drop_all()
-            self.monitor(catalog.sync_series)
+            mongo.VideoSeries._drop_all()
+            self.monitor(mongo.VideoSeries.sync_gen)
         elif self.AddSeriesForm.was_submitted:
             name = self.AddSeriesForm.seriesName.data
             description = self.AddSeriesForm.seriesDesc.data
             try:
-                catalog.VideoSeries.add_new(name, description)
-                flask.flash(f"Added album {unquote(name)}")
+                mongo.VideoSeries.add_new(name, description)
+                flask.flash(f"Added series {unquote(name)}")
                 return self.redirect(".catalog")
             except Exception as e:
-                flask.flash(f"Failed to create album: {str(e)}")
+                flask.flash(f"Failed to create series: {str(e)}")
         return str(self)
 
 
 class SeriesPage(Page):
     def __init__(self, alb):
         super().__init__(f"Lessons of {alb}")
-        album = catalog.VideoSeries.named(alb)
+        series = mongo.VideoSeries.named(alb)
         with self.content:
-            self.video_table(album.videos)
-            #if album.html:
-            #    raw(album.html)
+            self.video_table(series.videos)
+            #if series.html:
+            #    raw(series.html)
                 
 
 class SeriesEditorPage(SeriesPage):
     def __init__(self, alb):
         super().__init__(alb)
-        self.album = catalog.VideoSeries.named(alb)
-        self.integrate(forms.AddVideosForm(self.album))
+        self.series = mongo.VideoSeries.named(alb)
+        self.integrate(forms.AddVideosForm(self.series))
         self.integrate(forms.SyncWithVimeoForm(f"Sync {alb} with vimeo"))
-        self.integrate(forms.DeleteSeriesForm(f"Delete empty {alb} album"))
+        self.integrate(forms.DeleteSeriesForm(f"Delete empty {alb} series"))
         self.integrate(forms.DateSeriesForm(f"Modify {alb} start Date"))
         self.upload_uri = flask.request.args.get('video_uri', False)
 
     @property
     def response(self):
         if self.upload_uri:
-            self.jquery("monitor_status()")
-            if catalog.db.status.startswith("Waiting"): 
-                ex.submit(self.album.add_video, self.upload_uri)
+            if executor.status.startswith("Waiting"): 
+                self.monitor(self.series.add_new, self.upload_uri)
         elif self.DeleteSeriesForm.was_submitted:
             try:
                 self.jquery(
                 f"""
                 $('#{self.DeleteSeriesForm.submitField.id}').click(
                     function () {{ 
-                        return confirm("Delete series: {self.album.name} ?") 
+                        return confirm("Delete series: {self.series.name} ?") 
                                     }} ) """)
-                self.album.remove()
-                flask.flash(f"Deleted {unquote(self.album.name)}")
+                self.series.remove()
+                flask.flash(f"Deleted {unquote(self.series.name)}")
                 return self.redirect(".catalog")
             except Exception as e:
                 flask.flash(
-                   f"Failed deleting {unquote(self.album.name)}: {e}")
+                   f"Failed deleting {unquote(self.series.name)}: {e}")
         elif self.SyncWithVimeoForm.was_submitted:
-            self.jquery("monitor_status()")
-            ex.submit(self.album.synchronize)
-            flask.flash(f"Sync {self.album.name} with vimeo")
+            self.series.update()
+            flask.flash(f"Sync {self.series.name} with vimeo")
         elif self.DateSeriesForm.was_submitted:
             sdate = self.DateSeriesForm.data['recordedDate']
-            for vid in self.album.videos:
+            for vid in self.series.videos:
                 vid.create_date = sdate
                 sdate += timedelta(days=3)
                 vid.save()
-            flask.flash(f"Redated {self.album.name} starting at {sdate}")
+            flask.flash(f"Redated {self.series.name} starting at {sdate}")
         return str(self)
 
 
 class VideoPlayer(Page):
     def __init__(self, alb, vid=None):
         super().__init__(f"{vid} of {alb}" if vid else f"{alb}")
-        album = catalog.VideoSeries.named(alb)
+        series = mongo.VideoSeries.named(alb)
         with self.content:
             if vid:
-                video = album.get_video_named(vid)
+                video = series.video_named(vid)
                 tags.div(
                     raw(video.html), 
                     tags.div(
                         tags.a(tags.button("Play Audio"),
                                href=flask.url_for('.audio_response', 
-                                                  album=album.name, 
+                                                  series=series.name, 
                                                   audio=video.name)),
                         tags.a(tags.button("Download Video"), 
                                href=video.dlink),
                         id="options"),
                     id="player")
             else:
-                tags.div(raw(album.html), id="player")
+                tags.div(raw(series.html), id="player")
 
 
 class VideoEditor(VideoPlayer):
-    def __init__(self, album, vid):
-        super().__init__(album, vid)
-        self.album = catalog.VideoSeries.named(album)
-        self.video = self.album.get_video_named(vid)
+    def __init__(self, series, vid):
+        super().__init__(series, vid)
+        self.series = mongo.VideoSeries.named(series)
+        self.video = self.series.video_named(vid)
         self.integrate(forms.PurgeVideoForm(self.video))
 
     @property
     def response(self):
         if self.PurgeVideoForm.was_submitted:
-            self.jquery(f"""$('#{self.submitField.id}').click( 
-                                    function () {{ 
-                                        return confirm("Purge video: {vid.name} ?") 
-                                    }} )""")
+            self.jquery(
+                f"""$('#{self.submitField.id}').click( 
+                        function () {{ 
+                            return confirm("Purge video: {self.video.name} ?") 
+                        }} )""")
+            flask.flash(f"Video {self.video.name} purged from catalog")
             self.video.delete()
-            self.album.synchronize()
-            flask.flash(f"Video {vid.name} purged from catalog")
+            self.series.sync_vids()
             return self.redirect(".latest")
         return str(self)
 
 
 class AudioPage(Page):
     def __init__(self, alb, vid):
-        super().__init__(f"Audio for Lesson {vid} of album {alb}")
-        self.album = catalog.VideoSeries.named(alb)
-        self.video = self.album.get_video_named(vid)
+        super().__init__(f"Audio for Lesson {vid} of series {alb}")
+        self.series = mongo.VideoSeries.named(alb)
+        self.video = self.series.video_named(vid)
 
     def generate_mp3(self):
         import subprocess as sp

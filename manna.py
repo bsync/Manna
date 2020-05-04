@@ -1,76 +1,81 @@
-import flask, flask_login, pages
+import flask, login, pages
 from werkzeug.exceptions import HTTPException
+from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
-bp = flask.Blueprint('mannabp', __name__, 
-                     url_prefix='/manna', 
-                     static_folder='static')
+app = flask.Flask(__name__)
+app.config.from_object("config")
+app.wsgi_app = DispatcherMiddleware(app.wsgi_app, { '/manna':app })
+# Flask init the login manager and page manager
+lm = login.init_flask(app)
+pm = pages.init_flask(app)
 
-@bp.record
-def record(state):
-    lm = flask_login.LoginManager(state.app)
-    lm.login_view = 'mannabp.auth'
-    pages.init_flask(state.app, lm) 
-
-@bp.route('auth', methods=['GET', 'POST'])
+@app.route('/auth', methods=['GET', 'POST'])
+@lm.login_page
 def auth():
     target = flask.request.args.get('next')
-    return pages.AuthenticationPage(target).response
+    return pm.AuthenticationPage(target).response
 
-@bp.route("/")
+@app.route("/")
 def latest():
-    return pages.LatestPage(10).response
+    return pm.LatestPage(10).response
 
-@bp.route("/roku")
+@app.route("/roku")
 def roku():
-    print("TODO: update roku showcase")
-    return pages.LatestPage(10).feed
+    return pm.LatestPage(10).feed
 
-@bp.route("/latest/albums/<album>/videos/<video>") 
-def latest_player(album, video):
-    return pages.VideoPlayer(album, video).response
+@app.route("/latest/series/<series>/videos/<video>") 
+def latest_player(series, video):
+    return pm.VideoPlayer(series, video).response
 
-@bp.route("/albums")
+@app.route("/series")
 def catalog():
-    return pages.CatalogPage().response
+    return pm.CatalogPage().response
 
-@bp.route("/edit/albums", methods=['GET', 'POST'])
-@flask_login.login_required
+@app.route("/edit/series", methods=['GET', 'POST'])
+@lm.login_required
 def catalog_editor():
-    return pages.CatalogEditorPage().response
+    return pm.CatalogEditorPage().response
 
-@bp.route("/edit/albums/status") 
+@app.route("/edit/series/status") 
 def catalog_status():
-    return pages.CatalogEditorPage().status
+    return pm.CatalogEditorPage().status
 
-@bp.route("/albums/<album>")
-@flask_login.login_required
-def series_page(album):
-    return pages.SeriesPage(album).response
+@app.route("/series/<series>")
+@lm.login_required
+def series_page(series):
+    return pm.SeriesPage(series).response
 
-@bp.route("/edit/albums/<album>", methods=['GET', 'POST', 'DELETE'])
-@flask_login.login_required
-def series_editor_page(album):
-    return pages.SeriesEditorPage(album).response
+@app.route("/edit/series/<series>", methods=['GET', 'POST', 'DELETE'])
+@lm.login_required
+def series_editor_page(series):
+    return pm.SeriesEditorPage(series).response
 
-@bp.route("/edit/albums/<album>/status") 
-def series_edit_status(album):
-    return pages.SeriesEditorPage(album).status
+@app.route("/edit/series/<series>/status") 
+def series_edit_status(series):
+    return pm.SeriesEditorPage(series).status
 
-@bp.route("/albums/<album>/videos/<video>") 
-@flask_login.login_required
-def video_page(album, video):
-    return pages.VideoPlayer(album, vid).response
+@app.route("/series/<series>/videos/<video>") 
+@lm.login_required
+def video_page(series, video):
+    return pm.VideoPlayer(series, vid).response
 
-@bp.route("/edit/albums/<album>/videos/<video>", methods=['GET', 'POST'])
-@flask_login.login_required
-def video_editor_page(album, video):
-    return pages.VideoEditor(album, video).response
+@app.route("/edit/series/<series>/videos/<video>", methods=['GET', 'POST'])
+@lm.login_required
+def video_editor_page(series, video):
+    return pm.VideoEditor(series, video).response
 
-@bp.route("/albums/<album>/audios/<audio>") 
-def audio_response(album, audio):
-    return pages.AudioPage(album, audio).response
+@app.route("/series/<series>/audios/<audio>") 
+def audio_response(series, audio):
+    return pm.AudioPage(series, audio).response
 
-@bp.errorhandler(HTTPException)
+@app.route("/edit/reset")
+@lm.login_required
+def reset():
+    import mongo
+    mongo.init_db()
+    return flask.redirect(flask.url_for('.latest'))
+
+@app.errorhandler(HTTPException)
 def error_page(err):
-    return pages.ErrorPage(err).response
+    return pm.ErrorPage(err).response
 
