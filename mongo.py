@@ -108,7 +108,6 @@ class Video(VimeoRecord):
         self.vlink = vinfo['files'][0]['link']
         self.dlink = vinfo['download'][0]['link']
         self.plink = vinfo['pictures']['sizes'][0]['link']
-        print(f"Updated plink: {self.plink} ")
         self.save()
 
 class VideoSeries(VimeoRecord):
