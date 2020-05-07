@@ -1,9 +1,9 @@
-import flask, login, pages
+import flask, login, pages, config
 from werkzeug.exceptions import HTTPException
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
 app = flask.Flask(__name__)
-app.config.from_object("config")
+app.config.from_object(config)
 app.wsgi_app = DispatcherMiddleware(app.wsgi_app, { '/manna':app })
 # Flask init the login manager and page manager
 lm = login.init_flask(app)
@@ -21,7 +21,7 @@ def latest():
 
 @app.route("/roku")
 def roku():
-    return pm.LatestPage(10).feed
+    return pm.LatestPage(10).roku_feed
 
 @app.route("/latest/series/<series>/videos/<video>") 
 def latest_player(series, video):

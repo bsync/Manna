@@ -11,7 +11,9 @@ from pathlib import Path
 def init_flask(app):
     executor.init_flask(app)
     mongo.init_flask(app)
-    Page.title = app.config.get("title", Page.title)
+    Page.title = app.config.get("TITLE", Page.title)
+    if app.env == "development":
+        Page.title = Page.title + " (dev) "
     return sys.modules[__name__] #Basically just use this module as the page manager
 
 class Page(dominate.document):
@@ -36,13 +38,12 @@ class Page(dominate.document):
                 print(f"Finished with {executor.fk}")
             else:
                 self.head.add(tags.meta(http_equiv="refresh", content="1"))
-        style_str="display: none;" if self.status.startswith('done') else ""
         with self.body.add(tags.div(cls="container")):
             self.header = tags.div(id="header")
             with self.header.add(tags.h2()):
                 tags.a(self.title, href='/', id="title")
                 tags.h3(self.subtitle, id="subtitle")
-                tags.h4(self.status, id="status", style=style_str)
+                self.status
             self.controls = tags.div(id="controls")
             self.content = tags.div(id="content")
             self.footer = tags.div(id="footer")
@@ -54,13 +55,16 @@ class Page(dominate.document):
 
     @property
     def status(self):
-        msgs = " ".join(flask.get_flashed_messages()) 
-        if len(msgs):
-            if not executor.status.startswith('done'):
-                msgs += executor.status
-        else:
-            msgs = executor.status
-        return msgs
+        with tags.div(id="status") as sdiv:
+            self._page_status = tags.h4(id="pstatus", style="display: none;")
+            tags.h4(executor.status, id="estatus", 
+                    style="display: none;" if executor.status == 'idle' else "")
+        return sdiv
+
+    @status.setter
+    def status(self, value):
+        self._page_status['style']=""
+        self._page_status.children.append(value)
 
     @property
     def _scriptage(self):
@@ -212,9 +216,8 @@ class LatestPage(Page):
         with self.content:
             self.video_table(self.vids, order=[[0,"desc"]])
 
-
     @property
-    def feed(self):
+    def roku_feed(self):
         tstamp = datetime.now(tz=timezone.utc)
         tstamp = tstamp.isoformat(timespec="seconds")
         rfeed = dict(
@@ -238,14 +241,6 @@ class LatestPage(Page):
                        shortDescription=x.series.name,)
                     for i,x in enumerate(self.vids) ],)
         return flask.jsonify(rfeed)
-        #roku_sc = mongo.ShowCase.named('Roku')
-        #roku_sc.replace_videos(self.vids)
-        #roku = requests.get(
-        #        "https://vimeo.com/showcase/7028576/feed/roku/bd4c2f777e")
-        #rokmovs = roku.json()['movies']
-        #for vid, content in zip(self.vids, rokmovs):
-        #    content['title']=vid.series.name
-        #roku = flask.Response(rfeed, mimetype='application/json')
 
 
 class CatalogPage(Page):
@@ -276,24 +271,19 @@ class CatalogEditorPage(CatalogPage):
         self.integrate(forms.AddSeriesForm("Add a series to the Catalog"))
         self.integrate(forms.SyncWithVimeoForm("Sync Catalog with Vimeo"))
         self.integrate(forms.ResetToVimeoForm("Reset Catalog to Vimeo"))
-
-    @property
-    def response(self):
-        if self.SyncWithVimeoForm.was_submitted:
+        if self.AddSeriesForm.was_submitted:
+            try:
+                mongo.VideoSeries.sync_new(
+                        self.AddSeriesForm.name, 
+                        self.AddSeriesForm.description)
+                self.status = f"Added series {self.AddSeriesForm.name}"
+            except Exception as e:
+                self.status = f"Failed to create series: {str(e)}"
+        elif self.SyncWithVimeoForm.was_submitted:
             self.monitor(mongo.VideoSeries.sync_gen)
         elif self.ResetToVimeoForm.was_submitted:
             mongo.VideoSeries._drop_all()
             self.monitor(mongo.VideoSeries.sync_gen)
-        elif self.AddSeriesForm.was_submitted:
-            name = self.AddSeriesForm.seriesName.data
-            description = self.AddSeriesForm.seriesDesc.data
-            try:
-                mongo.VideoSeries.add_new(name, description)
-                flask.flash(f"Added series {unquote(name)}")
-                return self.redirect(".catalog")
-            except Exception as e:
-                flask.flash(f"Failed to create series: {str(e)}")
-        return str(self)
 
 
 class SeriesPage(Page):
@@ -302,8 +292,6 @@ class SeriesPage(Page):
         series = mongo.VideoSeries.named(alb)
         with self.content:
             self.video_table(series.videos)
-            #if series.html:
-            #    raw(series.html)
                 
 
 class SeriesEditorPage(SeriesPage):
@@ -314,13 +302,17 @@ class SeriesEditorPage(SeriesPage):
         self.integrate(forms.SyncWithVimeoForm(f"Sync {alb} with vimeo"))
         self.integrate(forms.DeleteSeriesForm(f"Delete empty {alb} series"))
         self.integrate(forms.DateSeriesForm(f"Modify {alb} start Date"))
-        self.upload_uri = flask.request.args.get('video_uri', False)
 
-    @property
-    def response(self):
-        if self.upload_uri:
-            if executor.status.startswith("Waiting"): 
-                self.monitor(self.series.add_new, self.upload_uri)
+        if self.AddVideosForm.was_submitted:
+            self.AddVideosForm.initiate_upload( 
+                alb.upload_action(
+                    self.AddVideosForm.vidName.data, 
+                    self.AddVideosForm.vidDesc.data, 
+                    flask.request.url
+                    )
+                )
+        elif self.AddVideosForm.finished_upload:
+            self.monitor(self.series.add_new, self.AddVideosForm.uploaded_uri)
         elif self.DeleteSeriesForm.was_submitted:
             try:
                 self.jquery(
@@ -330,22 +322,20 @@ class SeriesEditorPage(SeriesPage):
                         return confirm("Delete series: {self.series.name} ?") 
                                     }} ) """)
                 self.series.remove()
-                flask.flash(f"Deleted {unquote(self.series.name)}")
+                self.status = f"Deleted {self.series.name}"
                 return self.redirect(".catalog")
             except Exception as e:
-                flask.flash(
-                   f"Failed deleting {unquote(self.series.name)}: {e}")
+                self.status = f"Failed deleting {self.series.name}: {e}"
         elif self.SyncWithVimeoForm.was_submitted:
             self.series.update()
-            flask.flash(f"Sync {self.series.name} with vimeo")
+            self.status = f"Sync {self.series.name} with vimeo"
         elif self.DateSeriesForm.was_submitted:
             sdate = self.DateSeriesForm.data['recordedDate']
             for vid in self.series.videos:
                 vid.create_date = sdate
                 sdate += timedelta(days=3)
                 vid.save()
-            flask.flash(f"Redated {self.series.name} starting at {sdate}")
-        return str(self)
+            self.status = f"Redated {self.series.name} starting at {sdate}"
 
 
 class VideoPlayer(Page):
@@ -385,7 +375,7 @@ class VideoEditor(VideoPlayer):
                         function () {{ 
                             return confirm("Purge video: {self.video.name} ?") 
                         }} )""")
-            flask.flash(f"Video {self.video.name} purged from catalog")
+            self.status = f"Video {self.video.name} purged from catalog"
             self.video.delete()
             self.series.sync_vids()
             return self.redirect(".latest")

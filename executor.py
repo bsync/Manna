@@ -7,7 +7,7 @@ fk = None
 def init_flask(app):
     _ex.init_app(app)
 
-status = "done!"
+status = "idle"
 
 def submit_stored(name, func, *args):
     _ex.submit_stored(name, func, *args)

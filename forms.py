@@ -1,6 +1,5 @@
-import os
-import dominate.tags as tags
 import flask
+import dominate.tags as tags
 import wtforms as wtf
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField
@@ -77,6 +76,13 @@ class AddSeriesForm(DomForm):
     seriesDesc = wtf.TextAreaField("Series Description", [DataRequired()])
     submitField = wtf.SubmitField('Add')
 
+    @property
+    def name(self):
+        return self.seriesName.data
+
+    @property
+    def description(self):
+        return self.seriesDesc.data
 
 class DeleteSeriesForm(DomForm):
     "Delete series from catalog"
@@ -100,23 +106,16 @@ class AddVideosForm(DomForm):
 
     def __init__(self, alb):
         super().__init__(f"Add video to {unquote(alb.name)}")
-        if not self.was_submitted: #Initialize main form configuration
+        self.uploaded_uri = flask.request.args.get('video_uri', False)
+        if not self.was_submitted:
             if len(alb.videos):
                 latest_vid = alb.videos[-1]
                 self.vidName.data = latest_vid.next_name
                 self.vidDesc.data = latest_vid.description
             else:
                 self.vidName.data = "Lesson #1"
-        else:
-            self.integrate_upload_form( 
-                alb.upload_action(
-                    self.vidName.data, 
-                    self.vidDesc.data, 
-                    flask.request.url
-                    )
-                )
 
-    def integrate_upload_form(self, upurl):
+    def initiate_upload(self, upurl):
         self.submitField.render_kw = {'disabled': 'disabled'}
         self.formTail.add(
             tags.form(
@@ -126,6 +125,10 @@ class AddVideosForm(DomForm):
                 enctype="multipart/form-data",
                 name="upload", 
                 action=upurl))
+
+    @property
+    def finished_upload(self):
+        return self.uploaded_uri != False
 
 class SyncWithVimeoForm(DomForm):
     "Syncronize album or entire catalog with vimeo content"

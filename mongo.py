@@ -1,3 +1,4 @@
+import re
 import vidstore as vs
 import datetime as dt
 from flask_mongoengine import MongoEngine
@@ -92,15 +93,13 @@ class Video(VimeoRecord):
 
     @property
     def next_name(self):
-        nextname = f"{self.name} #2"
-        try:
-            npart = self.name.partition("#")
-            if npart[2]:
-                pnum = int(npart[2])+1
-                nextname = f"{npart[0]}{npart[1]}{pnum}"
-        except:
-            pass
-        return nextname
+        """ Match one or more digits in the middle of the video's current name
+            and replace it with value of the digits incremented by one
+        """
+        return re.sub(
+                r"(.*\D+)(\d+)(.*)",  
+                lambda x: x.group(1) + str(int(x.group(2)) + 1) + x.group(3),  
+                self.name) 
 
     def update(self, vinfo):
         self.name = vinfo['name']
