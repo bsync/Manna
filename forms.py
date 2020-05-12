@@ -2,7 +2,6 @@ import flask
 import dominate.tags as tags
 import wtforms as wtf
 from flask_wtf import FlaskForm
-from flask_wtf.file import FileField
 from dominate.util import raw
 from urllib.parse import unquote
 from wtforms.validators import DataRequired

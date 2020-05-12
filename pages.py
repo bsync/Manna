@@ -1,26 +1,22 @@
-import sys, os, re
-import flask, requests
+import sys, traceback, os
+import flask
 import dominate, dominate.tags as tags
-import executor, mongo, forms
+import executor, forms
 from login import login_user
 from datetime import datetime, timedelta, timezone
 from dominate.util import raw
-from urllib.parse import quote, unquote
+from urllib.parse import unquote
 from pathlib import Path
 
 def init_flask(app):
     executor.init_flask(app)
-    mongo.init_flask(app)
-    Page.title = app.config.get("TITLE", Page.title)
+    MannaPage.title = app.config.get("TITLE", MannaPage.title)
     if app.env == "development":
-        Page.title = Page.title + " (dev) "
-    return sys.modules[__name__] #Basically just use this module as the page manager
+        MannaPage.title = MannaPage.title + " (dev) "
+    return sys.modules[__name__] #just use this module as the page manager
 
-class Page(dominate.document):
+class MannaPage(dominate.document):
     title = "Tullahoma Bible Church"
-    def __new__(_cls, *args, **kwargs):
-        "Disables decorators from this subclass onward."
-        return object.__new__(_cls)
     def __init__(self, subtitle=''):
         super().__init__(self.title)
         self.subtitle = subtitle if subtitle else self.__class__.__name__
@@ -50,7 +46,7 @@ class Page(dominate.document):
             with self.footer:
                 tags.a("Latest", href=flask.url_for(".latest"))
                 tags.a("Back to the Front", href="/")
-                tags.a("Catalog", href=flask.url_for(".catalog"), 
+                tags.a("Catalog", href=flask.url_for(".show_catalog_page"), 
                         onclick="check_edit(event, this)")
 
     @property
@@ -75,8 +71,7 @@ class Page(dominate.document):
                         lref = slink.href.replace(pre, pre+'\/edit');
                         lref = lref.replace('/latest/', '/');
                         window.location.href = lref;
-                        return false; }} 
-        """
+                        return false; }} """
     
     @property
     def response(self):
@@ -112,23 +107,25 @@ class Page(dominate.document):
         return tags.table(id=f"{table_id}")
 
     def video_table(self, vids, **kwargs):
-        with self.datatable(**kwargs): 
-            with tags.thead():
-                tags.th("Date", _class="dt-head-left")
-                tags.th("Series", _class="dt-head-left")
-                tags.th("Lesson", _class="dt-head-left")
-                tags.th("Duration", _class="dt-head-left")
-            with tags.tbody():
-                if len(vids) == 0:
-                    tags.h3("No Connection to Videos, try again later...")
-                else: 
-                    for vid in vids: 
-                        try:
-                            if vid in vid.series.videos:
-                                self.make_table_row(vid)
-                        except Exception as e:
-                            print(f"Removing {vid.name} because: {e}")
-                            vid.delete()
+        with self.content:
+            with self.datatable(**kwargs): 
+                with tags.thead():
+                    tags.th("Date", _class="dt-head-left")
+                    tags.th("Series", _class="dt-head-left")
+                    tags.th("Lesson", _class="dt-head-left")
+                    tags.th("Duration", _class="dt-head-left")
+                with tags.tbody():
+                    if len(vids) == 0:
+                        tags.h3("No Connection to Videos, try again later...")
+                    else: 
+                        for vid in vids: 
+                            try:
+                                if vid in vid.series.videos:
+                                    self.make_table_row(vid)
+                            except Exception as e:
+                                print(f"Removing {vid.name} because: {e}")
+                                vid.delete()
+        return self.response
 
     def make_table_row(self, vid):
         with tags.tr():
@@ -143,7 +140,7 @@ class Page(dominate.document):
                                onclick="check_edit(event, this)"))
                 tags.td(f"{int(vid.duration/60)} mins")
             except Exception as e:
-                print(f"Removing corrupt video {vid.name} from mongoDB!")
+                print(f"Removing corrupt video {vid.name}!")
                 vid.delete()
 
     def integrate(self, form, container=None):
@@ -185,39 +182,7 @@ class Page(dominate.document):
     def redirect(self, url, **kwargs):
         return flask.redirect(flask.url_for(url, **kwargs))
 
-
-class AuthenticationPage(Page):
-    def __init__(self, target):
-        super().__init__("Authorization Required")
-        self.integrate(forms.PasswordForm(target))
-
-    @property
-    def response(self):
-        if self.PasswordForm.passes:
-            login_user()
-            tbase = Path(self.PasswordForm.target).name
-            flask.session[unquote(tbase)]=True
-            return flask.redirect(self.PasswordForm.target)
-        return str(self)
-
-
-class ErrorPage(Page):
-    def __init__(self, err):
-        super().__init__("Trouble in Paradise...")
-
-        with self.content:
-            str(err.description)
-
-
-class LatestPage(Page):
-    def __init__(self, count=10):
-        super().__init__(f"Latest {count} Lessons")
-        self.vids = mongo.Video.latest(count)
-        with self.content:
-            self.video_table(self.vids, order=[[0,"desc"]])
-
-    @property
-    def roku_feed(self):
+    def roku_feed(self, vids):
         tstamp = datetime.now(tz=timezone.utc)
         tstamp = tstamp.isoformat(timespec="seconds")
         rfeed = dict(
@@ -239,13 +204,32 @@ class LatestPage(Page):
                              ),
                        releaseDate=tstamp,
                        shortDescription=x.series.name,)
-                    for i,x in enumerate(self.vids) ],)
+                    for i,x in enumerate(vids) ],)
         return flask.jsonify(rfeed)
 
+    def play_video(self, vid):
+        with self.content:
+            tags.div(
+                raw(vid.html), 
+                tags.div(
+                    tags.a(tags.button("Play Audio"),
+                           target='apframes',
+                           href=flask.url_for('.play_audio', 
+                                              series=vid.series.name, 
+                                              video=vid.name)),
+                    tags.iframe(name="apframes", src="", frameBorder="0"),
+                    tags.a(tags.button("Download Video"), 
+                           href=vid.dlink),
+                    id="options"),
+                id="player")
+        return self.response
 
-class CatalogPage(Page):
-    def __init__(self, subtitle="Series Catalog"):
-        super().__init__(subtitle)
+    def play_series(self, series):
+        with self.content:
+            tags.div(raw(series.html), id="player")
+        return self.response
+
+    def show_catalog(self, catalog):
         with self.content:
             with self.datatable(order=[[0,"desc"]]):
                 with tags.thead():
@@ -257,50 +241,47 @@ class CatalogPage(Page):
                     def _row(x):
                         tags.td(str(x.create_date))
                         tags.td(tags.a(x.name, 
-                                       href=flask.url_for('.series_page', 
+                                       href=flask.url_for('.show_series_page', 
                                                           series=x.name),
                                        onclick="check_edit(event, this)"))
                         tags.td(f"{len(x.videos)}")
-                    for x in mongo.VideoSeries.objects(): 
+                    for x in catalog: 
                         _row(x)
-        
+        return self.response
 
-class CatalogEditorPage(CatalogPage):
-    def __init__(self):
-        super().__init__("Series Catalog Editor")
+    def edit_catalog(self, catalog):
         self.integrate(forms.AddSeriesForm("Add a series to the Catalog"))
         self.integrate(forms.SyncWithVimeoForm("Sync Catalog with Vimeo"))
         self.integrate(forms.ResetToVimeoForm("Reset Catalog to Vimeo"))
         if self.AddSeriesForm.was_submitted:
             try:
-                mongo.VideoSeries.sync_new(
+                catalog.sync_new(
                         self.AddSeriesForm.name, 
                         self.AddSeriesForm.description)
                 self.status = f"Added series {self.AddSeriesForm.name}"
             except Exception as e:
-                self.status = f"Failed to create series: {str(e)}"
+                emsg = str(e) + traceback.format_exc()
+                self.status = f"Failed to create series: {emsg}"
         elif self.SyncWithVimeoForm.was_submitted:
-            self.monitor(mongo.VideoSeries.sync_gen)
+            self.monitor(catalog.sync_gen)
         elif self.ResetToVimeoForm.was_submitted:
-            mongo.VideoSeries._drop_all()
-            self.monitor(mongo.VideoSeries.sync_gen)
+            catalog._drop_all()
+            self.monitor(catalog.sync_gen)
+        return self.show_catalog(catalog.objects())
 
+    def show_series(series):
+        self.video_table(series.videos)
+        return self.response
 
-class SeriesPage(Page):
-    def __init__(self, alb):
-        super().__init__(f"Lessons of {alb}")
-        series = mongo.VideoSeries.named(alb)
-        with self.content:
-            self.video_table(series.videos)
-                
-
-class SeriesEditorPage(SeriesPage):
-    def __init__(self, alb):
-        super().__init__(alb)
-        self.series = mongo.VideoSeries.named(alb)
+    def edit_series(self, series):
         self.integrate(forms.AddVideosForm(self.series))
         self.integrate(forms.SyncWithVimeoForm(f"Sync {alb} with vimeo"))
         self.integrate(forms.DeleteSeriesForm(f"Delete empty {alb} series"))
+        self.jquery(f"""
+            $('#{self.DeleteSeriesForm.submitField.id}').click(
+                function () {{ 
+                    return confirm("Delete series: {self.series.name} ?") 
+                                }} ) """)
         self.integrate(forms.DateSeriesForm(f"Modify {alb} start Date"))
 
         if self.AddVideosForm.was_submitted:
@@ -314,13 +295,8 @@ class SeriesEditorPage(SeriesPage):
         elif self.AddVideosForm.finished_upload:
             self.monitor(self.series.add_new, self.AddVideosForm.uploaded_uri)
         elif self.DeleteSeriesForm.was_submitted:
+            import pdb; pdb.set_trace()
             try:
-                self.jquery(
-                f"""
-                $('#{self.DeleteSeriesForm.submitField.id}').click(
-                    function () {{ 
-                        return confirm("Delete series: {self.series.name} ?") 
-                                    }} ) """)
                 self.series.remove()
                 self.status = f"Deleted {self.series.name}"
                 return self.redirect(".catalog")
@@ -336,72 +312,47 @@ class SeriesEditorPage(SeriesPage):
                 sdate += timedelta(days=3)
                 vid.save()
             self.status = f"Redated {self.series.name} starting at {sdate}"
+        return self.response
 
-
-class VideoPlayer(Page):
-    def __init__(self, alb, vid=None):
-        super().__init__(f"{vid} of {alb}" if vid else f"{alb}")
-        series = mongo.VideoSeries.named(alb)
-        with self.content:
-            if vid:
-                video = series.video_named(vid)
-                tags.div(
-                    raw(video.html), 
-                    tags.div(
-                        tags.a(tags.button("Play Audio"),
-                               href=flask.url_for('.audio_response', 
-                                                  series=series.name, 
-                                                  audio=video.name)),
-                        tags.a(tags.button("Download Video"), 
-                               href=video.dlink),
-                        id="options"),
-                    id="player")
-            else:
-                tags.div(raw(series.html), id="player")
-
-
-class VideoEditor(VideoPlayer):
-    def __init__(self, series, vid):
-        super().__init__(series, vid)
-        self.series = mongo.VideoSeries.named(series)
-        self.video = self.series.video_named(vid)
-        self.integrate(forms.PurgeVideoForm(self.video))
-
-    @property
-    def response(self):
+    def edit_video(self, video):
+        self.integrate(forms.PurgeVideoForm(video))
         if self.PurgeVideoForm.was_submitted:
             self.jquery(
                 f"""$('#{self.submitField.id}').click( 
                         function () {{ 
-                            return confirm("Purge video: {self.video.name} ?") 
+                            return confirm("Purge video: {video.name} ?") 
                         }} )""")
-            self.status = f"Video {self.video.name} purged from catalog"
-            self.video.delete()
-            self.series.sync_vids()
+            self.status = f"Video {video.name} purged from catalog"
+            video.delete()
+            self.vid.series.sync_vids()
             return self.redirect(".latest")
-        return str(self)
+        return self.response
 
+    def play_audio(self, video):
+        def generate_mp3():
+            import subprocess as sp
+            ffin = f' -i "{video.vlink}" '
+            ffopts = " -af silenceremove=1:1:.01 -ac 1 -ab 64k -ar 44100 -f mp3 "
+            ffout = ' - '
+            ffmpeg = 'ffmpeg' + ffin + ffopts + ffout
+            tffmpeg = "timeout -s SIGKILL 300 " + ffmpeg 
+            with sp.Popen(tffmpeg, shell=True,
+                          stdout = sp.PIPE, stderr=sp.PIPE,
+                          close_fds = True, preexec_fn=os.setsid) as process:
+                while process.poll() is None:
+                    yield process.stdout.read(1000)
+        return flask.Response(generate_mp3(), mimetype="audio/mpeg")
 
-class AudioPage(Page):
-    def __init__(self, alb, vid):
-        super().__init__(f"Audio for Lesson {vid} of series {alb}")
-        self.series = mongo.VideoSeries.named(alb)
-        self.video = self.series.video_named(vid)
+    def report_error(self, err):
+        with self.content:
+            str(err.description)
+        return self.response
 
-    def generate_mp3(self):
-        import subprocess as sp
-        ffin = f' -i "{self.video.vlink}" '
-        ffopts = " -af silenceremove=1:1:.01 -ac 1 -ab 64k -ar 44100 -f mp3 "
-        ffout = ' - '
-        ffmpeg = 'ffmpeg' + ffin + ffopts + ffout
-        tffmpeg = "timeout -s SIGKILL 300 " + ffmpeg 
-        with sp.Popen(tffmpeg, shell=True,
-                      stdout = sp.PIPE, stderr=sp.PIPE,
-                      close_fds = True, preexec_fn=os.setsid) as process:
-            while process.poll() is None:
-                yield process.stdout.read(1000)
-
-    @property
-    def response(self):
-        return flask.Response(self.generate_mp3(), mimetype="audio/mpeg")
-
+    def authenticate(self, target):
+        self.integrate(forms.PasswordForm(target))
+        if self.PasswordForm.passes:
+            login_user()
+            tbase = Path(self.PasswordForm.target).name
+            flask.session[unquote(tbase)]=True
+            return flask.redirect(self.PasswordForm.target)
+        return self.response

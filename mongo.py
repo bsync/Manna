@@ -14,6 +14,10 @@ def init_db():
     Video.drop_collection()
     VimeoRecord.drop_collection()
 
+def video_for(named_series, named_video):
+    series = VideoSeries.named(named_series)
+    return series.video_named(named_video)
+
 class VimeoRecord(db.Document):
     meta = {'allow_inheritance': True}
     uri = db.StringField(required=True, primary_key=True)
@@ -118,8 +122,7 @@ class VideoSeries(VimeoRecord):
         if cls.objects(name=aname).count() > 0: 
             raise Exception(f"VideoSeries {aname} already exists.")
         resp = vs.post(cls.VSURI, name=aname, description=adescription)
-        alb = cls(resp)
-        return alb
+        return cls.from_info(resp)
 
     @classmethod
     def from_info(cls, vsinfo):
