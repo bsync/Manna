@@ -30,10 +30,6 @@ def roku():
 @app.route("/latest/series/<series>/videos/<video>") 
 def latest_player(series, video):
     return video_player(series, video)
-#    pg = pm.MannaPage(f"{video} of {series}")
-#    series = mongo.VideoSeries.named(series)
-#    video = series.video_named(video)
-#    return pg.play_video(video)
 
 @app.route("/series/<series>/videos/<video>") 
 @lm.login_required
@@ -56,8 +52,9 @@ def edit_catalog_page():
 @app.route("/series/<series>")
 @lm.login_required
 def show_series_page(series):
+    pg = pm.MannaPage(f"Series {series}")
     series = mongo.VideoSeries.named(series)
-    return pm.show_series(series)
+    return pg.show_series(series)
 
 @app.route("/edit/series/<series>", methods=['GET', 'POST', 'DELETE'])
 @lm.login_required

@@ -1,4 +1,4 @@
-import re
+import re, time
 import vidstore as vs
 import datetime as dt
 from flask_mongoengine import MongoEngine
@@ -46,7 +46,7 @@ class VimeoRecord(db.Document):
                 try:
                    obj = cls.objects(uri=vsinfo['uri']).first()
                    if obj:
-                       obj.update(vsinfo)
+                       obj.sync_with_vimeo(vsinfo)
                    else:
                        obj = cls.from_info(vsinfo)
                    yield "Synchronized ..." + obj.name 
@@ -60,7 +60,7 @@ class VimeoRecord(db.Document):
                 sinfo = vs.get(nextpage)
             else:
                 sinfo = {}
-        yield "done!"
+        yield "Finished"
 
 
 class Video(VimeoRecord):
@@ -78,7 +78,6 @@ class Video(VimeoRecord):
 
     @classmethod
     def latest(cls, cnt):
-        list(VideoSeries.sync_gen(rcnt=1))
         return cls.objects.order_by('-create_date')[:cnt]
 
     @classmethod
@@ -105,7 +104,7 @@ class Video(VimeoRecord):
                 lambda x: x.group(1) + str(int(x.group(2)) + 1) + x.group(3),  
                 self.name) 
 
-    def update(self, vinfo):
+    def sync_with_vimeo(self, vinfo):
         self.name = vinfo['name']
         self.html = vinfo['embed']['html']
         self.vlink = vinfo['files'][0]['link']
@@ -133,7 +132,7 @@ class VideoSeries(VimeoRecord):
         series.save()
         return series
 
-    def update(self, vsinfo=None):
+    def sync_with_vimeo(self, vsinfo=None):
         if vsinfo is None:
             vsinfo = vs.get(f"{self.uri}",
                             fields=self.fields,
@@ -143,26 +142,34 @@ class VideoSeries(VimeoRecord):
         self.sync_vids()
 
     def start_upload(self, vid_name, vid_desc, redir="/"):
-        yield "Waiting for upload to begin..."
         vp = vs.post("/me/videos", 
                     **dict(name=vid_name,
                            description=vid_desc,
                            upload=dict(approach="post", redirect_url=redir)))
         return vp['upload']['upload_link']
 
-    def finish_upload(self, viduri):
-        yield "Upload complete waiting for vid to become avaialble..."
-        resp = vs.put(f"{self.id}{viduri}")
+    def process_upload(self, vidName, recDate, vidUri):
+        yield f"Waiting for {vidName} to become available"
+        resp = vs.put(f"{self.id}{vidUri}")
         if resp.ok:
-            resp = vs.get(viduri)
+            resp = vs.get(vidUri)
             secs = 0
             while  resp['status'] != 'available':
                 time.sleep(5)
                 secs += 5
-                resp = vs.get(viduri)
-                yield f"Status after {secs} seconds: {resp['status']}"
-        self.sync_vids()
-        yield "done!"
+                resp = vs.get(vidUri)
+                status = resp['status']
+                if secs%2:
+                    yield f"Processing {vidName} upload to {self.name}"
+                else:
+                    yield f"{vidName} status after {secs/60:.2f} minutes: {status}"
+            vid = Video.from_info(resp)
+            vid.update(create_date=recDate)
+            vid.series = self
+            vid.save()
+            self.videos.append(vid)
+            self.save()
+        yield "Finished upload processing for {vidName} of {self.name}!"
 
     def video_named(self, vname):
         return { x.name:x for x in self.videos }[vname]
@@ -178,14 +185,13 @@ class VideoSeries(VimeoRecord):
                         sort="date",
                         sizes="1280x720,1920x1080",
                         direction="asc")
-        if 'data' in vlinfo: 
-            self.videos.clear()
+        self.update(pull_all__videos=self.videos)
         while ('data' in vlinfo):
             for vinfo in vlinfo['data']:
                 try:
                     vid = Video.objects(uri=vinfo['uri']).first()
                     if vid:
-                        vid.update(vinfo)
+                        vid.sync_with_vimeo(vinfo)
                     else:
                         vid = Video.from_info(vinfo)
                     self.videos.append(vid)
@@ -199,14 +205,6 @@ class VideoSeries(VimeoRecord):
             else:
                 vlinfo = {}
         self.save()
-
-    def replace_videos(self, vids):
-        vuri_list = ",".join([ v.uri for v in vids ])
-        resp = vs.put(f'{self.uri}/videos', videos=vuri_list)
-        for vid in self.videos:
-            vs.put(f"{self.uri}{vid.uri}")
-            print(f"Added lesson {vid.name} to roku showcase")
-        #self.sync_vids()
 
 class ShowCase(VideoSeries):
     VSURI="/me/albums"

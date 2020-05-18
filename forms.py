@@ -106,7 +106,10 @@ class AddVideosForm(DomForm):
     def __init__(self, alb):
         super().__init__(f"Add video to {unquote(alb.name)}")
         self.uploaded_uri = flask.request.args.get('video_uri', False)
-        if not self.was_submitted:
+        if self.was_submitted:
+            self.submitField.render_kw = {'disabled': 'disabled'}
+            self.recordedDate.render_kw = {'disabled': 'disabled'}
+        else:
             if len(alb.videos):
                 latest_vid = alb.videos[-1]
                 self.vidName.data = latest_vid.next_name
@@ -115,7 +118,6 @@ class AddVideosForm(DomForm):
                 self.vidName.data = "Lesson #1"
 
     def initiate_upload(self, upurl):
-        self.submitField.render_kw = {'disabled': 'disabled'}
         self.formTail.add(
             tags.form(
                 tags.input(name="file_data", type="file"), 

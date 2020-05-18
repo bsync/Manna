@@ -30,10 +30,10 @@ class MannaPage(dominate.document):
         self.jquery("""$('#content').fitVids();""")
         if len(executor.futures):
             if executor.futures.done(executor.fk):
-                executor.futures.pop(executor.fk)
-                print(f"Finished with {executor.fk}")
+                res = executor.futures.pop(executor.fk).result()
+                print(f"Finished with {executor.fk} with result {res}")
             else:
-                self.head.add(tags.meta(http_equiv="refresh", content="1"))
+                self.head.add(tags.meta(http_equiv="refresh", content="3"))
         with self.body.add(tags.div(cls="container")):
             self.header = tags.div(id="header")
             with self.header.add(tags.h2()):
@@ -53,8 +53,9 @@ class MannaPage(dominate.document):
     def status(self):
         with tags.div(id="status") as sdiv:
             self._page_status = tags.h4(id="pstatus", style="display: none;")
-            tags.h4(executor.status, id="estatus", 
-                    style="display: none;" if executor.status == 'idle' else "")
+            tags.h4(executor.status, 
+                    id="estatus", 
+                    style="display: none;" if not executor.status else "")
         return sdiv
 
     @status.setter
@@ -168,15 +169,16 @@ class MannaPage(dominate.document):
         setattr(self, form.__class__.__name__, form)
         return form
 
-    def monitor(self, func):
+    def monitor(self, func, *args):
         fname = func.__name__
         if fname not in executor.futures:
-            def watcher(yielder):
-                for status in yielder():
+            def watcher(yielder, *args):
+                for status in yielder(*args):
                     print(f"{fname} yielded {status}")
                     executor.status = status
-            executor.submit_stored(fname, watcher, func)
-            self.head.add(tags.meta(http_equiv="refresh", content="1"))
+                executor.status = ""
+            executor.submit_stored(fname, watcher, func, *args)
+            self.head.add(tags.meta(http_equiv="refresh", content="3"))
             executor.fk = fname
 
     def redirect(self, url, **kwargs):
@@ -269,49 +271,54 @@ class MannaPage(dominate.document):
             self.monitor(catalog.sync_gen)
         return self.show_catalog(catalog.objects())
 
-    def show_series(series):
+    def show_series(self, series):
         self.video_table(series.videos)
         return self.response
 
     def edit_series(self, series):
-        self.integrate(forms.AddVideosForm(self.series))
-        self.integrate(forms.SyncWithVimeoForm(f"Sync {alb} with vimeo"))
-        self.integrate(forms.DeleteSeriesForm(f"Delete empty {alb} series"))
+        self.integrate(forms.AddVideosForm(series))
+        self.integrate(forms.SyncWithVimeoForm(f"Sync {series.name} with vimeo"))
+        self.integrate(forms.DeleteSeriesForm(f"Delete empty {series.name} series"))
         self.jquery(f"""
             $('#{self.DeleteSeriesForm.submitField.id}').click(
                 function () {{ 
-                    return confirm("Delete series: {self.series.name} ?") 
+                    return confirm("Delete series: {series.name} ?") 
                                 }} ) """)
-        self.integrate(forms.DateSeriesForm(f"Modify {alb} start Date"))
-
+        self.integrate(forms.DateSeriesForm(f"Modify {series.name} start Date"))
         if self.AddVideosForm.was_submitted:
+            self.status = "Waiting for upload to complete..."
             self.AddVideosForm.initiate_upload( 
-                alb.upload_action(
+                series.start_upload(
                     self.AddVideosForm.vidName.data, 
                     self.AddVideosForm.vidDesc.data, 
                     flask.request.url
                     )
                 )
+            flask.session['vidName'] = self.AddVideosForm.vidName.data
+            flask.session['recDate'] = self.AddVideosForm.recordedDate.data
         elif self.AddVideosForm.finished_upload:
-            self.monitor(self.series.add_new, self.AddVideosForm.uploaded_uri)
+            if 'recDate' in flask.session:
+                self.monitor(series.process_upload, 
+                             flask.session['vidName'],
+                             flask.session['recDate'],
+                             self.AddVideosForm.uploaded_uri)
+                del flask.session['recDate']
         elif self.DeleteSeriesForm.was_submitted:
-            import pdb; pdb.set_trace()
             try:
-                self.series.remove()
-                self.status = f"Deleted {self.series.name}"
-                return self.redirect(".catalog")
+                series.remove()
+                self.status = f"Deleted {series.name}"
             except Exception as e:
-                self.status = f"Failed deleting {self.series.name}: {e}"
+                self.status = f"Failed deleting {series.name}: {e}"
         elif self.SyncWithVimeoForm.was_submitted:
-            self.series.update()
-            self.status = f"Sync {self.series.name} with vimeo"
+            series.sync_with_vimeo()
+            self.status = f"Sync {series.name} with vimeo"
         elif self.DateSeriesForm.was_submitted:
             sdate = self.DateSeriesForm.data['recordedDate']
-            for vid in self.series.videos:
+            for vid in series.videos:
                 vid.create_date = sdate
                 sdate += timedelta(days=3)
                 vid.save()
-            self.status = f"Redated {self.series.name} starting at {sdate}"
+            self.status = f"Redated {series.name} starting at {sdate}"
         return self.response
 
     def edit_video(self, video):
@@ -324,7 +331,7 @@ class MannaPage(dominate.document):
                         }} )""")
             self.status = f"Video {video.name} purged from catalog"
             video.delete()
-            self.vid.series.sync_vids()
+            video.series.sync_vids()
             return self.redirect(".latest")
         return self.response
 
