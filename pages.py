@@ -278,37 +278,39 @@ class MannaPage(dominate.document):
     def edit_series(self, series):
         self.integrate(forms.AddVideosForm(series))
         self.integrate(forms.SyncWithVimeoForm(f"Sync {series.name} with vimeo"))
-        self.integrate(forms.DeleteSeriesForm(f"Delete empty {series.name} series"))
+        self.integrate(forms.DeleteSeriesForm(f"Remove {series.name} series"))
         self.jquery(f"""
             $('#{self.DeleteSeriesForm.submitField.id}').click(
                 function () {{ 
-                    return confirm("Delete series: {series.name} ?") 
+                    return confirm("Remove series: {series.name} ?") 
                                 }} ) """)
         self.integrate(forms.DateSeriesForm(f"Modify {series.name} start Date"))
         if self.AddVideosForm.was_submitted:
-            self.status = "Waiting for upload to complete..."
+            self.status = "Choose a file and submit below..."
             self.AddVideosForm.initiate_upload( 
                 series.start_upload(
                     self.AddVideosForm.vidName.data, 
                     self.AddVideosForm.vidDesc.data, 
-                    flask.request.url
-                    )
-                )
-            flask.session['vidName'] = self.AddVideosForm.vidName.data
+                    flask.request.url))
+            flask.session['addVid'] = self.AddVideosForm.vidName.data
             flask.session['recDate'] = self.AddVideosForm.recordedDate.data
         elif self.AddVideosForm.finished_upload:
             if 'recDate' in flask.session:
+                self.status = f"Processing upload for {flask.session['addVid']}..."
                 self.monitor(series.process_upload, 
-                             flask.session['vidName'],
+                             flask.session['addVid'],
                              flask.session['recDate'],
                              self.AddVideosForm.uploaded_uri)
-                del flask.session['recDate']
+#        elif self.AddVideosForm.finished_processing:
+#            self.status = f"Processing complete for {flask.session['addVid']}..."
+#            del flask.session['addVid']
+#            del flask.session['recDate']
         elif self.DeleteSeriesForm.was_submitted:
             try:
                 series.remove()
-                self.status = f"Deleted {series.name}"
+                self.status = f"Removed {series.name}"
             except Exception as e:
-                self.status = f"Failed deleting {series.name}: {e}"
+                self.status = f"Failed removing {series.name}: {e}"
         elif self.SyncWithVimeoForm.was_submitted:
             series.sync_with_vimeo()
             self.status = f"Sync {series.name} with vimeo"

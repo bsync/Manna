@@ -164,7 +164,7 @@ class VideoSeries(VimeoRecord):
                 else:
                     yield f"{vidName} status after {secs/60:.2f} minutes: {status}"
             vid = Video.from_info(resp)
-            vid.update(create_date=recDate)
+            vid.update(create_date=recDate, dlink=resp['download'][0]['link'])
             vid.series = self
             vid.save()
             self.videos.append(vid)
