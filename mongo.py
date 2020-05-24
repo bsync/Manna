@@ -114,7 +114,8 @@ class Video(VimeoRecord):
 
 class VideoSeries(VimeoRecord):
     VSURI="/me/projects"
-    videos = db.ListField(db.ReferenceField(Video, db.PULL))
+    videos = db.ListField(
+                db.ReferenceField(Video, reverse_delete_rule=db.PULL))
 
     @classmethod
     def sync_new(cls, aname, adescription):
@@ -169,7 +170,7 @@ class VideoSeries(VimeoRecord):
             vid.save()
             self.videos.append(vid)
             self.save()
-        yield "Finished upload processing for {vidName} of {self.name}!"
+        yield f"Finished upload processing for {vidName} of {self.name}!"
 
     def video_named(self, vname):
         return { x.name:x for x in self.videos }[vname]
@@ -185,7 +186,9 @@ class VideoSeries(VimeoRecord):
                         sort="date",
                         sizes="1280x720,1920x1080",
                         direction="asc")
-        self.update(pull_all__videos=self.videos)
+        if len(self.videos):
+            self.update(pull_all__videos=self.videos)
+            self.reload()
         while ('data' in vlinfo):
             for vinfo in vlinfo['data']:
                 try:

@@ -1,11 +1,13 @@
 import flask
 import dominate.tags as tags
 import wtforms as wtf
+import executor
 from flask_wtf import FlaskForm
 from dominate.util import raw
 from urllib.parse import unquote
 from wtforms.validators import DataRequired
 from wtforms.fields.html5 import DateField
+from requests.models import PreparedRequest
 from datetime import date
 
 @tags.fieldset
@@ -96,28 +98,44 @@ class DateSeriesForm(DomForm):
 
 class AddVideosForm(DomForm):
     "Add video to the series"
-    vidName = wtf.StringField("Video title:", [DataRequired()])
-    vidDesc = wtf.TextAreaField("Video description:")
-    recordedDate = wtf.DateField("Recorded on", 
-                                 [DataRequired()], 
-                                 default=date.today)
+    name_fld = wtf.StringField("Video title:", [DataRequired()])
+    recd_fld = wtf.DateField("Recorded:", [DataRequired()], default=date.today)
     submitField = wtf.SubmitField("Begin upload...")
-
-    def __init__(self, alb):
-        super().__init__(f"Add video to {unquote(alb.name)}")
-        self.uploaded_uri = flask.request.args.get('video_uri', False)
+    def __init__(self, series):
+        super().__init__(f"Add video to {unquote(series.name)}")
         if self.was_submitted:
+            self.name_fld.render_kw = {'disabled': 'disabled'}
+            self.recd_fld.render_kw = {'disabled': 'disabled'}
             self.submitField.render_kw = {'disabled': 'disabled'}
-            self.recordedDate.render_kw = {'disabled': 'disabled'}
         else:
-            if len(alb.videos):
-                latest_vid = alb.videos[-1]
-                self.vidName.data = latest_vid.next_name
-                self.vidDesc.data = latest_vid.description
+            if len(series.videos):
+                latest_vid = series.videos[-1]
+                self.name_fld.data = latest_vid.next_name
             else:
-                self.vidName.data = "Lesson #1"
+                self.name_fld.data = "Lesson #1"
 
-    def initiate_upload(self, upurl):
+    @property
+    def video_name(self):
+        return flask.request.args.get('vid_name', self.name_fld.data)
+        #return flask.session.get('vidName', 
+
+    @property
+    def record_date(self):
+        return flask.request.args.get('vid_rec_date', self.recd_fld.data)
+        #return flask.session.get('recDate', 
+
+    @property
+    def uploaded_uri(self):
+        return flask.request.args.get('video_uri', False)
+
+    def initiate_upload(self, series):
+        upact = series.start_upload(self.video_name, 
+                                    "TODO: Description",  
+                                    flask.request.url)
+        req = PreparedRequest()
+        req.prepare_url(upact, 
+                        {'video_name':self.video_name,
+                         'vid_rec_date':self.record_date})
         self.formTail.add(
             tags.form(
                 tags.input(name="file_data", type="file"), 
@@ -125,11 +143,18 @@ class AddVideosForm(DomForm):
                 method="POST",
                 enctype="multipart/form-data",
                 name="upload", 
-                action=upurl))
+                action=req.url))
+        return "Waiting for file submission..."
 
-    @property
-    def finished_upload(self):
-        return self.uploaded_uri != False
+    @property 
+    def was_uploaded(self):
+        return self.uploaded_uri
+
+    def process_upload(self, series):
+        return executor.monitor(series.process_upload,
+                                self.video_name, 
+                                self.record_date, 
+                                self.uploaded_uri)
 
 class SyncWithVimeoForm(DomForm):
     "Syncronize album or entire catalog with vimeo content"

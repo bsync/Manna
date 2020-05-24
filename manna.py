@@ -20,7 +20,7 @@ def auth():
 @app.route("/")
 def latest():
     pg = pm.MannaPage(f"Latest 10 Lessons")
-    return pg.video_table(mongo.Video.latest(10))
+    return pg.video_table(mongo.Video.latest(10), order=[[0,"desc"]])
 
 @app.route("/roku")
 def roku():

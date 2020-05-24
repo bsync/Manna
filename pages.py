@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from dominate.util import raw
 from urllib.parse import unquote
 from pathlib import Path
+from requests.models import PreparedRequest
 
 def init_flask(app):
     executor.init_flask(app)
@@ -28,18 +29,12 @@ class MannaPage(dominate.document):
         self.jquery(self._scriptage, on_ready=False)
         self.scriptfiles(flask.url_for('.static', filename="jquery.fitvids.js"))
         self.jquery("""$('#content').fitVids();""")
-        if len(executor.futures):
-            if executor.futures.done(executor.fk):
-                res = executor.futures.pop(executor.fk).result()
-                print(f"Finished with {executor.fk} with result {res}")
-            else:
-                self.head.add(tags.meta(http_equiv="refresh", content="3"))
         with self.body.add(tags.div(cls="container")):
             self.header = tags.div(id="header")
             with self.header.add(tags.h2()):
                 tags.a(self.title, href='/', id="title")
                 tags.h3(self.subtitle, id="subtitle")
-                self.status
+                tags.h4(id="status", style="display: none;")
             self.controls = tags.div(id="controls")
             self.content = tags.div(id="content")
             self.footer = tags.div(id="footer")
@@ -51,17 +46,21 @@ class MannaPage(dominate.document):
 
     @property
     def status(self):
-        with tags.div(id="status") as sdiv:
-            self._page_status = tags.h4(id="pstatus", style="display: none;")
-            tags.h4(executor.status, 
-                    id="estatus", 
-                    style="display: none;" if not executor.status else "")
-        return sdiv
+        return self.getElementById('status').children[0]
 
     @status.setter
     def status(self, value):
-        self._page_status['style']=""
-        self._page_status.children.append(value)
+        statel = self.getElementById('status')
+        statel.children.append(value)
+        statel['style'] = ''
+
+    @property
+    def url(self):
+        return getattr(self, '_url', flask.request.url)
+
+    @url.setter
+    def url(self, value):
+        self._url = value
 
     @property
     def _scriptage(self):
@@ -74,11 +73,6 @@ class MannaPage(dominate.document):
                         window.location.href = lref;
                         return false; }} """
     
-    @property
-    def response(self):
-        "Returns the a response as the page itself"
-        return str(self)
-
     def csslink(self, cssfile):
         if cssfile not in str(self.head):
             return tags.link(rel="stylesheet", type="text/css", href=cssfile)
@@ -169,17 +163,6 @@ class MannaPage(dominate.document):
         setattr(self, form.__class__.__name__, form)
         return form
 
-    def monitor(self, func, *args):
-        fname = func.__name__
-        if fname not in executor.futures:
-            def watcher(yielder, *args):
-                for status in yielder(*args):
-                    print(f"{fname} yielded {status}")
-                    executor.status = status
-                executor.status = ""
-            executor.submit_stored(fname, watcher, func, *args)
-            self.head.add(tags.meta(http_equiv="refresh", content="3"))
-            executor.fk = fname
 
     def redirect(self, url, **kwargs):
         return flask.redirect(flask.url_for(url, **kwargs))
@@ -265,10 +248,10 @@ class MannaPage(dominate.document):
                 emsg = str(e) + traceback.format_exc()
                 self.status = f"Failed to create series: {emsg}"
         elif self.SyncWithVimeoForm.was_submitted:
-            self.monitor(catalog.sync_gen)
+            self.status = executor.monitor(catalog.sync_gen)
         elif self.ResetToVimeoForm.was_submitted:
             catalog._drop_all()
-            self.monitor(catalog.sync_gen)
+            self.status = executor.monitor(catalog.sync_gen)
         return self.show_catalog(catalog.objects())
 
     def show_series(self, series):
@@ -286,25 +269,12 @@ class MannaPage(dominate.document):
                                 }} ) """)
         self.integrate(forms.DateSeriesForm(f"Modify {series.name} start Date"))
         if self.AddVideosForm.was_submitted:
-            self.status = "Choose a file and submit below..."
-            self.AddVideosForm.initiate_upload( 
-                series.start_upload(
-                    self.AddVideosForm.vidName.data, 
-                    self.AddVideosForm.vidDesc.data, 
-                    flask.request.url))
-            flask.session['addVid'] = self.AddVideosForm.vidName.data
-            flask.session['recDate'] = self.AddVideosForm.recordedDate.data
-        elif self.AddVideosForm.finished_upload:
-            if 'recDate' in flask.session:
-                self.status = f"Processing upload for {flask.session['addVid']}..."
-                self.monitor(series.process_upload, 
-                             flask.session['addVid'],
-                             flask.session['recDate'],
-                             self.AddVideosForm.uploaded_uri)
-#        elif self.AddVideosForm.finished_processing:
-#            self.status = f"Processing complete for {flask.session['addVid']}..."
-#            del flask.session['addVid']
-#            del flask.session['recDate']
+            self.status = self.AddVideosForm.initiate_upload(series) 
+        elif self.AddVideosForm.was_uploaded:
+            req = PreparedRequest()
+            req.prepare_url(flask.request.base_url, {'processing':True,})
+            self.url = req.url
+            self.status = self.AddVideosForm.process_upload(series)
         elif self.DeleteSeriesForm.was_submitted:
             try:
                 series.remove()
@@ -365,3 +335,18 @@ class MannaPage(dominate.document):
             flask.session[unquote(tbase)]=True
             return flask.redirect(self.PasswordForm.target)
         return self.response
+
+    @property
+    def response(self):
+        "Returns the response of the page"
+        if 'monitor' in executor.futures._futures:
+            if executor.futures.done('monitor'):
+                executor.futures.pop('monitor')
+                self.status = "Finished"
+            else:
+                self.status = executor.status
+                self.head.add(
+                        tags.meta(http_equiv="refresh", 
+                                  content=f"3;{self.url}"))
+        return str(self)
+
