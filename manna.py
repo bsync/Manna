@@ -29,7 +29,10 @@ def roku():
 
 @app.route("/latest/series/<series>/videos/<video>") 
 def latest_player(series, video):
-    return video_player(series, video)
+    pg = pm.MannaPage(f"{video} of {series}")
+    video = mongo.video_for(series, video)
+    return pg.play_video(video)
+    #return video_player(series, video)
 
 @app.route("/series/<series>/videos/<video>") 
 @lm.login_required
