@@ -27,6 +27,11 @@ def roku():
     pg = pm.MannaPage(f"Roku Lessons")
     return pg.roku_feed(mongo.Video.latest(10))
 
+@app.route("/roku2")
+def roku2():
+    pg = pm.MannaPage(f"Roku Lessons")
+    return pg.roku_feed(mongo.Video.latest(10))
+
 @app.route("/latest/series/<series>/videos/<video>") 
 def latest_player(series, video):
     pg = pm.MannaPage(f"{video} of {series}")

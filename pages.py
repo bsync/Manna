@@ -250,8 +250,9 @@ class MannaPage(dominate.document):
         elif self.SyncWithVimeoForm.was_submitted:
             self.status = executor.monitor(catalog.sync_gen)
         elif self.ResetToVimeoForm.was_submitted:
-            catalog._drop_all()
-            self.status = executor.monitor(catalog.sync_gen)
+            #catalog._drop_all()
+            #self.status = executor.monitor(catalog.sync_gen)
+            self.status = "Disabled for now...this must be performed manually."
         return self.show_catalog(catalog.objects())
 
     def show_series(self, series):

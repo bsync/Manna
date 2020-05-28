@@ -140,6 +140,7 @@ class VideoSeries(VimeoRecord):
                             sort="date",
                             direction="asc")
         self.name = vsinfo['name']
+        self.save()
         self.sync_vids()
 
     def start_upload(self, vid_name, vid_desc, redir="/"):
