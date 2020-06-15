@@ -1,9 +1,9 @@
 PURPOSE:
 Manna is intended to become a full-fledged Bible study application.  The goal
-is is to provide a tool that encourages good Bible study methodology by
-focusing on rightly dividing the Bible. Ultimately I want to glorify my Lord
-and Saviour, Jesus Christ, by writing software that is well thought out and
-useful.
+is to provide a tool that encourages good Bible study methodology by
+focusing on rightly dividing the Bible as the Word of God. Ultimately I want to
+glorify my Lord and Saviour, Jesus Christ, by writing software that is well thought
+out and useful.
 
 PHILOSOPHY:
 The Bible teaches us to take every thought captive for Christ. In many ways
