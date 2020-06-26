@@ -30,8 +30,7 @@ class VimeoRecord(db.Document):
     def named(cls, aname):
         match = cls.objects(name=aname).first()
         if not match:
-            for x in cls.sync_gen():
-                if x.name == aname: break
+            cls.sync_gen()
             match = cls.objects(name=aname).first()
         return match
 
