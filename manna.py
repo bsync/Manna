@@ -51,7 +51,7 @@ def show_catalog_page():
     pg = pm.MannaPage("Series Catalog")
     return pg.show_catalog(mongo.VideoSeries.objects()) 
 
-@app.route("/edit/series", methods=['GET', 'POST'])
+@app.route("/series/edit", methods=['GET', 'POST'])
 @lm.login_required
 def edit_catalog_page():
     pg = pm.MannaPage("Series Catalog Editor")
@@ -64,14 +64,14 @@ def show_series_page(series):
     series = mongo.VideoSeries.named(series)
     return pg.show_series(series)
 
-@app.route("/edit/series/<series>", methods=['GET', 'POST', 'DELETE'])
+@app.route("/series/<series>/edit", methods=['GET', 'POST', 'DELETE'])
 @lm.login_required
 def edit_series_page(series):
     pg = pm.MannaPage("Series Editor")
     series = mongo.VideoSeries.named(series)
     return pg.edit_series(series)
 
-@app.route("/edit/series/<series>/videos/<video>", methods=['GET', 'POST'])
+@app.route("/series/<series>/videos/<video>/edit", methods=['GET', 'POST'])
 @lm.login_required
 def edit_video(series, video):
     pg = pm.MannaPage("Video Editor")
@@ -84,7 +84,7 @@ def play_audio(series, video):
     video = mongo.video_for(series, video)
     return pg.play_audio(video)
 
-@app.route("/edit/reset")
+@app.route("/reset/edit")
 @lm.login_required
 def reset():
     import mongo

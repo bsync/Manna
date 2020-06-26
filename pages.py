@@ -65,10 +65,9 @@ class MannaPage(dominate.document):
     @property
     def _scriptage(self):
         return f""" function check_edit(event, slink) {{ 
-                    var pre = slink.pathname.split('/')[1];
                     if (event.shiftKey)
                         event.preventDefault();
-                        lref = slink.href.replace(pre, pre+'\/edit');
+                        lref = slink.href + '\/edit';
                         lref = lref.replace('/latest/', '/');
                         window.location.href = lref;
                         return false; }} """
