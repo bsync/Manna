@@ -175,7 +175,7 @@ class MannaPage(dominate.document):
             lastUpdated=tstamp,
             language='en',
             movies=[dict(id=x.uri.split('/')[2],
-                        title=x.name,
+                        title=f"{x.series.name}-{x.name}",
                         genres=["faith"],
                         tags=["faith"],
                         thumbnail=x.plink,
