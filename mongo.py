@@ -143,11 +143,11 @@ class VideoSeries(VimeoRecord):
         self.save()
         self.sync_vids()
 
-    def start_upload(self, vid_name, vid_desc, redir="/"):
+    def uplink(self, vid_name, vid_desc, redir="/"):
         vp = vs.post("/me/videos", 
-                    **dict(name=vid_name,
-                           description=vid_desc,
-                           upload=dict(approach="post", redirect_url=redir)))
+                     name=vid_name,
+                     description=vid_desc,
+                     upload=dict(approach="post", redirect_url=redir))
         return vp['upload']['upload_link']
 
     def process_upload(self, vidName, recDate, vidUri):

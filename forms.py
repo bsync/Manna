@@ -129,9 +129,9 @@ class AddVideosForm(DomForm):
         return flask.request.args.get('video_uri', False)
 
     def initiate_upload(self, series):
-        upact = series.start_upload(self.video_name, 
-                                    "TODO: Description",  
-                                    flask.request.url)
+        upact = series.uplink(self.video_name, 
+                              "TODO: Description",  
+                              flask.request.url)
         req = PreparedRequest()
         req.prepare_url(upact, 
                         {'video_name':self.video_name,

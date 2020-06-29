@@ -27,7 +27,8 @@ class MannaPage(dominate.document):
                     tags.link(rel="stylesheet", type="text/css", 
                               href=flask.url_for('.static', filename=css))
         self.jquery(self._scriptage, on_ready=False)
-        self.scriptfiles(flask.url_for('.static', filename="jquery.fitvids.js"))
+        self.scriptfiles(
+            flask.url_for('.static', filename="jquery.fitvids.js"))
         self.jquery("""$('#content').fitVids();""")
         with self.body.add(tags.div(cls="container")):
             self.header = tags.div(id="header")
@@ -88,7 +89,7 @@ class MannaPage(dominate.document):
     def jquery(self, scriptage, on_ready=True):
         self.scriptfiles("https://code.jquery.com/jquery-3.4.1.min.js")
         if on_ready:
-            scriptage = f"""$(document).ready( function() {{ {scriptage} }})"""
+            scriptage = f"$(document).ready( function() {{ {scriptage} }})"
         self.jscript(scriptage)
 
     def datatable(self, **options):
@@ -111,7 +112,7 @@ class MannaPage(dominate.document):
                     tags.th("Duration", _class="dt-head-left")
                 with tags.tbody():
                     if len(vids) == 0:
-                        tags.h3("No Connection to Videos, try again later...")
+                        tags.h3("No connection to videos, try again later...")
                     else: 
                         for vid in vids: 
                             try:
@@ -142,10 +143,10 @@ class MannaPage(dominate.document):
         """Integrates the given form into the page using container
 
             Integration means: 
-            
+
             1)  augmenting the page head to source any external scriptfiles
                 associated with the form,
-            2)  augmenting the page head with any raw javascript or jquery
+        5   2)  augmenting the page head with any raw javascript or jquery
                 scriptage associated with the form, 
             3)  merging the DOM content of the form itself into the given
                 container which defaults to the Page's internal content
@@ -162,7 +163,6 @@ class MannaPage(dominate.document):
         container.add(form.content) 
         setattr(self, form.__class__.__name__, form)
         return form
-
 
     def redirect(self, url, **kwargs):
         return flask.redirect(flask.url_for(url, **kwargs))
@@ -266,14 +266,16 @@ class MannaPage(dominate.document):
 
     def edit_series(self, series):
         self.integrate(forms.AddVideosForm(series))
-        self.integrate(forms.SyncWithVimeoForm(f"Sync {series.name} with vimeo"))
+        self.integrate(
+            forms.SyncWithVimeoForm(f"Sync {series.name} with vimeo"))
         self.integrate(forms.DeleteSeriesForm(f"Remove {series.name} series"))
         self.jquery(f"""
             $('#{self.DeleteSeriesForm.submitField.id}').click(
                 function () {{ 
-                    return confirm("Remove series: {series.name} ?") 
+                    return confirm('Remove series: {series.name} ?') 
                                 }} ) """)
-        self.integrate(forms.DateSeriesForm(f"Modify {series.name} start Date"))
+        self.integrate(
+            forms.DateSeriesForm(f"Modify {series.name} start Date"))
         if self.AddVideosForm.was_submitted:
             self.status = self.AddVideosForm.initiate_upload(series) 
         elif self.AddVideosForm.was_uploaded:
@@ -300,16 +302,17 @@ class MannaPage(dominate.document):
         return self.response
 
     def edit_video(self, video):
-        self.integrate(forms.PurgeVideoForm(video))
+        self.integrate(
+            forms.PurgeVideoForm(
+                f"Purge {video.name} from {video.series.name} series"))
+        self.jquery(
+            f"""$('#{self.PurgeVideoForm.submitField.id}').click( 
+                    function () {{ 
+                        return confirm('Purge video: {video.name} ?') 
+                    }} )""")
         if self.PurgeVideoForm.was_submitted:
-            self.jquery(
-                f"""$('#{self.submitField.id}').click( 
-                        function () {{ 
-                            return confirm("Purge video: {video.name} ?") 
-                        }} )""")
             self.status = f"Video {video.name} purged from catalog"
             video.delete()
-            video.series.sync_vids()
             return self.redirect(".latest")
         return self.response
 
@@ -317,7 +320,8 @@ class MannaPage(dominate.document):
         def generate_mp3():
             import subprocess as sp
             ffin = f' -i "{video.vlink}" '
-            ffopts = " -af silenceremove=1:1:.01 -ac 1 -ab 64k -ar 44100 -f mp3 "
+            ffopts = " -af silenceremove=1:1:.01 "
+            ffopts += "-ac 1 -ab 64k -ar 44100 -f mp3 "
             ffout = ' - '
             ffmpeg = 'ffmpeg' + ffin + ffopts + ffout
             tffmpeg = "timeout -s SIGKILL 300 " + ffmpeg 
@@ -348,11 +352,8 @@ class MannaPage(dominate.document):
         if 'monitor' in executor.futures._futures:
             if executor.futures.done('monitor'):
                 executor.futures.pop('monitor')
-                self.status = "Finished"
             else:
                 self.status = executor.status
                 self.head.add(
-                        tags.meta(http_equiv="refresh", 
-                                  content=f"3;{self.url}"))
+                    tags.meta(http_equiv="refresh", content=f"3;{self.url}"))
         return str(self)
-

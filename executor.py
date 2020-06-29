@@ -15,7 +15,6 @@ def monitor(func, *args):
         global status
         for ystat in yielder(*args):
             status = ystat
-            print(f"Setting executor status to {status}")
         status = ""
     _ex.submit_stored('monitor', watcher, func, *args)
     return f"Monitoring {func.__name__} for completion"
