@@ -61,6 +61,11 @@ class VimeoRecord(db.Document):
                 sinfo = {}
         yield "Finished"
 
+    def remove(self):
+        vimeourl = self.uri
+        self.delete()
+        vs.delete(vimeourl) 
+
 
 class Video(VimeoRecord):
     VSURI="/me/videos"
@@ -174,11 +179,6 @@ class VideoSeries(VimeoRecord):
 
     def video_named(self, vname):
         return { x.name:x for x in self.videos }[vname]
-
-    def remove(self):
-        vimeourl = self.uri
-        self.delete()
-        vs.delete(vimeourl) 
 
     def sync_vids(self):
         vlinfo = vs.get(f"{self.uri}/videos",

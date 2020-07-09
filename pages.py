@@ -1,5 +1,5 @@
-import sys, traceback, os
-import flask
+import sys, traceback, os, re
+import flask, html
 import dominate, dominate.tags as tags
 import executor, forms
 from login import login_user
@@ -193,24 +193,34 @@ class MannaPage(dominate.document):
 
     def play_video(self, vid):
         with self.content:
+            quality = flask.request.args.get('quality', 'auto')
+            if quality == 'auto':
+                vhtml = vid.html
+                altdisp = altqual = '720p'
+            else:
+                tags.div(f"({quality} Version)", id="ver")
+                vmatch = re.match(r'(.*src=")(\S+)(".*)', vid.html)
+                vhtml = f"{vmatch.group(1)}{vmatch.group(2)}"
+                vhtml = f"{vhtml}&amp;quality={quality}{vmatch.group(3)}"
+                altqual = 'auto'
+                altdisp = 'Hi Res'
             tags.div(
-                raw(vid.html), 
-                tags.div(
-                    tags.a(tags.button("Play Audio"),
-                           target='apframes',
-                           href=flask.url_for('.play_audio', 
-                                              series=vid.series.name, 
-                                              video=vid.name)),
-                    tags.a(tags.button("Download Audio"),
-                           href=flask.url_for('.play_audio', 
-                                              series=vid.series.name, 
-                                              video=vid.name),
-                                              download=vid.name),
-                    tags.iframe(name="apframes", src="", frameBorder="0"),
-                    tags.a(tags.button("Download Video"), 
-                           href=vid.dlink),
-                    id="options"),
-                id="player")
+                raw(vhtml),
+                tags.a(tags.button("Play Audio"),
+                       href=flask.url_for('.play_audio', 
+                                          series=vid.series.name, 
+                                          video=vid.name)),
+                tags.a(tags.button("Download Audio"),
+                       href=flask.url_for('.play_audio', 
+                                          series=vid.series.name, 
+                                          video=vid.name),
+                                          download=vid.name),
+                tags.a(tags.button(f"Play {altdisp} Video"), 
+                       href=flask.url_for('.latest_player', 
+                                          series=vid.series.name, 
+                                          video=vid.name,
+                                          quality=altqual)),
+                tags.a(tags.button("Download Video"), href=vid.dlink),)
         return self.response
 
     def play_series(self, series):
@@ -299,15 +309,17 @@ class MannaPage(dominate.document):
         return self.response
 
     def edit_video(self, video):
-        self.integrate(forms.PurgeVideoForm(video))
+        self.integrate(
+            forms.PurgeVideoForm(
+                f"Purge {video.name} from {video.series.name}"))
+        self.jquery(
+            f"""$('#{self.PurgeVideoForm.submitField.id}').click( 
+                    function () {{ 
+                        return confirm("Purge video: {video.name} ?") 
+                    }} )""")
         if self.PurgeVideoForm.was_submitted:
-            self.jquery(
-                f"""$('#{self.submitField.id}').click( 
-                        function () {{ 
-                            return confirm("Purge video: {video.name} ?") 
-                        }} )""")
             self.status = f"Video {video.name} purged from catalog"
-            video.delete()
+            video.remove()
             video.series.sync_vids()
             return self.redirect(".latest")
         return self.response
