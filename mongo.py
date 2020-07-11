@@ -30,8 +30,7 @@ class VimeoRecord(db.Document):
     def named(cls, aname):
         match = cls.objects(name=aname).first()
         if not match:
-            for x in cls.sync_gen():
-                if x.name == aname: break
+            cls.sync_gen()
             match = cls.objects(name=aname).first()
         return match
 
@@ -61,6 +60,11 @@ class VimeoRecord(db.Document):
             else:
                 sinfo = {}
         yield "Finished"
+
+    def remove(self):
+        vimeourl = self.uri
+        self.delete()
+        vs.delete(vimeourl) 
 
 
 class Video(VimeoRecord):
@@ -175,11 +179,6 @@ class VideoSeries(VimeoRecord):
 
     def video_named(self, vname):
         return { x.name:x for x in self.videos }[vname]
-
-    def remove(self):
-        vimeourl = self.uri
-        self.delete()
-        vs.delete(vimeourl) 
 
     def sync_vids(self):
         vlinfo = vs.get(f"{self.uri}/videos",

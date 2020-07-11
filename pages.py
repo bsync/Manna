@@ -1,5 +1,5 @@
-import sys, traceback, os
-import flask
+import sys, traceback, os, re
+import flask, html
 import dominate, dominate.tags as tags
 import executor, forms
 from login import login_user
@@ -66,10 +66,9 @@ class MannaPage(dominate.document):
     @property
     def _scriptage(self):
         return f""" function check_edit(event, slink) {{ 
-                    var pre = slink.pathname.split('/')[1];
                     if (event.shiftKey)
                         event.preventDefault();
-                        lref = slink.href.replace(pre, pre+'\/edit');
+                        lref = slink.href + '\/edit';
                         lref = lref.replace('/latest/', '/');
                         window.location.href = lref;
                         return false; }} """
@@ -194,24 +193,34 @@ class MannaPage(dominate.document):
 
     def play_video(self, vid):
         with self.content:
+            quality = flask.request.args.get('quality', 'auto')
+            if quality == 'auto':
+                vhtml = vid.html
+                altdisp = altqual = '720p'
+            else:
+                tags.div(f"({quality} Version)", id="ver")
+                vmatch = re.match(r'(.*src=")(\S+)(".*)', vid.html)
+                vhtml = f"{vmatch.group(1)}{vmatch.group(2)}"
+                vhtml = f"{vhtml}&amp;quality={quality}{vmatch.group(3)}"
+                altqual = 'auto'
+                altdisp = 'Hi Res'
             tags.div(
-                raw(vid.html), 
-                tags.div(
-                    tags.a(tags.button("Play Audio"),
-                           target='apframes',
-                           href=flask.url_for('.play_audio', 
-                                              series=vid.series.name, 
-                                              video=vid.name)),
-                    tags.a(tags.button("Download Audio"),
-                           href=flask.url_for('.play_audio', 
-                                              series=vid.series.name, 
-                                              video=vid.name),
-                                              download=vid.name),
-                    tags.iframe(name="apframes", src="", frameBorder="0"),
-                    tags.a(tags.button("Download Video"), 
-                           href=vid.dlink),
-                    id="options"),
-                id="player")
+                raw(vhtml),
+                tags.a(tags.button("Play Audio"),
+                       href=flask.url_for('.play_audio', 
+                                          series=vid.series.name, 
+                                          video=vid.name)),
+                tags.a(tags.button("Download Audio"),
+                       href=flask.url_for('.play_audio', 
+                                          series=vid.series.name, 
+                                          video=vid.name),
+                                          download=vid.name),
+                tags.a(tags.button(f"Play {altdisp} Video"), 
+                       href=flask.url_for('.latest_player', 
+                                          series=vid.series.name, 
+                                          video=vid.name,
+                                          quality=altqual)),
+                tags.a(tags.button("Download Video"), href=vid.dlink),)
         return self.response
 
     def play_series(self, series):

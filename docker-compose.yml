@@ -2,6 +2,7 @@ version: '3.1'
 services:
   nginx:
     container_name: nginx
+    image: docksync/nginx
     build: nginx
     restart: unless-stopped
     depends_on: 
@@ -37,6 +38,7 @@ services:
       - mysql_data:/var/lib/mysql
   manna:
     container_name: manna
+    image: docksync/manna
     build: .
     volumes:
       - ./:/app

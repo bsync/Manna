@@ -4,11 +4,11 @@ RUN mkdir /install
 WORKDIR /install
 COPY requirements.txt /requirements.txt
 RUN apk add gcc musl-dev curl-dev python3-dev libressl-dev
-RUN pip install --install-option="--prefix=/install" -r /requirements.txt
+RUN pip install --user -r /requirements.txt
 
 FROM base
 RUN apk add ffmpeg libcurl
-COPY --from=builder /install /usr/local
+COPY --from=builder /root/.local /usr/local
 #dateutil package doesn't seem to honor prefix so reinstall it here
 RUN pip install python-dateutil  
 WORKDIR /app
