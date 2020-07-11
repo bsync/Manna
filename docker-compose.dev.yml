@@ -1,0 +1,16 @@
+version: '3.1'
+services:
+  nginx:
+    container_name: nginx
+    build: 
+      context: nginx/
+      dockerfile: Dockerfile.dev
+    image: docksync/nginx
+    ports:
+      - 80:80
+      - 443:443
+    env_file: secrets
+    volumes:
+       - nginx_dev_secrets:/etc/letsencrypt
+volumes:
+  nginx_dev_secrets:

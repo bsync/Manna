@@ -1,11 +1,17 @@
-up: 
+production: 
 	docker-compose up -d
+
+dev:
+	docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 
 down:
 	docker-compose down
 
-build:
+build_pro:
 	docker-compose build nginx manna
+
+build_dev:
+	docker-compose -f docker-compose.yml -f docker-compose.dev.yml build nginx
 
 restart:
 	docker-compose restart manna
@@ -24,7 +30,6 @@ shell:
 	docker-compose run --rm --entrypoint ash manna
 
 # Rules to dump production volumes
-#
 pro_dump: 
 	cd backups; ./transfer_volumes.sh
 
