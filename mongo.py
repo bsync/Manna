@@ -2,6 +2,7 @@ import re, time
 import vidstore as vs
 import datetime as dt
 from flask_mongoengine import MongoEngine
+from datetime import timedelta
 
 db = MongoEngine()
 
@@ -64,7 +65,6 @@ class VimeoRecord(db.Document):
     def remove(self):
         vimeourl = self.uri
         self.delete()
-        vs.delete(vimeourl) 
 
 
 class Video(VimeoRecord):
@@ -118,8 +118,30 @@ class Video(VimeoRecord):
 
 class VideoSeries(VimeoRecord):
     VSURI="/me/projects"
-    videos = db.ListField(
-                db.ReferenceField(Video, reverse_delete_rule=db.PULL))
+    videos=db.ListField(db.ReferenceField(Video, reverse_delete_rule=db.PULL))
+
+    @classmethod
+    def unlisted_series(cls):
+        sinfo = vs.get(cls.VSURI, 
+                       fields=cls.fields, 
+                       sort="date", 
+                       direction="desc")
+        while('data' in sinfo):
+            for vsinfo in sinfo['data']: 
+                if not cls.objects(uri=vsinfo['uri']).first():
+                    yield vsinfo
+            nextpage = sinfo.get('paging', {}).get('next', False)
+            if nextpage:
+                sinfo = vs.get(nextpage)
+            else:
+                sinfo = {}
+
+    @classmethod
+    def import_series(cls, select, sdate, spass):
+        select['created_date'] = sdate.data.isoformat()
+        series = cls.from_info(select)
+        series.upDateVids(sdate.data)
+        return series
 
     @classmethod
     def sync_new(cls, aname, adescription):
@@ -208,6 +230,12 @@ class VideoSeries(VimeoRecord):
             else:
                 vlinfo = {}
         self.save()
+
+    def upDateVids(self, sdate, inc=3):
+        for vid in self.videos:
+            vid.create_date = sdate
+            sdate += timedelta(days=inc)
+            vid.save()
 
 class ShowCase(VideoSeries):
     VSURI="/me/albums"

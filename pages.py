@@ -3,7 +3,7 @@ import flask, html
 import dominate, dominate.tags as tags
 import executor, forms
 from login import login_user
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from dominate.util import raw
 from urllib.parse import unquote
 from pathlib import Path
@@ -250,6 +250,7 @@ class MannaPage(dominate.document):
 
     def edit_catalog(self, catalog):
         self.integrate(forms.AddSeriesForm("Add a series to the Catalog"))
+        self.integrate(forms.ImportSeriesForm(catalog))
         self.integrate(forms.SyncWithVimeoForm("Sync Catalog with Vimeo"))
         self.integrate(forms.ResetToVimeoForm("Reset Catalog to Vimeo"))
         if self.AddSeriesForm.was_submitted:
@@ -261,6 +262,12 @@ class MannaPage(dominate.document):
             except Exception as e:
                 emsg = str(e) + traceback.format_exc()
                 self.status = f"Failed to create series: {emsg}"
+        elif self.ImportSeriesForm.was_submitted:
+            series = catalog.import_series(
+                eval(self.ImportSeriesForm.seriesSelect.data),
+                self.ImportSeriesForm.seriesDate,
+                self.ImportSeriesForm.passwd)
+            self.status = f"Imported {series.name}"
         elif self.SyncWithVimeoForm.was_submitted:
             self.status = executor.monitor(catalog.sync_gen)
         elif self.ResetToVimeoForm.was_submitted:
@@ -303,10 +310,7 @@ class MannaPage(dominate.document):
             self.status = f"Sync {series.name} with vimeo"
         elif self.DateSeriesForm.was_submitted:
             sdate = self.DateSeriesForm.data['recordedDate']
-            for vid in series.videos:
-                vid.create_date = sdate
-                sdate += timedelta(days=3)
-                vid.save()
+            series.upDateVids(sdate)
             self.status = f"Redated {series.name} starting at {sdate}"
         return self.response
 

@@ -71,6 +71,26 @@ class PasswordForm(DomForm):
             self.passes = True
 
 
+class ImportSeriesForm(DomForm):
+    seriesSelect = wtf.SelectField("Choose from existing vimeo folders: ")
+    seriesDate = wtf.DateField("First recorded:", default=date.today)
+    #passwd = wtf.PasswordField("Password", default='(auto generate)')
+    submitField = wtf.SubmitField("Import")
+
+    def __init__(self, catalog):
+        super().__init__("Import a series to the Catalog")
+        # Form list from the unlisted series of the catalog
+        # That is a list of vimeo folders that are not
+        # present as a VideoSeries object in mongodb
+        us = list(catalog.unlisted_series())
+        # get the names associated with the vimeo folders
+        usn = [ x['name'] for x in us ]
+        # Stringify the unlisted series dictionary data because both name and
+        # data elements of the SelectField choice list
+        us = [ str(x) for x in us ]
+        self.seriesSelect.choices = list(zip(us, usn))
+
+
 class AddSeriesForm(DomForm):
     "Add a new series to the catalog"
     seriesName = wtf.StringField("Series Name", [DataRequired()]) 
@@ -84,6 +104,7 @@ class AddSeriesForm(DomForm):
     @property
     def description(self):
         return self.seriesDesc.data
+
 
 class DeleteSeriesForm(DomForm):
     "Delete series from catalog"
