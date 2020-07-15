@@ -11,7 +11,7 @@ build_pro:
 	docker-compose build nginx manna
 
 build_dev:
-	docker-compose -f docker-compose.yml -f docker-compose.dev.yml build nginx
+	docker-compose -f docker-compose.yml -f docker-compose.dev.yml build 
 
 restart:
 	docker-compose restart manna

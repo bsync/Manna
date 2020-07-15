@@ -13,7 +13,7 @@ services:
       - 80:80
       - 443:443
     volumes:
-      - ./static:/var/www/html/manna/static
+      - static_html:/var/www/html/manna/static:ro
       - joomla_html:/var/www/html
       - nginx_secrets:/etc/letsencrypt
   joomla:
@@ -41,7 +41,7 @@ services:
     image: docksync/manna
     build: .
     volumes:
-      - ./:/app
+      - static_html:/app/static
     ports:
       - 8001:8001
     depends_on: 
@@ -59,3 +59,4 @@ volumes:
   nginx_secrets:
   joomla_html:
   mysql_data:
+  static_html:

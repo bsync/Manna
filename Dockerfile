@@ -13,4 +13,5 @@ COPY --from=builder /root/.local /usr/local
 RUN pip install python-dateutil  
 WORKDIR /app
 COPY *.py serve ./
+COPY static /app/static
 CMD [ "./serve" ]

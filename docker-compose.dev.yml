@@ -10,7 +10,9 @@ services:
       - 80:80
       - 443:443
     env_file: secrets
-    volumes:
-       - nginx_dev_secrets:/etc/letsencrypt
-volumes:
-  nginx_dev_secrets:
+     volumes:
+        - ./static/:/var/www/html/manna/static:ro
+  manna:
+     volumes:
+        - ./:/app
+        - ./static:/app/static
