@@ -265,8 +265,8 @@ class MannaPage(dominate.document):
         elif self.ImportSeriesForm.was_submitted:
             series = catalog.import_series(
                 eval(self.ImportSeriesForm.seriesSelect.data),
-                self.ImportSeriesForm.seriesDate,
-                self.ImportSeriesForm.passwd)
+                self.ImportSeriesForm.seriesDate)
+                #self.ImportSeriesForm.passwd)
             self.status = f"Imported {series.name}"
         elif self.SyncWithVimeoForm.was_submitted:
             self.status = executor.monitor(catalog.sync_gen)

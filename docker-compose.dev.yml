@@ -1,15 +1,9 @@
 version: '3.1'
 services:
   nginx:
-    container_name: nginx
     build: 
-      context: nginx/
-      dockerfile: Dockerfile.dev
-    image: docksync/nginx
-    ports:
-      - 80:80
-      - 443:443
-    env_file: secrets
+     context: nginx/
+     dockerfile: Dockerfile.dev
      volumes:
         - ./static/:/var/www/html/manna/static:ro
   manna:

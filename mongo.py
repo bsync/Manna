@@ -137,7 +137,7 @@ class VideoSeries(VimeoRecord):
                 sinfo = {}
 
     @classmethod
-    def import_series(cls, select, sdate, spass):
+    def import_series(cls, select, sdate):
         select['created_date'] = sdate.data.isoformat()
         series = cls.from_info(select)
         series.upDateVids(sdate.data)
