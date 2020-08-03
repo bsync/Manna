@@ -231,11 +231,19 @@ class VideoSeries(VimeoRecord):
                 vlinfo = {}
         self.save()
 
-    def upDateVids(self, sdate, inc=3):
+    def upDateVids(self, sdate, start_vid=None, stop_vid=None, inc=3):
         for vid in self.videos:
+            if start_vid:
+                if vid.name != start_vid:
+                    continue
+                else:
+                    start_vid = None
             vid.create_date = sdate
             sdate += timedelta(days=inc)
             vid.save()
+            if stop_vid:
+                if vid.name == stop_vid:
+                    break
 
 class ShowCase(VideoSeries):
     VSURI="/me/albums"

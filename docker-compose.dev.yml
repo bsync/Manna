@@ -4,8 +4,8 @@ services:
     build: 
      context: nginx/
      dockerfile: Dockerfile.dev
-     volumes:
-        - ./static/:/var/www/html/manna/static:ro
+    volumes:
+      - ./static/:/var/www/html/manna/static:ro
   manna:
      volumes:
         - ./:/app

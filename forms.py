@@ -115,7 +115,17 @@ class DateSeriesForm(DomForm):
     recordedDate = wtf.DateField("Started on", 
                                  [DataRequired()], 
                                  default=date.today)
+    fromSelect = wtf.SelectField("From: ")
+    toSelect = wtf.SelectField("To: ")
     submitField = wtf.SubmitField('Date Series...')
+
+    def __init__(self, series):
+        super().__init__(f"Modify {series.name} start Date")
+        # get the names associated with the vimeo folders
+        vn = [ x.name for x in series.videos ]
+        self.fromSelect.choices = list(zip(vn, vn))
+        vn.reverse()
+        self.toSelect.choices = list(zip(vn, vn))
 
 class AddVideosForm(DomForm):
     "Add video to the series"
