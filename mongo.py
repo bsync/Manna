@@ -15,6 +15,21 @@ def init_db():
     Video.drop_collection()
     VimeoRecord.drop_collection()
 
+class User(db.Document):
+    id_= db.StringField(primary_key=True)
+    name = db.StringField(required=True)
+    email = db.EmailField(required=True)
+    profile_pic = db.StringField(required=True)
+    is_active = db.BooleanField(default=False)
+    is_anonymous = db.BooleanField(default=False)
+
+    def get_id(self):
+        return self.id_
+
+    @property
+    def is_authenticated(self):
+        return self.is_active
+
 def video_for(named_series, named_video):
     series = VideoSeries.named(named_series)
     return series.video_named(named_video)

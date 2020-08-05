@@ -3,7 +3,7 @@ FROM base as builder
 RUN mkdir /install
 WORKDIR /install
 COPY requirements.txt /requirements.txt
-RUN apk add gcc musl-dev curl-dev python3-dev libressl-dev
+RUN apk add gcc musl-dev curl-dev python3-dev libressl-dev libffi-dev
 RUN pip install --user -r /requirements.txt
 
 FROM base

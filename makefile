@@ -7,10 +7,10 @@ dev:
 down:
 	docker-compose down
 
-build_pro:
+build:
 	docker-compose build nginx manna
 
-build_dev:
+build_dev_site:
 	docker-compose -f docker-compose.yml -f docker-compose.dev.yml build 
 
 restart:
@@ -18,7 +18,7 @@ restart:
 
 debug:
 	docker-compose stop manna
-	docker-compose run \
+	docker-compose -f docker-compose.yml -f docker-compose.dev.yml run \
 		-e FLASK_ENV=development \
 		-e FLASK_DEBUG=0 \
 		-e WORKERS=1 \

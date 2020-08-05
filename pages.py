@@ -2,12 +2,11 @@ import sys, traceback, os, re
 import flask, html
 import dominate, dominate.tags as tags
 import executor, forms
-from login import login_user
 from datetime import datetime, timezone
 from dominate.util import raw
-from urllib.parse import unquote
 from pathlib import Path
 from requests.models import PreparedRequest
+from flask import url_for
 
 def init_flask(app):
     executor.init_flask(app)
@@ -25,10 +24,10 @@ class MannaPage(dominate.document):
             for css in [ "Page.css", f"{type(self).__name__}.css" ]:
                 if os.path.exists(f"static/{css}"):
                     tags.link(rel="stylesheet", type="text/css", 
-                              href=flask.url_for('.static', filename=css))
+                              href=url_for('static', filename=css))
         self.jquery(self._scriptage, on_ready=False)
         self.scriptfiles(
-            flask.url_for('.static', filename="jquery.fitvids.js"))
+            url_for('static', filename="jquery.fitvids.js"))
         self.jquery("""$('#content').fitVids();""")
         with self.body.add(tags.div(cls="container")):
             self.header = tags.div(id="header")
@@ -36,13 +35,15 @@ class MannaPage(dominate.document):
                 tags.a(self.title, href='/', id="title")
                 tags.h3(self.subtitle, id="subtitle")
                 tags.h4(id="status", style="display: none;")
+                for msg in flask.get_flashed_messages():
+                    tags.h4(msg, id="status")
             self.controls = tags.div(id="controls")
             self.content = tags.div(id="content")
             self.footer = tags.div(id="footer")
             with self.footer:
-                tags.a("Latest", href=flask.url_for(".latest"))
+                tags.a("Latest", href=url_for("latest"))
                 tags.a("Back to the Front", href="/")
-                tags.a("Catalog", href=flask.url_for(".show_catalog_page"), 
+                tags.a("Catalog", href=url_for("show_catalog_page"), 
                         onclick="check_edit(event, this)")
 
     @property
@@ -96,7 +97,7 @@ class MannaPage(dominate.document):
         table_id = f"{self.__class__.__name__}_table"
         with self.head:
             self.csslink(f"{cdnbase}/css/jquery.dataTables.css")
-            self.csslink(flask.url_for('.static', filename="tables.css"))
+            self.csslink(url_for('static', filename="tables.css"))
             self.jquery(f"$('#{table_id}').DataTable({options})")
             self.scriptfiles(f"{cdnbase}/js/jquery.dataTables.js")
         return tags.table(id=f"{table_id}")
@@ -129,7 +130,7 @@ class MannaPage(dominate.document):
                 tags.td(str(vid.create_date))
                 tags.td(vid.series.name) 
                 tags.td(tags.a(vid.name, 
-                               href=flask.url_for('.latest_player', 
+                               href=url_for('.latest_player', 
                                                   series=vid.series.name,
                                                   video=vid.name),
                                onclick="check_edit(event, this)"))
@@ -164,7 +165,7 @@ class MannaPage(dominate.document):
         return form
 
     def redirect(self, url, **kwargs):
-        return flask.redirect(flask.url_for(url, **kwargs))
+        return flask.redirect(url_for(url, **kwargs))
 
     def roku_feed(self, vids):
         tstamp = datetime.now(tz=timezone.utc)
@@ -207,16 +208,16 @@ class MannaPage(dominate.document):
             tags.div(
                 raw(vhtml),
                 tags.a(tags.button("Play Audio"),
-                       href=flask.url_for('.play_audio', 
+                       href=url_for('.play_audio', 
                                           series=vid.series.name, 
                                           video=vid.name)),
                 tags.a(tags.button("Download Audio"),
-                       href=flask.url_for('.play_audio', 
+                       href=url_for('.play_audio', 
                                           series=vid.series.name, 
                                           video=vid.name),
                                           download=vid.name),
                 tags.a(tags.button(f"Play {altdisp} Video"), 
-                       href=flask.url_for('.latest_player', 
+                       href=url_for('.latest_player', 
                                           series=vid.series.name, 
                                           video=vid.name,
                                           quality=altqual)),
@@ -240,7 +241,7 @@ class MannaPage(dominate.document):
                     def _row(x):
                         tags.td(str(x.create_date))
                         tags.td(tags.a(x.name, 
-                                       href=flask.url_for('.show_series_page', 
+                                       href=url_for('.show_series_page', 
                                                           series=x.name),
                                        onclick="check_edit(event, this)"))
                         tags.td(f"{len(x.videos)}")
@@ -350,15 +351,6 @@ class MannaPage(dominate.document):
             str(err.description)
         return self.response
 
-    def authenticate(self, target):
-        self.integrate(forms.PasswordForm(target))
-        if self.PasswordForm.passes:
-            login_user()
-            tbase = Path(self.PasswordForm.target).name
-            flask.session[unquote(tbase)]=True
-            return flask.redirect(self.PasswordForm.target)
-        return self.response
-
     @property
     def response(self):
         "Returns the response of the page"
@@ -370,3 +362,5 @@ class MannaPage(dominate.document):
                 self.head.add(
                     tags.meta(http_equiv="refresh", content=f"3;{self.url}"))
         return str(self)
+
+

@@ -23,10 +23,10 @@ def groupedTags(fs_name, *fs_tags):
 class DomForm(FlaskForm):
     submitField = wtf.SubmitField('submit')
     builtin_label_types=(wtf.SubmitField, wtf.HiddenField)
-    def __init__(self, title=False):
+    def __init__(self, title=False, action_url=""):
         super().__init__()
         self.frame = groupedTags(title if title else self.__doc__)
-        self.formTag = tags.form(method="POST", action="", 
+        self.formTag = tags.form(method="POST", action=action_url, 
                                  target="_self", name=self.__class__.__name__)
         self.formTail = tags.div()
         self.submitField.id = self.submitField.name = \
@@ -51,25 +51,10 @@ class DomForm(FlaskForm):
             return False;
 
 
-class PasswordForm(DomForm):
-    "Provide a password"
+class LoginForm(DomForm):
+    "Provide a login form"
     user = wtf.StringField("User", default="guest", validators=[DataRequired()])
     guessword = wtf.PasswordField("Password", validators=[DataRequired()])
-
-    def __init__(self, target):
-        super().__init__(f"Provide a password for {unquote(target)}")
-        self.target = target
-        try:
-            import passcheck
-            if self.was_submitted:
-                self.passes = passcheck(target, self.data)
-                if not self.passes:
-                    flask.flash(f"Wrong password for {unquote(target)}")
-            else:
-                self.passes = False
-        except:
-            self.passes = True
-
 
 class ImportSeriesForm(DomForm):
     seriesSelect = wtf.SelectField("Choose from existing vimeo folders: ")
