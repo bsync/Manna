@@ -291,8 +291,7 @@ class MannaPage(dominate.document):
                 function () {{ 
                     return confirm('Remove series: {series.name} ?') 
                                 }} ) """)
-        self.integrate(
-            forms.DateSeriesForm(f"Modify {series.name} start Date"))
+        self.integrate(forms.DateSeriesForm(series))
         if self.AddVideosForm.was_submitted:
             self.status = self.AddVideosForm.initiate_upload(series) 
         elif self.AddVideosForm.was_uploaded:
@@ -311,7 +310,9 @@ class MannaPage(dominate.document):
             self.status = f"Sync {series.name} with vimeo"
         elif self.DateSeriesForm.was_submitted:
             sdate = self.DateSeriesForm.data['recordedDate']
-            series.upDateVids(sdate)
+            start_vid = self.DateSeriesForm.data['fromSelect']
+            stop_vid = self.DateSeriesForm.data['toSelect']
+            series.upDateVids(sdate, start_vid, stop_vid)
             self.status = f"Redated {series.name} starting at {sdate}"
         return self.response
 
