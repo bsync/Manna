@@ -7,14 +7,20 @@ dev:
 down:
 	docker-compose down
 
-build:
-	docker-compose build nginx manna
+build_pro_nginx:
+	docker-compose -f docker-compose.yml \
+						-f docker-compose.build.yml build nginx
 
-build_dev_site:
-	docker-compose -f docker-compose.yml -f docker-compose.dev.yml build 
+build_dev_nginx:
+	docker-compose -f docker-compose.yml \
+						-f docker-compose.dev.yml build nginx
+
+build_manna:
+	docker-compose -f docker-compose.yml \
+						-f docker-compose.build.yml build manna
 
 restart:
-	docker-compose restart manna
+	docker-compose restart manna nginx
 
 debug:
 	docker-compose stop manna

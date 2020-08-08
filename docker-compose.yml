@@ -2,8 +2,7 @@ version: '3.1'
 services:
   nginx:
     container_name: nginx
-    image: docksync/nginx
-    build: nginx
+    image: docksync/nginx:prod
     restart: unless-stopped
     depends_on: 
       - joomla
@@ -39,7 +38,6 @@ services:
   manna:
     container_name: manna
     image: docksync/manna
-    build: .
     volumes:
       - static_html:/app/static
     ports:
