@@ -15,6 +15,7 @@ def init_db():
     Video.drop_collection()
     VimeoRecord.drop_collection()
 
+
 class User(db.Document):
     id_= db.StringField(primary_key=True)
     name = db.StringField(required=True)
@@ -55,7 +56,10 @@ class VimeoRecord(db.Document):
         if vsuri is None: vsuri = cls.VSURI
         if sfields is None: sfields = cls.fields
         yield "Syncronizing ..."
-        sinfo = vs.get(vsuri, fields=sfields, sort="date", direction="desc")
+        sinfo = vs.get(vsuri, 
+                       fields=sfields, 
+                       sort="date", 
+                       direction="desc").json()
         while('data' in sinfo):
             for vsinfo in sinfo['data']: 
                 try:
@@ -72,7 +76,7 @@ class VimeoRecord(db.Document):
             if rcnt == 0: break
             nextpage = sinfo.get('paging', {}).get('next', False)
             if nextpage:
-                sinfo = vs.get(nextpage)
+                sinfo = vs.get(nextpage).json()
             else:
                 sinfo = {}
         yield "Finished"
@@ -131,6 +135,7 @@ class Video(VimeoRecord):
         self.plink = vinfo['pictures']['sizes'][0]['link']
         self.save()
 
+
 class VideoSeries(VimeoRecord):
     VSURI="/me/projects"
     videos=db.ListField(db.ReferenceField(Video, reverse_delete_rule=db.PULL))
@@ -140,22 +145,22 @@ class VideoSeries(VimeoRecord):
         sinfo = vs.get(cls.VSURI, 
                        fields=cls.fields, 
                        sort="date", 
-                       direction="desc")
+                       direction="desc").json()
         while('data' in sinfo):
             for vsinfo in sinfo['data']: 
                 if not cls.objects(uri=vsinfo['uri']).first():
                     yield vsinfo
             nextpage = sinfo.get('paging', {}).get('next', False)
             if nextpage:
-                sinfo = vs.get(nextpage)
+                sinfo = vs.get(nextpage).json()
             else:
                 sinfo = {}
 
     @classmethod
     def import_series(cls, select, sdate):
-        select['created_date'] = sdate.data.isoformat()
+        select['created_date'] = sdate.isoformat()
         series = cls.from_info(select)
-        series.upDateVids(sdate.data)
+        series.upDateVids(sdate)
         return series
 
     @classmethod
@@ -163,7 +168,7 @@ class VideoSeries(VimeoRecord):
         if cls.objects(name=aname).count() > 0: 
             raise Exception(f"VideoSeries {aname} already exists.")
         resp = vs.post(cls.VSURI, name=aname, description=adescription)
-        return cls.from_info(resp)
+        return cls.from_info(resp.json())
 
     @classmethod
     def from_info(cls, vsinfo):
@@ -174,12 +179,60 @@ class VideoSeries(VimeoRecord):
         series.save()
         return series
 
+    def add_video(self, video_id, vidate=dt.datetime.utcnow):
+        resp = vs.put(f"{self.uri}/videos/{int(video_id)}")
+        if resp.ok:
+            resp = vs.get(f"{Video.VSURI}/{video_id}")
+            if resp.ok:
+                info = resp.json()
+                vid = Video.from_info(info)
+                vid.update(create_date=vidate, 
+                           dlink=info['download'][0]['link'])
+                vid.series = self
+                vid.save()
+                self.videos.append(vid)
+                self.save()
+                return resp, vid
+            else:
+                return resp, None
+        else:
+            return resp, None
+
+    @property
+    def highest_numbered_title(self):
+        if len(self.videos) > 0: 
+            nregmatch = re.match(r'\D*(\d+)', self.videos[-1].name)
+            if nregmatch:
+                return int(nregmatch.group(1))
+        return 0
+
+    @property
+    def normalizable_vids(self):
+        llen = len(str(self.highest_numbered_title))
+        def abnormal(vid):
+            spaceout = " ".join(vid.name.split())
+            spaceout = ''.join(re.split(r'(\d+)', spaceout)[0:2])
+            name, digits, _ =  re.split(r'(\d+)', vid.name)
+            return len(digits) != llen or spaceout != vid.name
+        return list(filter(abnormal, self.videos))
+
+    def normalized_name(self, name='', inc=0):
+        if not name and len(self.videos):
+            name = self.videos[-1].name
+        if re.match(r'\D*\d+', name):
+            name, digits, _ =  re.split(r'(\d+)', " ".join(name.split()))
+            digits = str(int(digits) + inc)
+            dcnt = len(str(self.highest_numbered_title))
+            return f"{name}{digits.zfill(dcnt)}"
+        else:
+            return name
+
     def sync_with_vimeo(self, vsinfo=None):
         if vsinfo is None:
             vsinfo = vs.get(f"{self.uri}",
                             fields=self.fields,
                             sort="date",
-                            direction="asc")
+                            direction="asc").json()
         self.name = vsinfo['name']
         self.save()
         self.sync_vids()
@@ -195,12 +248,12 @@ class VideoSeries(VimeoRecord):
         yield f"Waiting for {vidName} to become available"
         resp = vs.put(f"{self.id}{vidUri}")
         if resp.ok:
-            resp = vs.get(vidUri)
+            resp = vs.get(vidUri).json()
             secs = 0
             while  resp['status'] != 'available':
                 time.sleep(5)
                 secs += 5
-                resp = vs.get(vidUri)
+                resp = vs.get(vidUri).json()
                 status = resp['status']
                 if secs%2:
                     yield f"Processing {vidName} upload to {self.name}"
@@ -222,7 +275,7 @@ class VideoSeries(VimeoRecord):
                         fields=Video.fields,
                         sort="date",
                         sizes="1280x720,1920x1080",
-                        direction="asc")
+                        direction="asc").json()
         if len(self.videos):
             self.update(pull_all__videos=self.videos)
             self.reload()
@@ -241,24 +294,17 @@ class VideoSeries(VimeoRecord):
                    print(f"Skipping import of {vinfo['name']} due to {mve}")
             nextpage = vlinfo.get('paging', {}).get('next', False)
             if nextpage:
-                vlinfo = vs.get(nextpage)
+                vlinfo = vs.get(nextpage).json()
             else:
                 vlinfo = {}
         self.save()
 
-    def upDateVids(self, sdate, start_vid=None, stop_vid=None, inc=3):
-        for vid in self.videos:
-            if start_vid:
-                if vid.name != start_vid:
-                    continue
-                else:
-                    start_vid = None
+    def upDateVids(self, sdate, vids, inc=3):
+        for vid in vids:
             vid.create_date = sdate
             sdate += timedelta(days=inc)
             vid.save()
-            if stop_vid:
-                if vid.name == stop_vid:
-                    break
+
 
 class ShowCase(VideoSeries):
     VSURI="/me/albums"

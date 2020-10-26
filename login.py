@@ -61,7 +61,7 @@ def login():
             forms.LoginForm(
                 f"Login to access {nxt}",
                 url_for('loginbp.auth', target=nxt)))
-        return pg.response
+        return pg
 
     # Find out what URL to hit for Google login
     authorization_endpoint = google_provider_cfg("authorization_endpoint")

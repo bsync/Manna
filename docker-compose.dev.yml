@@ -10,4 +10,4 @@ services:
   manna:
      volumes:
         - ./:/app
-        - ./static:/app/static
+        - ./static/:/app/static

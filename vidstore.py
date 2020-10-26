@@ -21,9 +21,5 @@ def checked(resp):
         pass
     if resp.status_code > 399:
         raise VimeoException(f"Vimeo Response: {resp.json()}")
-    try:
-        resp=resp.json()
-    except json.decoder.JSONDecodeError:
-        pass
     return resp
 

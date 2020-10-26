@@ -3,31 +3,57 @@ import dominate.tags as tags
 import wtforms as wtf
 import executor
 from flask_wtf import FlaskForm
-from dominate.util import raw
+from dominate.util import raw, text
 from urllib.parse import unquote
 from wtforms.validators import DataRequired
 from wtforms.fields.html5 import DateField
 from requests.models import PreparedRequest
 from datetime import date
 
+
 @tags.fieldset
-def groupedTags(fs_name, *fs_tags):
-    if fs_name is None: 
+def fieldSet(name, *field_or_tags):
+    if name is None: 
         container = tags.div()
     else:
-        container = tags.legend(fs_name)
-    with container:
-        for fs_tag in fs_tags:
-            fs_tag()
+        container = tags.legend(name)
+    for fot in field_or_tags:
+        if isinstance(fot, MannaField):
+            container.add(fot.tag)
+        else:
+            container.add(fot)
+    return container
+
+class MannaForm(tags.form):
+    tagname = "form"
+
+    def __init__(self, title, *fields, action_url=""):
+        super().__init__()
+        title = title if title else self.__doc__
+        fields = (*fields,  tags.input(name=title, type='submit'))
+        with self.add(tags.fieldset()):
+            tags.legend(title)
+            for field in fields:
+                field()
+
+    @property
+    def was_submitted(self):
+        if self.SubmitField.name in flask.request.form:
+            return self.validate_on_submit()
+        else:
+            return False;
+
         
 class DomForm(FlaskForm):
     submitField = wtf.SubmitField('submit')
     builtin_label_types=(wtf.SubmitField, wtf.HiddenField)
     def __init__(self, title=False, action_url=""):
         super().__init__()
-        self.frame = groupedTags(title if title else self.__doc__)
-        self.formTag = tags.form(method="POST", action=action_url, 
-                                 target="_self", name=self.__class__.__name__)
+        self.frame = fieldSet(title if title else self.__doc__)
+        self.formTag = tags.form(method="POST", 
+                                 action=action_url, 
+                                 target="_self", 
+                                 name=self.__class__.__name__)
         self.formTail = tags.div()
         self.submitField.id = self.submitField.name = \
                 str(self.__class__.__name__) + "SubmitField"
@@ -37,9 +63,12 @@ class DomForm(FlaskForm):
         with self.frame.add(self.formTag):
             raw(self.hidden_tag())
             for eachField in self:
+                if eachField == self.submitField:
+                    continue
                 if not isinstance(eachField, self.builtin_label_types):
                     raw(eachField.label())
                 raw(eachField())
+            raw(self.submitField())
         self.frame.add(self.formTail)
         return self.frame
 
@@ -76,20 +105,6 @@ class ImportSeriesForm(DomForm):
         self.seriesSelect.choices = list(zip(us, usn))
 
 
-class AddSeriesForm(DomForm):
-    "Add a new series to the catalog"
-    seriesName = wtf.StringField("Series Name", [DataRequired()]) 
-    seriesDesc = wtf.TextAreaField("Series Description", [DataRequired()])
-    submitField = wtf.SubmitField('Add')
-
-    @property
-    def name(self):
-        return self.seriesName.data
-
-    @property
-    def description(self):
-        return self.seriesDesc.data
-
 
 class DeleteSeriesForm(DomForm):
     "Delete series from catalog"
@@ -100,17 +115,25 @@ class DateSeriesForm(DomForm):
     recordedDate = wtf.DateField("Started on", 
                                  [DataRequired()], 
                                  default=date.today)
-    fromSelect = wtf.SelectField("From: ")
-    toSelect = wtf.SelectField("To: ")
+    vidSelect = wtf.SelectMultipleField("Lessons")
     submitField = wtf.SubmitField('Date Series...')
 
     def __init__(self, series):
         super().__init__(f"Modify {series.name} start Date")
         # get the names associated with the vimeo folders
         vn = [ x.name for x in series.videos ]
-        self.fromSelect.choices = list(zip(vn, vn))
-        vn.reverse()
-        self.toSelect.choices = list(zip(vn, vn))
+        self.vidSelect.choices = list(zip(vn, vn))
+
+class NormalizeNameSeriesForm(DomForm):
+    "Normalize the name of the lessons in the series"
+    vidSelect = wtf.SelectMultipleField("Lessons")
+    submitField = wtf.SubmitField('Autoname Series...')
+
+    def __init__(self, series):
+        super().__init__(f"Modify {series.name} start Date")
+        # get the names associated with the vimeo folders
+        vn = [ x.name for x in series.videos ]
+        self.vidSelect.choices = list(zip(vn, vn))
 
 class AddVideosForm(DomForm):
     "Add video to the series"
@@ -172,14 +195,29 @@ class AddVideosForm(DomForm):
                                 self.record_date, 
                                 self.uploaded_uri)
 
-class SyncWithVimeoForm(DomForm):
-    "Syncronize album or entire catalog with vimeo content"
-    submitField = wtf.SubmitField('Syncronize')
-
-class ResetToVimeoForm(DomForm):
-    "Syncronize album or entire catalog with vimeo content"
-    submitField = wtf.SubmitField('Reset')
-
 class PurgeVideoForm(DomForm):
     "Purge video from catalog (but NOT from vimeo)"
     submitField = wtf.SubmitField('Purge this Video')
+
+class SeriesForm(DomForm):
+    def __init__(self, series):
+        self._series = series
+
+class VideoUploaderForm(SeriesForm):
+    def __init__(self, series):
+        super().__init__(series,
+            f"Add video(s) to {series.name}:",
+            InputExpander("Video", 
+                wtf.FileField("Select a video file:"), 
+                maxcnt=2))
+
+    def process(self):
+        for video_input in self.fileSelectors:
+            series.upload_a_video(**video_input)
+        self.status = f"Uploading videos..."
+
+class SyncVideosForm(DomForm):
+    def process(self):
+        series.sync_with_vimeo()
+        self.status = f"Syncronizing {series.name} with vimeo..."
+

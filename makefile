@@ -1,3 +1,6 @@
+test:
+	docker-compose -f docker-compose.yml -f docker-compose.dev.yml run manna pytest tests.py
+
 production: 
 	docker-compose up -d
 
