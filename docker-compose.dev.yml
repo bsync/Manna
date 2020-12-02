@@ -1,13 +1,15 @@
 version: '3.1'
 services:
-  nginx:
-    image: docksync/nginx:dev
-    build: 
-     context: nginx/
-     dockerfile: Dockerfile.dev
-    volumes:
-      - ./static/:/var/www/html/manna/static:ro
-  manna:
-     volumes:
-        - ./:/app
-        - ./static/:/app/static
+   dnsrobocert:
+      volumes:
+         - ./nginx/config.dev.yml:/etc/dnsrobocert/config.yml
+   nginx:
+      volumes:
+         - ./nginx/pleroma.dev.conf:/etc/nginx/conf.d/pleroma.conf
+   manna:
+      environment:
+         - DOMAIN=dev.tullahomabiblechurch.org
+      volumes:
+         - ./:/app
+         - ./static/:/app/static
+         - ./passcheck.dev.py:/app/passcheck.py

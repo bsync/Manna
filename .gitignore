@@ -5,5 +5,6 @@ bin
 gen
 local.properties
 proguard-project.txt
-passcheck.py
+passcheck*.py
 secrets
+config.*.yml

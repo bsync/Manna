@@ -81,10 +81,6 @@ class VimeoRecord(db.Document):
                 sinfo = {}
         yield "Finished"
 
-    def remove(self):
-        vimeourl = self.uri
-        self.delete()
-
 
 class Video(VimeoRecord):
     VSURI="/me/videos"
@@ -212,7 +208,7 @@ class VideoSeries(VimeoRecord):
         def abnormal(vid):
             spaceout = " ".join(vid.name.split())
             spaceout = ''.join(re.split(r'(\d+)', spaceout)[0:2])
-            name, digits, _ =  re.split(r'(\d+)', vid.name)
+            name, digits, _ =  re.split(r'(\d+).*', vid.name)
             return len(digits) != llen or spaceout != vid.name
         return list(filter(abnormal, self.videos))
 
@@ -220,7 +216,7 @@ class VideoSeries(VimeoRecord):
         if not name and len(self.videos):
             name = self.videos[-1].name
         if re.match(r'\D*\d+', name):
-            name, digits, _ =  re.split(r'(\d+)', " ".join(name.split()))
+            name, digits, _ =  re.split(r'(\d+).*', " ".join(name.split()))
             digits = str(int(digits) + inc)
             dcnt = len(str(self.highest_numbered_title))
             return f"{name}{digits.zfill(dcnt)}"
@@ -299,11 +295,14 @@ class VideoSeries(VimeoRecord):
                 vlinfo = {}
         self.save()
 
-    def upDateVids(self, sdate, vids, inc=3):
-        for vid in vids:
-            vid.create_date = sdate
+    def upDateVids(self, sdate, vids=None, inc=3, vset=2):
+        vids = vids if vids else self.videos
+        
+        for vidset in [ vids[x:x+vset] for x in range(0, len(vids), vset) ]:
+            for vid in vidset:
+                vid.create_date = sdate
+                vid.save()
             sdate += timedelta(days=inc)
-            vid.save()
 
 
 class ShowCase(VideoSeries):

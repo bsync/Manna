@@ -1,5 +1,5 @@
 import sys, traceback, os, re
-import flask
+import flask, flask_login
 import dominate, dominate.tags as tags
 import executor, mannatags
 from datetime import datetime, timezone
@@ -57,6 +57,12 @@ class MannaPage(object):
                 tags.a("Catalog", 
                        href=url_for("show_catalog_page"), 
                        onclick="shift_edit(event, this)")
+                tags.a("Register", href=url_for('loginbp.new_user'))
+                tags.label("")
+                if flask_login.current_user.is_authenticated:
+                    tags.a(f"Log out", href=url_for('loginbp.logout'))
+                else:
+                    tags.a(f"Login", href=url_for('loginbp.login'))
 
     @property
     def cssfiles(self):
@@ -83,7 +89,7 @@ class MannaPage(object):
                 executor.futures.pop('monitor')
             else:
                 flask.flash(executor.status)
-                self.head.add(
+                self.doc.head.add(
                     tags.meta(http_equiv="refresh", 
                               content=f"3;{flask.request.url}"))
         self.script_list.append(
@@ -336,7 +342,7 @@ class SeriesEditPage(VideoSetPage):
         del_form = self.integrate(mannatags.DeleteSeriesForm(series))
         if del_form.id in flask.request.form:
             try:
-                series.remove()
+                series.delete()
                 self.redirect('/', with_msg=f"Removed {series.name}!")
             except Exception as e:
                 self.redirect(
@@ -347,9 +353,11 @@ class SeriesEditPage(VideoSetPage):
         redate_form = self.integrate(mannatags.RedateSeriesForm(series))
         if redate_form.id in flask.request.form:
             sdate = datetime.fromisoformat(redate_form.start_date)
-            vindicies= flask.request.form['selection']
+            vindicies = flask.request.form['selection']
             if vindicies:
                 vindicies = eval(vindicies)
+                if isinstance(vindicies, int):
+                    vindicies = [ vindicies ]
                 vids = [ series.videos[v] for v in vindicies ]
             else:
                 vids = series.videos
@@ -361,10 +369,12 @@ class SeriesEditPage(VideoSetPage):
                 sort_attr = "create_date name duration".split()[int(sort_col)-1]
                 return getattr(obj, sort_attr)
             vids = sorted(vids, key=sort_on, reverse=(sort_dir == 'desc'))
-            series.upDateVids(sdate, vids)
+            date_inc = int(flask.request.form['date_inc'])
+            vid_set = int(flask.request.form['vid_set'])
+            series.upDateVids(sdate, vids, date_inc, vid_set)
             self.redirect(
                 flask.request.url, 
-                with_msg=f"Redated {series.name} starting at {sdate}")
+                with_msg=f"Redated one or more videos from {series.name}")
 
     def rename(self, series):
         rename_form = self.integrate(mannatags.RenameSeriesForm(series))

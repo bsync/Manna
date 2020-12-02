@@ -1,60 +1,65 @@
 version: '3.1'
 services:
-  nginx:
-    container_name: nginx
-    image: docksync/nginx:prod
-    restart: unless-stopped
-    depends_on: 
-      - joomla
-      - manna
-    env_file: secrets
-    ports:
-      - 80:80
-      - 443:443
-    volumes:
-      - static_html:/var/www/html/manna/static:ro
-      - joomla_html:/var/www/html
-      - nginx_secrets:/etc/letsencrypt
-  joomla:
-    container_name: joomla
-    image: joomla:3.9-fpm-alpine
-    restart: unless-stopped
-    links:
-      - joomladb:mysql
-    depends_on: 
-      - joomladb
-    env_file: secrets
-    ports:
-      - 9000:9000
-    volumes:
-      - joomla_html:/var/www/html
-  joomladb:
-    container_name: joomladb
-    image: mysql:5.7
-    restart: unless-stopped
-    env_file: secrets
-    volumes:
-      - mysql_data:/var/lib/mysql
-  manna:
-    container_name: manna
-    image: docksync/manna
-    volumes:
-      - static_html:/app/static
-    ports:
-      - 8001:8001
-    depends_on: 
-      - mongodb
-    env_file: secrets
-  mongodb:
-    container_name: mongodb
-    image: bitnami/mongodb:4.0
-    ports:
-      - 27017:27017
-    volumes:
-      - mongodb_data:/bitnami
+   dnsrobocert:
+      image: adferrand/dnsrobocert
+      container_name: dnsrobocert
+      volumes:
+         - nginx_secrets:/etc/letsencrypt
+      restart: always
+   nginx:
+      image: nginx
+      container_name: nginx
+      ports:
+         - 80:80
+         - 443:443
+      depends_on: 
+         - joomla
+         - manna
+      volumes:
+         - joomla_store:/var/www/html
+         - store:/var/www/html/manna/static
+         - nginx_secrets:/etc/letsencrypt
+      restart: unless-stopped
+   joomla:
+      container_name: joomla
+      image: joomla:3.9-fpm-alpine
+      depends_on: 
+         - joomladb
+      links:
+         - joomladb:mysql
+      env_file: secrets
+      ports:
+         - 9000:9000
+      volumes:
+         - joomla_store:/var/www/html
+      restart: unless-stopped
+   joomladb:
+      container_name: joomladb
+      image: mysql:5.7
+      env_file: secrets
+      volumes:
+         - joomla_store:/var/lib/mysql
+      restart: unless-stopped
+   manna:
+      container_name: manna
+      image: docksync/manna
+      environment:
+         - DOMAIN
+      volumes:
+         - nginx_secrets:/etc/letsencrypt
+      ports:
+         - 8001:8001
+      depends_on: 
+         - mongodb
+      env_file: secrets
+   mongodb:
+      image: bitnami/mongodb:4.0
+      container_name: mongodb
+      ports:
+         - 27017:27017
+      volumes:
+         - store:/bitnami
 volumes:
-  mongodb_data:
-  nginx_secrets:
-  joomla_html:
-  mysql_data:
-  static_html:
+   nginx_secrets:
+   store:
+   joomla_store:

@@ -1,7 +1,6 @@
 import flask, flask_login, login, pages, config, mongo
 from flask import Flask, url_for
 from werkzeug.exceptions import HTTPException
-from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
 class MannaFlask(flask.Flask):
     def make_response(self, rv):
@@ -12,7 +11,6 @@ class MannaFlask(flask.Flask):
 app = MannaFlask(__name__)
 app.config.from_object(config)
 latest_cnt = app.config.get("LATEST_CNT", 10)
-app.wsgi_app = DispatcherMiddleware(app.wsgi_app, { '/manna':app })
 
 mongo.init_flask(app)
 login.init_flask(app)

@@ -2,15 +2,10 @@
 PROSERVER="ubuntu@tullahomabiblechurch.org"
 DEVSERVER="ubuntu@dev.tullahomabiblechurch.org"
 
-VOLUMES="manna_static_html manna_joomla_html manna_mongodb_data manna_mysql_data manna_nginx_secrets"
-#VOLUMES="manna_joomla_html"
+VOLUMES="manna_joomla_store manna_nginx_secrets manna_store"
 for volume in $VOLUMES; do
    echo "Dumping $volume from $PROSERVER"
-   set -x
-   ssh -i ~/Desktop/lightsail.pem  $PROSERVER \
-      docker run --rm -v $volume:/from alpine ash -c "cd /from ; tar -czf - ." \
-   > $volume.pro.tar.gz
-   set +x
+   ssh -i ~/lightsail.pem  $PROSERVER docker run --rm -v $volume:/from alpine tar -C /from -czf - .> $volume.pro.tar.gz
 done
 
 #TODO: Upload volumes to DEVSERVER

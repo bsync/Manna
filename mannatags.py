@@ -1,7 +1,7 @@
 import os
-import dominate.tags as tags
 import datetime
 import flask
+import dominate.tags as tags
 from flask import url_for
 
 g50c50 = "display: grid; grid-template-columns: 50% 50%; "
@@ -18,26 +18,23 @@ class SubmissionForm(tags.form):
     def __init__(self, title, **kwargs):    
         super().__init__(id=self.id, method=self.method, **kwargs)
         with self.add(tags.fieldset()):
-            tags.legend(title)
+            tags.legend(title, style="display: flex;")
             self.content=tags.div()
             tags.input(name=f"{self.id}", type='hidden')
             tags.input(_class='selection', name='selection', type='hidden')
             tags.input(_class='order', name='order', type='hidden')
             self.submit_tag = tags.input(id=f"{self.submit_id}", 
                                          type='submit', 
+                                         name='submit_button',
                                          _class='submit_button',
                                          value=self.submission_label, 
                                          style="clear: both; width: 100%; "
                                               +"margin-top: 20px;")
+            self.on_ready_scriptage = ""
+
     @property
     def submit_id(self):
         return f"{self.id}_Submit"
-
-    def __getattr__(self, name):
-        if name in flask.request.form:
-            return flask.request.form[name]
-        else:
-            raise AttributeError(f"{self} has no attribute {name}")
 
     @property
     def id(self):
@@ -50,6 +47,22 @@ class SubmissionForm(tags.form):
     @property
     def submission_label(self):
         return self.__class__.__name__.replace("Form", "")
+
+    def addVideoTable(self, vids):
+        vt = VideoTable(vids)
+        self.on_ready_scriptage = vt.on_ready_scriptage + f""" 
+            $("#{self.id}_Submit").click(function() {{
+                var selrow = {vt.table_id}.rows( {{ selected: true }} )[0];
+                var torder = {vt.table_id}.order()[0];
+                $(":input.selection").val(selrow)
+                $(":input.order").val(torder) }});""" 
+        return vt
+
+    def __getattr__(self, name):
+        if name in flask.request.form:
+            return flask.request.form[name]
+        else:
+            raise AttributeError(f"{self} has no attribute {name}")
 
 
 class UploadForm(SubmissionForm):
@@ -108,20 +121,27 @@ class DeleteSeriesForm(SubmissionForm):
                         separately but the series will no longer be represented
                         in the Manna app unless it is reimported.""",
                     style="text-align: left;")
-
-    @property
-    def on_ready_scriptage(self):
-        return f"""$('#{self.id}').click(
+        self.on_ready_scriptage = f"""
+            $('#{self.id}').click(
                 function () {{ return confirm('{self.series.name}?') }} ); """
+
 
 class RedateSeriesForm(SubmissionForm):
     def __init__(self, series, **kwargs):    
         super().__init__(f"Redate the {series.name} series")
         with self.content:
-            with tags.div(style=g50c50 + "text-align: left;"):
-                tags.label("Apply the following start date from the top down:")
+            with tags.div(style="text-align: left;"):
+                tags.label("Apply the start date")
                 tags.input(name='start_date', type='date', 
                            value=f"{datetime.date.today().isoformat()}")
+                tags.label("to all selected videos, increasing the date by ")
+                tags.input(type="number", id="date_inc", name="date_inc", 
+                           step="1", min="1", max="3", value="3")
+                tags.label("days for every ")
+                tags.input(type="number", id="vid_set", name="vid_set", 
+                           step="1", min="1", max="3", value="2")
+                tags.label("videos.")
+                self.addVideoTable(series.videos)
 
 
 class RenameSeriesForm(SubmissionForm):
@@ -139,7 +159,7 @@ class NormalizeSeries(SubmissionForm):
         with self.content:
             if series.normalizable_vids:
                 tags.label("The following video titles can be normalized:")
-                self.ntable = VideoTable(series.normalizable_vids)
+                self.addVideoTable(series.normalizable_vids)
                 example = series.normalizable_vids[0].name
                 tags.pre(f'For example, "{example}" would become ' +
                          f'"{series.normalized_name(example)}"', 
@@ -148,10 +168,6 @@ class NormalizeSeries(SubmissionForm):
                 tags.p("Nothing to normalize in this series...")
                 self.submit_tag['disabled']=True
                     
-    @property
-    def on_ready_scriptage(self):
-        return self.ntable.on_ready_scriptage
-
 
 class AddSeriesForm(SubmissionForm):
     "Add a new series to the catalog"
@@ -219,8 +235,11 @@ class DataTableTag(tags.table):
         super().__init__(*args, id=f"{self.table_id}", style="width: 100%;")
         self.head = self.add(tags.thead()) 
         self.body = self.add(tags.tbody())
-        self.dtargs = 'order:[[0,"desc"]], select:{"items": "row"} '  \
+        self.dtargs = 'order:[[0,"desc"]], select:{"items": "row"}, '  \
                     + ",".join([ f' {x}: {y}' for x,y in kwargs.items() ])
+        self.on_ready_scriptage = f"""
+            var {self.table_id} = $('#{self.table_id}').DataTable({{{self.dtargs}}});
+            """
 
     _tblcnt = 0
     @property
@@ -230,13 +249,6 @@ class DataTableTag(tags.table):
             DataTableTag._tblcnt += 1
         return f"{self.__class__.__name__}_table{self.tblnum}"
 
-    @property
-    def on_ready_scriptage(self):
-        return f"""
-            var table = $('#{self.table_id}').DataTable({{{self.dtargs}}});
-            $(".submit_button").click(function() {{
-                $(".selection").val(table.rows( {{ selected: true }} )[0])
-                $(".order").val(table.order()[0]) }}); """
 
     def __new__(_cls, *args, **kwargs):
         # Disable base class tag decoration logic which is otherwise being
@@ -303,6 +315,30 @@ class VideoTable(DataTableTag):
                 print(f"Removing corrupt video {vid.name}!")
                 vid.delete()
 
+
 class LatestVideoTable(VideoTable):
     play_endpoint='.play_latest'
 
+
+class UserTable(DataTableTag):
+    def __init__(self, users, *args, **kwargs):
+        super().__init__(*args,  
+                         columnDefs=[{ "className":"select-checkbox", "targets":0 }],
+                         **kwargs)
+        self.refresh(users)
+
+    def refresh(self, users):
+        self.head.clear()
+        with self.head:
+            tags.th("Name", _class="dt-head-left")
+            tags.th("Email", _class="dt-head-left")
+            tags.th("Active", _class="dt-head-left")
+        self.body.clear()
+        with self.body:
+            @tags.tr
+            def _row(u):
+                tags.td(f"{u.name}")
+                tags.td(f"{u.email}")
+                tags.td(f"{u.is_active}")
+            for u in users: 
+                _row(u)

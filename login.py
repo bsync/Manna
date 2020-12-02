@@ -1,17 +1,18 @@
 import flask, flask_login, os, pathlib, requests, json
-import mongo, pages, forms
+import mongo, pages, mannatags
+import dominate.tags as tags
 from flask import redirect, url_for
 from oauthlib.oauth2 import WebApplicationClient
+from urllib.parse import unquote, urlsplit
 try:
     import passcheck
 except:
-    passcheck = None
+    passcheck = False
 
-gid = os.getenv('GOOGLE_CLIENT_ID')
-client = WebApplicationClient(gid)
 lm = flask_login.LoginManager()
 lbp = flask.Blueprint('loginbp', __name__)
 required = flask_login.login_required
+gclient = WebApplicationClient(os.environ.get("GOOGLE_CLIENT_ID"))
 
 def init_flask(app):
     lm.init_app(app)
@@ -19,18 +20,25 @@ def init_flask(app):
     app.register_blueprint(lbp)
     return lm
 
-@lbp.route('/new_user', methods=['GET'])
+@lbp.route('/new_user')
 def new_user():
     pg = pages.MannaPage("Registration")
-    pg.integrate(
-        forms.RegisterForm(
-            f"Register to access more lessons",
-            url_for('register')))
-    return pg.response
+    pg.integrate(RegisterForm("Register to access more lessons!"))
+    return pg
+
+@lbp.route('/confirm_users', methods=['GET', 'POST'])
+def confirm_users():
+    pg = pages.MannaPage("Registration Confirmation")
+    rc_form = pg.integrate(ConfirmRegistrationForm(mongo.User.objects))
+    if rc_form.id in flask.request.form:
+        for user in rc_form.selected_users:
+            user.is_active = rc_form.operation == "Register"
+            user.save()
+        rc_form.utable.refresh(mongo.User.objects)
+    return pg
 
 @lbp.route('/register', methods=['POST'])
 def register():
-    import pdb; pdb.set_trace()
     form = flask.request.form
     username = form['user']
     user = mongo.User.objects(name=username).first()
@@ -42,50 +50,46 @@ def register():
         flask.flash('Congratulations, you are now a registered user!')
     return redirect('login')
 
-_google_provider_cfg = None
+_gpc = None
+GOOGLE_OPEN_ID_URL="https://accounts.google.com/.well-known/openid-configuration"
 def google_provider_cfg(key):
-    global _google_provider_cfg
-    if not _google_provider_cfg:
-        gdu = os.getenv('GOOGLE_DISCOVERY_URL')
-        _google_provider_cfg = requests.get(gdu).json()
-    return _google_provider_cfg[key]
+    global _gpc
+    if not _gpc:
+        _gpc = requests.get(GOOGLE_OPEN_ID_URL).json()
+    return _gpc[key]
 
-@lbp.route("/login")
+@lbp.route("/login", methods=['GET', 'POST'])
 def login():
     if flask_login.current_user.is_authenticated:
-        return redirect(url_for("latest"))
-    nxt = flask.request.args['next']
-    if passcheck and passcheck.handles(nxt):
-        pg = pages.MannaPage("Authorization Required...")
-        pg.integrate(
-            forms.LoginForm(
-                f"Login to access {nxt}",
-                url_for('loginbp.auth', target=nxt)))
-        return pg
-
-    # Find out what URL to hit for Google login
-    authorization_endpoint = google_provider_cfg("authorization_endpoint")
-    # Any editable pages require more robust login using google oauth
-    # Use library to construct the request for Google login and provide
-    # scopes that let you retrieve user's profile from Google
-    return redirect(
-        client.prepare_request_uri(
-            authorization_endpoint,
-            redirect_uri=url_for("loginbp.google_auth", _external=True),
-            scope=["openid", "email", "profile"],
-            state=nxt))
+        return redirect(url_for("list_latest"))
+    pg = pages.MannaPage("Authorization Required...")
+    lform = pg.integrate(LoginForm(flask.request.args.get('next', "")))
+    if lform.id in flask.request.form:
+        if lform.is_validated:
+            flask.session[unquote(lform.target)]=True
+            flask_login.login_user(PageUser(), remember=False)
+            return redirect(lform.target)
+        else:
+            # Use library to construct the request for Google login and provide
+            # scopes that let you retrieve user's profile from Google
+            request_uri = gclient.prepare_request_uri(
+                google_provider_cfg("authorization_endpoint"),
+                redirect_uri=url_for("loginbp.google_auth", _external=True),
+                scope=["openid", "email", "profile"],
+                state=lform.target)
+            return redirect(request_uri)
+    return pg
 
 @lbp.route("/logout")
 def logout():
     flask_login.logout_user()
-    return redirect('show_catalog_page')
+    return redirect(url_for("list_latest"))
 
 @lbp.route("/login/google_auth")
 def google_auth():
     # Get authorization code Google sent back to you
-    token_endpoint = google_provider_cfg("token_endpoint")
-    token_url, headers, body = client.prepare_token_request(
-        token_endpoint,
+    token_url, headers, body = gclient.prepare_token_request(
+        google_provider_cfg("token_endpoint"),
         authorization_response=flask.request.url,
         redirect_url=flask.request.base_url,
         code=flask.request.args.get("code"))
@@ -93,14 +97,14 @@ def google_auth():
         token_url,
         headers=headers,
         data=body,
-        auth=(gid, os.getenv('GOOGLE_CLIENT_SECRET')),)
+        auth=(gclient.client_id, os.getenv('GOOGLE_CLIENT_SECRET')),)
     # Parse the tokens!
-    client.parse_request_body_response(json.dumps(token_response.json()))
+    gclient.parse_request_body_response(json.dumps(token_response.json()))
     # Now that you have tokens (yay) let's find and hit the URL
     # from Google that gives you the user's profile information,
     # including their Google profile image and email
     userinfo_endpoint = google_provider_cfg("userinfo_endpoint")
-    uri, headers, body = client.add_token(userinfo_endpoint)
+    uri, headers, body = gclient.add_token(userinfo_endpoint)
     userinfo_response = requests.get(uri, headers=headers, data=body)
 
     # The user authenticated with Google, authorized your
@@ -124,23 +128,11 @@ def google_auth():
 
     if user.is_active: # Begin user session by logging the user in
         flask_login.login_user(user)
-        return redirect(f"{flask.request.url_root}{flask.request.args.get('state')}")
+        hurl = flask.request.url_root.partition(flask.request.script_root)[0]
+        return redirect(f"{hurl}{flask.request.args.get('state')}")
     else: #An entry for the user now exists but needs to be made active before first use.
-        return redirect(url_for("latest"))
-
-@lbp.route('/auth', methods=['POST'])
-def auth():
-    target = flask.request.args['target']
-    form = flask.request.form
-    username = form['user']
-    guessword = form['guessword']
-    if passcheck.authenticate(username, guessword, target):
-        flask.session[pathlib.Path(target).name]=True
-        flask_login.login_user(PageUser(), remember=False)
-        return redirect(target)
-    else:
-        flask.flash('Invalid username or password.')
-        return redirect(url_for('loginbp.login'))
+        flask.flash(f"Waiting for {user.name} confirmation.")
+        return redirect(url_for("list_latest"))
 
 class PageUser(flask_login.UserMixin): 
     def get_id(self): 
@@ -148,7 +140,61 @@ class PageUser(flask_login.UserMixin):
 
 @lm.user_loader
 def load_user(user_id):
-    if flask.session.get(pathlib.Path(flask.request.path).name):
+    mongo_user =  mongo.User.objects(id_=user_id).first()
+    if mongo_user:
+        return mongo_user
+    if flask.session.get(unquote(flask.request.script_root + flask.request.path)):
         return PageUser()
-    else:
-        return mongo.User.objects(id_=user_id).first()
+    if flask.session.get(''):
+        return PageUser()
+
+
+class LoginForm(mannatags.SubmissionForm):
+    def __init__(self, target_in=""):    
+        super().__init__(f"Login to access {target_in}")
+        self.target = target_in
+        self.username = "guest"
+        self._passcheck = passcheck and passcheck.handles(self.target)
+        if self._passcheck:
+            with self.content:
+                #tags.label("Username:") 
+                #tags.input(id="username") 
+                tags.label("Password:") 
+                tags.input(id="password", name="password", type="password") 
+        else:
+            with self.content:
+                tags.p("This resource requires google oauthentication. " +
+                       "Click the login button below to proceed to " +
+                       "google authorization page. ")
+
+    @property
+    def is_validated(self):
+        if passcheck and passcheck.handles(self.target):
+            return passcheck.authenticate(self.username, self.password, self.target)
+        else: 
+            return False
+
+
+class RegisterForm(mannatags.SubmissionForm):
+    pass
+
+class ConfirmRegistrationForm(mannatags.SubmissionForm):
+    def __init__(self, users, **kwargs):
+        super().__init__(f"Registration...")
+        self.users = users
+        self.utable = self.addTable(mannatags.UserTable(users))
+        self.addSubmit("Unregister")
+
+    @property
+    def submission_label(self):
+        return "Register"
+
+    @property
+    def selected_users(self):
+        vindicies = [ int(x) for x in flask.request.form['selection']]
+        return [ self.users[i] for i in vindicies ]
+
+    @property
+    def operation(self):
+        return flask.request.form['submit_button']
+        

@@ -1,2 +1,0 @@
-FROM jonasal/nginx-certbot:latest
-COPY dev.conf /etc/nginx/conf.d/

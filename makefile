@@ -1,29 +1,21 @@
 test:
-	docker-compose -f docker-compose.yml -f docker-compose.dev.yml run manna pytest tests.py
+	docker stop manna; docker-compose -f docker-compose.yml -f docker-compose.dev.yml run --rm manna
+	#docker-compose -f docker-compose.yml -f docker-compose.dev.yml run manna pytest tests.py
 
 production: 
-	docker-compose up -d
+	docker-compose -f docker-compose.yml -f docker-compose.pro.yml up ${FLAGS}
 
 dev:
-	docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+	docker-compose -f docker-compose.yml -f docker-compose.dev.yml up ${FLAGS}
 
 down:
 	docker-compose down
 
-build_pro_nginx:
-	docker-compose -f docker-compose.yml \
-						-f docker-compose.build.yml build nginx
-
-build_dev_nginx:
-	docker-compose -f docker-compose.yml \
-						-f docker-compose.dev.yml build nginx
-
 build_manna:
-	docker-compose -f docker-compose.yml \
-						-f docker-compose.build.yml build manna
+	docker-compose -f docker-compose.yml build manna
 
 restart:
-	docker-compose restart manna nginx
+	docker-compose restart manna
 
 debug:
 	docker-compose stop manna

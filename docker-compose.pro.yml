@@ -1,0 +1,15 @@
+version: '3.1'
+services:
+   nginx:
+      volumes:
+         - ./nginx/pleroma.conf:/etc/nginx/conf.d/pleroma.conf
+   dnsrobocert:
+      volumes:
+         - ./nginx/config.pro.yml:/etc/dnsrobocert/config.yml
+   manna:
+      environment:
+         - DOMAIN=tullahomabiblechurch.org
+      volumes:
+         - store:/app/static
+         - nginx_secrets:/etc/letsencrypt
+         - ./passcheck.py:/app/passcheck.py
