@@ -141,7 +141,8 @@ class MannaPage(object):
             self.on_ready_scriptage.append(f'window.location.hash = "{to_form}"; ')
         self._redirection = flask.redirect(url, **kwargs)
 
-    def roku_feed(self, vids):
+    @property
+    def roku(self):
         tstamp = datetime.now(tz=timezone.utc)
         tstamp = tstamp.isoformat(timespec="seconds")
         rfeed = dict(
@@ -163,7 +164,7 @@ class MannaPage(object):
                              ),
                        releaseDate=tstamp,
                        shortDescription=x.series.name,)
-                    for i,x in enumerate(vids) ],)
+                    for i,x in enumerate(self.videos) ],)
         return flask.jsonify(rfeed)
 
 
@@ -290,6 +291,7 @@ class VideoSetPage(MannaPage):
     _vidTableTag = mannatags.VideoTable
     def __init__(self, name, vids, **kwargs):
         super().__init__(name)
+        self.videos = vids
         self.vtable = self.integrate(self._vidTableTag(vids, **kwargs))
 
 
