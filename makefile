@@ -12,15 +12,14 @@ down:
 	docker-compose down
 
 build_manna:
-	docker-compose -f docker-compose.yml build manna
+	docker-compose -f docker-compose.yml -f docker-compose.dev.yml build manna
 
 restart:
-	docker-compose restart manna
+	docker-compose -f docker-compose.yml -f docker-compose.dev.yml restart manna
 
 debug:
 	docker-compose stop manna
 	docker-compose -f docker-compose.yml -f docker-compose.dev.yml run \
-		-e FLASK_ENV=development \
 		-e FLASK_DEBUG=0 \
 		-e WORKERS=1 \
 		--name mannadbg \
