@@ -16,8 +16,8 @@ services:
          - joomla
          - manna
       volumes:
-         - joomla_store:/var/www/html
-         - store:/var/www/html/manna/static
+         - joomla_html:/var/www/html
+         - static_html:/var/www/html/manna/static
          - nginx_secrets:/etc/letsencrypt
       restart: unless-stopped
    joomla:
@@ -26,19 +26,19 @@ services:
       depends_on: 
          - joomladb
       links:
-         - joomladb:mysql
+         - "joomladb:mysql"
       env_file: secrets
       ports:
          - 9000:9000
       volumes:
-         - joomla_store:/var/www/html
+         - joomla_html:/var/www/html
       restart: unless-stopped
    joomladb:
       container_name: joomladb
       image: mysql:5.7
       env_file: secrets
       volumes:
-         - joomla_store:/var/lib/mysql
+         - mysql_data:/var/lib/mysql
       restart: unless-stopped
    manna:
       container_name: manna
@@ -47,6 +47,7 @@ services:
          - DOMAIN
       volumes:
          - nginx_secrets:/etc/letsencrypt
+         - static_html:/app/static
       ports:
          - 8001:8001
       depends_on: 
@@ -58,8 +59,10 @@ services:
       ports:
          - 27017:27017
       volumes:
-         - store:/bitnami
+         - mongodb_data:/bitnami
 volumes:
    nginx_secrets:
-   store:
-   joomla_store:
+   static_html:
+   joomla_html:
+   mysql_data:
+   mongodb_data:
