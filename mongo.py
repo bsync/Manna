@@ -101,12 +101,14 @@ class Video(VimeoRecord):
 
     @classmethod
     def from_info(cls, vinfo):
+        plinko = vinfo['pictures']['sizes'][0]['link']
+        plinko = plinko.replace('100x75', '1280x720')
         vid = Video(uri=vinfo['uri'], 
                     name=vinfo['name'],
                     html=vinfo['embed']['html'],
                     vlink=vinfo['files'][0]['link'],
                     dlink=vinfo['download'][0]['link'],
-                    plink=vinfo['pictures']['sizes'][0]['link'],
+                    plink=plinko,
                     create_date=vinfo['created_time'],
                     duration=vinfo['duration'])
         print(f"Created new Video from vimeo source {vid.name}")
