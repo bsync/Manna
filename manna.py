@@ -64,7 +64,7 @@ def play_audio(series, video):
 
 @app.route("/roku")
 def roku():
-    return pages.SeriesPage(mongo.Video.latest(10)).roku
+    return pages.LatestVideosPage("Latest", mongo.Video.latest(latest_cnt)).roku
 
 @app.errorhandler(HTTPException)
 def error_page(err):
