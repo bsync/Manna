@@ -182,8 +182,15 @@ class ConfirmRegistrationForm(mannatags.SubmissionForm):
     def __init__(self, users, **kwargs):
         super().__init__(f"Registration...")
         self.users = users
-        self.utable = self.addTable(mannatags.UserTable(users))
-        self.addSubmit("Unregister")
+        with self.content:
+            self.utable = mannatags.UserTable(users)
+            tags.input(id=f"{self.submit_id}2", 
+                       type='submit', 
+                       name='submit_button',
+                       _class='submit_button',
+                       value="Unregister",
+                       style="clear: both; width: 100%; margin-top: 20px;")
+        self.on_ready_scriptage = self.utable.on_ready_scriptage
 
     @property
     def submission_label(self):
