@@ -27,12 +27,12 @@ class MannaPage(object):
                 lref = lref.replace('/latest/', '/');
                 window.location.href = lref;
                 return false; }} """ ]
-    on_ready_scriptage = []
     status_style="color: red; background: black;"
 
     def __init__(self, subtitle=''):
         self.doc = dominate.document(self.site_name)
         self.subtitle = subtitle if subtitle else self.__class__.__name__
+        self.on_ready_scriptage = []
 
         with self.doc.head:
             for css in self.cssfiles.split(): 
