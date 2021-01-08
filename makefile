@@ -31,5 +31,5 @@ shell:
 
 # Rules to dump production volumes
 pro_dump: 
-	cd backups; ./transfer_volumes.sh
+	cd backups; ./transfer_volumes.sh -d PROSERVER
 
