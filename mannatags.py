@@ -48,15 +48,14 @@ class SubmissionForm(tags.form):
     def submission_label(self):
         return self.__class__.__name__.replace("Form", "")
 
-    def addVideoTable(self, vids):
-        vt = VideoTable(vids)
-        self.on_ready_scriptage = vt.on_ready_scriptage + f""" 
+    def addTable(self, table):
+        self.on_ready_scriptage = table.on_ready_scriptage + f""" 
             $("#{self.id}_Submit").click(function() {{
-                var selrow = {vt.table_id}.rows( {{ selected: true }} )[0];
-                var torder = {vt.table_id}.order()[0];
+                var selrow = {table.table_id}.rows( {{ selected: true }} )[0];
+                var torder = {table.table_id}.order()[0];
                 $(":input.selection").val(selrow)
                 $(":input.order").val(torder) }});""" 
-        return vt
+        return table
 
     def __getattr__(self, name):
         if name in flask.request.form:
@@ -68,14 +67,15 @@ class SubmissionForm(tags.form):
 class UploadForm(SubmissionForm):
     def __init__(self, series, cnt=1, **kwargs):    
         super().__init__(f"Add upto {cnt} new videos to \"{series.name}\"")
+        
         with self.content:
             tags.input(id="accessToken", type="hidden", 
                        value=f"{os.getenv('VIMEO_TOKEN')}")
             with tags.div(id="upbox", **{"data-maxcnt":"2"}):
                 with tags.div(_class="upunit", style=g30c70):
                     tags.label("Video Name:") 
-                    tags.input(_class="vidname", type="text",
-                               value=series.videos[-1].next_name)
+                    tags.input(_class="vidname", type="text", 
+                               value=series.next_vid_name)
                     tags.label("Video Author:") 
                     tags.input(_class="vid_author", type="text", 
                                name="vid_author", value="Pastor")
@@ -141,7 +141,7 @@ class RedateSeriesForm(SubmissionForm):
                 tags.input(type="number", id="vid_set", name="vid_set", 
                            step="1", min="1", max="3", value="2")
                 tags.label("videos.")
-                self.addVideoTable(series.videos)
+                self.addTable(VideoTable(series.videos))
 
 
 class RenameSeriesForm(SubmissionForm):
@@ -159,7 +159,7 @@ class NormalizeSeries(SubmissionForm):
         with self.content:
             if series.normalizable_vids:
                 tags.label("The following video titles can be normalized:")
-                self.addVideoTable(series.normalizable_vids)
+                self.addTable(VideoTable(series.normalizable_vids))
                 example = series.normalizable_vids[0].name
                 tags.pre(f'For example, "{example}" would become ' +
                          f'"{series.normalized_name(example)}"', 

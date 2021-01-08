@@ -19,7 +19,7 @@ restart:
 
 debug:
 	docker-compose stop manna
-	docker-compose -f docker-compose.yml -f docker-compose.dev.yml run \
+	docker-compose -f docker-compose.yml -f docker-compose.pro.yml run \
 		-e FLASK_DEBUG=0 \
 		-e WORKERS=1 \
 		--name mannadbg \

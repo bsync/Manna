@@ -199,10 +199,17 @@ class VideoSeries(VimeoRecord):
     @property
     def highest_numbered_title(self):
         if len(self.videos) > 0: 
-            nregmatch = re.match(r'\D*(\d+)', self.videos[-1].name)
-            if nregmatch:
-                return int(nregmatch.group(1))
+            vid_names_str=' '.join([ vid.name for vid in self.videos ])
+            vid_num_strs=re.findall('\d+', vid_names_str)
+            vid_num_strs.sort(key=int)
+            vid_nums = [ int(v) for v in vid_num_strs ]
+            if len(vid_nums) > 0:
+                return vid_nums[-1]
         return 0
+
+    @property
+    def next_vid_name(self):
+        return self.videos[-1].next_name if len(self.videos) else "Lesson #1"
 
     @property
     def normalizable_vids(self):
@@ -277,6 +284,7 @@ class VideoSeries(VimeoRecord):
         if len(self.videos):
             self.update(pull_all__videos=self.videos)
             self.reload()
+        #import pdb; pdb.set_trace()
         while ('data' in vlinfo):
             for vinfo in vlinfo['data']:
                 try:

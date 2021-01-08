@@ -183,7 +183,7 @@ class ConfirmRegistrationForm(mannatags.SubmissionForm):
         super().__init__(f"Registration...")
         self.users = users
         with self.content:
-            self.utable = mannatags.UserTable(users)
+            self.utable = self.addTable(mannatags.UserTable(users))
             tags.input(id=f"{self.submit_id}2", 
                        type='submit', 
                        name='submit_button',
