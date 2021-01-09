@@ -1,7 +1,3 @@
-test:
-	docker stop manna; docker-compose -f docker-compose.yml -f docker-compose.dev.yml run --rm manna
-	#docker-compose -f docker-compose.yml -f docker-compose.dev.yml run manna pytest tests.py
-
 production: 
 	docker-compose -f docker-compose.yml -f docker-compose.pro.yml up ${FLAGS}
 
