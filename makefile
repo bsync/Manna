@@ -1,17 +1,11 @@
 production: 
 	docker-compose -f docker-compose.yml -f docker-compose.pro.yml up ${FLAGS}
 
-dev:
-	docker-compose -f docker-compose.yml -f docker-compose.dev.yml up ${FLAGS}
-
 down:
 	docker-compose down
 
-build_manna:
-	docker-compose -f docker-compose.yml -f docker-compose.dev.yml build manna
-
 restart:
-	docker-compose -f docker-compose.yml -f docker-compose.dev.yml restart manna
+	docker-compose -f docker-compose.yml -f docker-compose.pro.yml restart manna
 
 debug_local:
 	docker-compose stop manna
