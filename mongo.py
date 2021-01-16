@@ -217,6 +217,7 @@ class VideoSeries(VimeoRecord):
         def abnormal(vid):
             spaceout = " ".join(vid.name.split())
             spaceout = ''.join(re.split(r'(\d+)', spaceout)[0:2])
+            spaceout = re.sub(r'(.*\S+)#', '\\1 #', spaceout) 
             name, digits, _ =  re.split(r'(\d+).*', vid.name)
             return len(digits) != llen or spaceout != vid.name
         return list(filter(abnormal, self.videos))
@@ -226,6 +227,7 @@ class VideoSeries(VimeoRecord):
             name = self.videos[-1].name
         if re.match(r'\D*\d+', name):
             name, digits, _ =  re.split(r'(\d+).*', " ".join(name.split()))
+            name = re.sub(r'(.*\S+)#', '\\1 #', name) 
             digits = str(int(digits) + inc)
             dcnt = len(str(self.highest_numbered_title))
             return f"{name}{digits.zfill(dcnt)}"

@@ -13,7 +13,18 @@ build_manna:
 restart:
 	docker-compose -f docker-compose.yml -f docker-compose.dev.yml restart manna
 
-debug:
+debug_local:
+	docker-compose stop manna
+	docker-compose -f docker-compose.yml -f docker-compose.local.yml \
+		run \
+		-e FLASK_DEBUG=0 \
+		-e WORKERS=1 \
+		-e FLASK_ENV="development" \
+		--name mannadbg \
+		--service-ports \
+		--rm manna
+
+debug_pro:
 	docker-compose stop manna
 	docker-compose -f docker-compose.yml -f docker-compose.pro.yml run \
 		-e FLASK_DEBUG=0 \

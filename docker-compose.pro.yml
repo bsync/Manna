@@ -1,6 +1,11 @@
 version: '3.1'
 services:
    dnsrobocert:
+      image: adferrand/dnsrobocert
+      container_name: dnsrobocert
+      volumes:
+         - nginx_secrets:/etc/letsencrypt
+      restart: always
       volumes:
          - ./nginx/config.pro.yml:/etc/dnsrobocert/config.yml
    nginx:

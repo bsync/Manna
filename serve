@@ -3,8 +3,8 @@ echo "Serving up the Manna since 2020!"
 
 if [ "$FLASK_ENV" == "development" ]; then
 	export FLASK_APP=manna
-   #exec python manna.py --ssl_context='adhoc' --host 0.0.0.0 --port 8001 
-   exec python manna.py 
+   exec python manna.py --ssl_context='adhoc' --host 0.0.0.0 --port 8001 
+   #exec python manna.py 
 else
    exec gunicorn -b 0.0.0.0:8001 \
       -w ${WORKERS:-4} \

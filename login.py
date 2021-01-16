@@ -183,14 +183,19 @@ class ConfirmRegistrationForm(mannatags.SubmissionForm):
         super().__init__(f"Registration...")
         self.users = users
         with self.content:
-            self.utable = self.addTable(mannatags.UserTable(users))
+            self.utable = mannatags.UserTable(users)
             tags.input(id=f"{self.submit_id}2", 
                        type='submit', 
                        name='submit_button',
                        _class='submit_button',
                        value="Unregister",
                        style="clear: both; width: 100%; margin-top: 20px;")
-        self.on_ready_scriptage = self.utable.on_ready_scriptage
+        self.on_ready_scriptage = self.utable.on_ready_scriptage + f"""
+            $("#{self.id}_Submit").click(function() {{
+                var selrow = {self.utable.table_id}.rows( {{ selected: true }} )[0];
+                var torder = {self.utable.table_id}.order()[0];
+                $(":input.selection").val(selrow)
+                $(":input.order").val(torder) }});""" 
 
     @property
     def submission_label(self):
