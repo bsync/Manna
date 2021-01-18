@@ -20,13 +20,17 @@ def init_flask(app):
     app.register_blueprint(lbp)
     return lm
 
-@lbp.route('/new_user')
+@lbp.route('/new_user', methods=['GET', 'POST'])
 def new_user():
     pg = pages.MannaPage("Registration")
-    pg.integrate(RegisterForm("Register to access more lessons!"))
+    nuf = pg.integrate(RegisterForm("Register to access more lessons!"))
+    if nuf.id in flask.request.form:
+        return redirect('confirm_users')
+
     return pg
 
 @lbp.route('/confirm_users', methods=['GET', 'POST'])
+@required
 def confirm_users():
     pg = pages.MannaPage("Registration Confirmation")
     rc_form = pg.integrate(ConfirmRegistrationForm(mongo.User.objects))
