@@ -25,13 +25,13 @@ def new_user():
     pg = pages.MannaPage("Registration")
     nuf = pg.integrate(RegisterForm("Register to access more lessons!"))
     if nuf.id in flask.request.form:
-        return redirect('confirm_users')
+        return redirect('edit_confirm_users')
 
     return pg
 
-@lbp.route('/confirm_users', methods=['GET', 'POST'])
+@lbp.route('/edit_confirm_users', methods=['GET', 'POST'])
 @required
-def confirm_users():
+def edit_confirm_users():
     pg = pages.MannaPage("Registration Confirmation")
     rc_form = pg.integrate(ConfirmRegistrationForm(mongo.User.objects))
     if rc_form.id in flask.request.form:
