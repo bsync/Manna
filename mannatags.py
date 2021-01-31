@@ -48,6 +48,15 @@ class SubmissionForm(tags.form):
     def submission_label(self):
         return self.__class__.__name__.replace("Form", "")
 
+    def addTable(self, table):
+        self.on_ready_scriptage += table.on_ready_scriptage + f"""
+            $("#{self.id}_Submit").click(function() {{
+                var selrow = {table.table_id}.rows( {{ selected: true }} )[0];
+                var torder = {table.table_id}.order()[0];
+                $(":input.selection").val(selrow)
+                $(":input.order").val(torder) }});"""
+
+
     def __getattr__(self, name):
         if name in flask.request.form:
             return flask.request.form[name]
@@ -132,7 +141,7 @@ class RedateSeriesForm(SubmissionForm):
                 tags.input(type="number", id="vid_set", name="vid_set", 
                            step="1", min="1", max="3", value="2")
                 tags.label("videos.")
-                VideoTable(series.videos)
+                self.addTable(VideoTable(series.videos))
 
 
 class RenameSeriesForm(SubmissionForm):
@@ -150,7 +159,7 @@ class NormalizeSeries(SubmissionForm):
         with self.content:
             if series.normalizable_vids:
                 tags.label("The following video titles can be normalized:")
-                VideoTable(series.normalizable_vids)
+                self.addTable(VideoTable(series.normalizable_vids))
                 example = series.normalizable_vids[0].name
                 tags.pre(f'For example, "{example}" would become ' +
                          f'"{series.normalized_name(example)}"', 
