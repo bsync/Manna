@@ -8,7 +8,7 @@ if [ "$FLASK_ENV" == "development" ]; then
 else
    exec gunicorn -b 0.0.0.0:8001 \
       -w ${WORKERS:-4} \
-      -t 120 \
+      -t 480 \
       -e SCRIPT_NAME=/manna \
       --certfile=/etc/letsencrypt/live/${DOMAIN}/fullchain.pem \
       --keyfile=/etc/letsencrypt/live/${DOMAIN}/privkey.pem \

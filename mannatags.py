@@ -233,10 +233,12 @@ class DataTableTag(tags.table):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, id=f"{self.table_id}", style="width: 100%;")
+        kwargs.setdefault('order', [[0,"desc"]]) 
+        kwargs.setdefault('select', {"items": "row"}) 
         self.head = self.add(tags.thead()) 
         self.body = self.add(tags.tbody())
-        self.dtargs = 'order:[[0,"desc"]], select:{"items": "row"}, '  \
-                    + ",".join([ f' {x}: {y}' for x,y in kwargs.items() ])
+        #self.dtargs = 'order:[[0,"desc"]], select:{"items": "row"}, '  \
+        self.dtargs = ",".join([ f' {x}: {y}' for x,y in kwargs.items() ])
         self.on_ready_scriptage = f"var {self.table_id} = $('#{self.table_id}').DataTable({{{self.dtargs}}});"
 
     _tblcnt = 0
@@ -278,7 +280,8 @@ class SeriesTable(DataTableTag):
 class VideoTable(DataTableTag):
     play_endpoint='.play_restricted'
     def __init__(self, vids, *args, **kwargs):
-        super().__init__(*args,  **kwargs)
+        kwargs.setdefault('order', [[2,"asc"]])
+        super().__init__(*args, **kwargs)
         with self.head:
             tags.th("Date", _class="dt-head-left")
             tags.th("Series", _class="dt-head-left")
@@ -316,6 +319,10 @@ class VideoTable(DataTableTag):
 
 class LatestVideoTable(VideoTable):
     play_endpoint='.play_latest'
+
+    def __init__(self, vids, *args, **kwargs):
+        kwargs.setdefault('order', [[2,"desc"]])
+        super().__init__(vids, *args, **kwargs)
 
 
 class UserTable(DataTableTag):

@@ -301,7 +301,7 @@ class LatestVideosPage(VideoSetPage):
 
 class SeriesPage(VideoSetPage):
     def __init__(self, series):
-        super().__init__(f"{series.name} Series", series.videos)
+        super().__init__(f"{series.name} Series", series.videos, pageLength=25)
 
 
 class SeriesEditPage(VideoSetPage):
@@ -400,7 +400,7 @@ class SeriesEditPage(VideoSetPage):
 class CatalogPage(MannaPage):
     def __init__(self, catalog):
         super().__init__("Catalog of Series")
-        self.integrate(mannatags.SeriesTable(catalog))
+        self.integrate(mannatags.SeriesTable(catalog, pageLength=25))
 
 
 class ErrorPage(MannaPage):
