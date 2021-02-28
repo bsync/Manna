@@ -260,6 +260,7 @@ class DataTableTag(tags.table):
 
 class SeriesTable(DataTableTag):
     def __init__(self, catalog, **kwargs):
+        kwargs.setdefault('order', [[1,"asc"]])
         super().__init__(**kwargs)
         with self.head:
             tags.th("Date", _class="dt-head-left")
