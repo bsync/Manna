@@ -168,6 +168,13 @@ class NormalizeSeries(SubmissionForm):
                 tags.p("Nothing to normalize in this series...")
                 self.submit_tag['disabled']=True
                     
+class CommitSeries(SubmissionForm):
+    def __init__(self, series, **kwargs):    
+        super().__init__(f"Commit all changes back to vimeo for series: {series.name}")
+        self.series = series
+        self.on_ready_scriptage = f"""
+            $('#{self.id}').click(
+                function () {{ return confirm("Push {self.series.name} meta to vimeo?") }} ); """
 
 class AddSeriesForm(SubmissionForm):
     "Add a new series to the catalog"
@@ -268,7 +275,7 @@ class SeriesTable(DataTableTag):
         with self.body:
             @tags.tr
             def _row(x):
-                tags.td(str(x.create_date))
+                tags.td(str(x.created_time))
                 tags.td(tags.a(x.name, 
                                href=url_for('.show_series_page', series=x.name),
                                onclick="shift_edit(event, this)"))
@@ -292,29 +299,17 @@ class VideoTable(DataTableTag):
                 tags.h3("No connection to videos, try again later...")
             else: 
                 for vid in vids: 
-                    try:
-                        if vid in vid.series.videos:
-                            self._make_table_row(vid)
-                    except Exception as e:
-                        print(f"Removing {vid.name} because: {e}")
-                        vid.delete()
-
-    def _make_table_row(self, vid):
-        with tags.tr():
-            try:
-                tags.attr()
-                tags.td(str(vid.create_date))
-                tags.td(vid.series.name) 
-                tags.td(
-                    tags.a(vid.name, 
-                       href=url_for(self.play_endpoint,
-                                    series=vid.series.name,
-                                    video=vid.name),
-                       onclick="shift_edit(event, this)"))
-                tags.td(f"{int(vid.duration/60)} mins")
-            except Exception as e:
-                print(f"Removing corrupt video {vid.name}!")
-                vid.delete()
+                    with tags.tr():
+                        tags.attr()
+                        tags.td(str(vid.created_time))
+                        tags.td(vid.series_name) 
+                        tags.td(
+                            tags.a(vid.name, 
+                               href=url_for(self.play_endpoint,
+                                            sname=vid.series_name,
+                                            vname=vid.name),
+                               onclick="shift_edit(event, this)"))
+                        tags.td(f"{int(vid.duration/60)} mins")
 
 
 class LatestVideoTable(VideoTable):

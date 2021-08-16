@@ -1,3 +1,6 @@
+test:
+	python -m pytest tests.py
+
 production: 
 	docker-compose -f docker-compose.yml -f docker-compose.pro.yml up ${FLAGS}
 
@@ -7,7 +10,7 @@ down:
 restart:
 	docker-compose -f docker-compose.yml -f docker-compose.pro.yml restart manna
 
-debug_local:
+dev:
 	docker-compose stop manna
 	docker-compose -f docker-compose.yml -f docker-compose.local.yml \
 		run \
@@ -16,7 +19,8 @@ debug_local:
 		-e FLASK_ENV="development" \
 		--name mannadbg \
 		--service-ports \
-		--rm manna
+		--rm \
+		manna ash
 
 debug_pro:
 	docker-compose stop manna

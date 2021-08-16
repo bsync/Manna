@@ -1,0 +1,21 @@
+{% extends 'table.html' %}
+{% block table_head %}
+   <th>Date</th>
+   <th>Series</th>
+   <th>Lesson</th>
+   <th>Duration</th>
+{% endblock %}
+{% block table_body %}
+   {% if vids %}
+      {% for vid in vids %}
+      <tr>
+         <td>{{vid.date}}</td>
+         <td>{{vid.parent_series_name}}</td>
+         <td><a href={{vid.uri}}>{{vid.name}}</a></td>
+         <td>{{vid.duration}}</td>
+      </tr>
+      {% endfor %}
+   {% else %}
+      <h3>No videos found...</h3>
+   {% endif %}
+{% endblock %}

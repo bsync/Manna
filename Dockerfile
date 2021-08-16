@@ -1,4 +1,4 @@
-FROM python:3.7-alpine as base
+FROM docksync/neojedi as base
 FROM base as builder
 RUN mkdir /install
 WORKDIR /install
@@ -10,7 +10,7 @@ FROM base
 RUN apk add ffmpeg libcurl
 COPY --from=builder /root/.local /usr/local
 #dateutil package doesn't seem to honor prefix so reinstall it here
-RUN pip install python-dateutil  
+#RUN pip install python-dateutil  
 WORKDIR /app
 COPY *.py serve ./
 COPY static /app/static

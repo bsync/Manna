@@ -7,9 +7,8 @@ def client():
         with manna.app.app_context():
             yield client
 
-def test_series_edit(client):
+def test_root_index(client):
     """Start with a blank database."""
-    rv = client.get("/series/Evangelism/edit")
-    assert b'Evangelism' in rv.data
-    #assert b'No entries here so far' in rv.data
+    rv = client.get("/")
+    import pdb; pdb.set_trace()
 

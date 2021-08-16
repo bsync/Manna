@@ -1,0 +1,55 @@
+<!doctype html>
+<head>
+   <title>{% block title %}{% endblock %} - {{ page.title }} </title>
+   {% for css in page.css: %}
+      <link rel="stylesheet" type="text/css" href="{{css}}"> 
+   {% endfor %}
+   {% for script in page.scripts: %}
+      <script src="{{script}}"></script>
+   {% endfor %}
+   <style>{{page.style}}</style>
+</head>
+<body>
+   <section class="header">
+       {% block header %}
+       <h3 class="title"><a href='/'>{{ page.site_name}}</a> : </h3> 
+       <h4 class="subtitle">{{ page.title }}</h4>
+       {% endblock %}
+   </section>
+   <section class="status">
+     {% for message in get_flashed_messages() %}
+     <h3>{{message}}</h3>
+     {% endfor %}
+   </section>
+   <section class="content">
+     {% block content %}
+      {% for mod in page  %}
+         {% include mod.template %}
+      {% endfor %}
+     {% endblock %}
+   </section>
+   <section class="footer">
+      <div>
+         <a href={{ url_for("list_latest") }}>Latest</a>
+         <a href='/'>Back to the Front!</a>
+         <a href={{ url_for("show_catalog_page") }} onclick="shift_edit(event, this)")>Catalog</a>
+         <a href={{ url_for("user.register") }}>Register</a>
+         {% if current_user.is_authenticated %}
+            <a href={{ url_for("user.logout") }}>Logout</a>
+         {% else %}
+            <a href={{ url_for("user.login") }}>Login</a>
+         {% endif %}
+   </section>
+   <script>
+      $(document).ready(function() { 
+      {{ page.scriptage | safe }} 
+         function shift_edit(event, slink) { 
+            if (event.shiftKey)
+                event.preventDefault();
+                lref = slink.href + '\/edit';
+                lref = lref.replace('/latest/', '/');
+                window.location.href = lref;
+                return false; } 
+      })
+   </script>
+</body>

@@ -1,6 +1,7 @@
 import re, time
 import vidstore as vs
 import datetime as dt
+import json
 from flask_mongoengine import MongoEngine
 from datetime import timedelta
 
@@ -133,6 +134,10 @@ class Video(VimeoRecord):
         self.plink = vinfo['pictures']['sizes'][0]['link']
         self.save()
 
+    def commit_meta(self):
+        resp = vs.post(f"{self.uri}/comments", 
+                       text=json.dumps({'create_date':self.create_date}, default=str))
+
 
 class VideoSeries(VimeoRecord):
     VSURI="/me/projects"
@@ -218,7 +223,10 @@ class VideoSeries(VimeoRecord):
             spaceout = " ".join(vid.name.split())
             spaceout = ''.join(re.split(r'(\d+)', spaceout)[0:2])
             spaceout = re.sub(r'(.*\S+)#', '\\1 #', spaceout) 
-            name, digits, _ =  re.split(r'(\d+).*', vid.name)
+            try:
+                name, digits, _ =  re.split(r'(\d+).*', vid.name)
+            except ValueError as ve:
+                digits='0'
             return len(digits) != llen or spaceout != vid.name
         return list(filter(abnormal, self.videos))
 
@@ -315,6 +323,10 @@ class VideoSeries(VimeoRecord):
                 vid.create_date = sdate
                 vid.save()
             sdate += timedelta(days=inc)
+
+    def commitVideos(self):
+        for vid in self.videos:
+            vid.commit_meta()
 
 
 class ShowCase(VideoSeries):

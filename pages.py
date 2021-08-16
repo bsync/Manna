@@ -7,130 +7,88 @@ from dominate.util import raw
 from pathlib import Path
 from requests.models import PreparedRequest
 from flask import url_for
+from flask_wtf.csrf import CSRFProtect
+from forms import Forms
+from tables import VideoTable
 
-def init_flask(app):
-    executor.init_flask(app)
-    MannaPage.site_name = app.config.get("TITLE", MannaPage.site_name)
-    if app.env == "development":
-        MannaPage.site_name = MannaPage.site_name + " (dev) "
-    return sys.modules[__name__] #just use this module as the page manager
+class Pages(object):
+    def __new__(cls, app, mstore):
+        MannaPage.site_name = app.config.get("TITLE", "Manna")
+        if app.env == "development":
+            MannaPage.site_name = MannaPage.site_name + " (dev) "
+        global forms, login
+        csrf = CSRFProtect(app)
+        forms = Forms(app, mstore)
+        return sys.modules[__name__] #just use this module as the page manager
 
 
-class MannaPage(object):
-    site_name = "Manna"
-    cdnbase = "https://cdn.datatables.net/v/dt/dt-1.10.22/sl-1.3.1"
-    scriptage = ["""
-        function shift_edit(event, slink) {{ 
-            if (event.shiftKey)
-                event.preventDefault();
-                lref = slink.href + '\/edit';
-                lref = lref.replace('/latest/', '/');
-                window.location.href = lref;
-                return false; }} """ ]
-    status_style="color: red; background: black;"
+class MannaPage(list):
+    css = ["Page.css"]
+    scripts = []
+    style = ""
+    def __init__(self, title=''):
+        self.title = title if title else self.__class__.__name__
+        self.scriptage = ""
+        self.template_vars = dict(page=self)
+        self.css = self.css.copy()
+        self.scripts = self.scripts.copy()
 
-    def __init__(self, subtitle=''):
-        self.doc = dominate.document(self.site_name)
-        self.subtitle = subtitle if subtitle else self.__class__.__name__
-        self.on_ready_scriptage = []
+    def add(self, component):
+        if hasattr(component, 'css'):
+            self.css.extend([ c for c in component.css if c not in self.css ])
+        if hasattr(component, 'style'):
+            self.style += component.style
+        if hasattr(component, 'scripts'):
+            self.scripts.extend([ s for s in component.scripts if s not in self.scripts ])
+        if hasattr(component, 'scriptage'):
+            self.scriptage = self.scriptage + component.scriptage
+        if hasattr(component, 'template_vars'):
+            self.template_vars.update(component.template_vars)
+        self.append(component)
+        return self
 
-        with self.doc.head:
-            for css in self.cssfiles.split(): 
-                self._link_css(css)
-            for scripturl in self.scripturls:
-                tags.script(crossorigin="anonymous", src=scripturl)
-            self.script_list = tags.script().children
-
-        with self.doc.body.add(tags.div(cls="container")):
-            self.header = tags.div(id="header")
-            with self.header.add(tags.h2()):
-                tags.a(self.site_name, href='/', id="site_name")
-                tags.h3(self.subtitle, id="subtitle")
-                with tags.ul(id="status", style=self.status_style):
-                    for msg in flask.get_flashed_messages():
-                        tags.li(msg)
-            self.content = tags.div(id="content")
-            self.footer = tags.div(id="footer")
-            with self.footer:
-                tags.a("Latest", href=url_for("list_latest"))
-                tags.a("Back to the Front", href="/")
-                tags.a("Catalog", 
-                       href=url_for("show_catalog_page"), 
-                       onclick="shift_edit(event, this)")
-                tags.a("Register", href=url_for('loginbp.new_user'))
-                tags.label("")
-                if flask_login.current_user.is_authenticated:
-                    tags.a(f"Log out", href=url_for('loginbp.logout'))
-                else:
-                    tags.a(f"Login", href=url_for('loginbp.login'))
-
+    def show_errors(self, *errs):
+        for msg in errs:
+            flask.flash(msg)
+        
     @property
-    def cssfiles(self):
-        return f""" {self.cdnbase}/datatables.min.css
-                    tables.css 
-                    Page.css 
-                    {type(self).__name__}.css
-                """
+    def response(self):
+        for component in self:
+            if hasattr(component, 'redirect'):
+                return component.redirect
+        for idx,css in enumerate(self.css):
+            if not css.startswith("http"):
+                self.css[idx] = url_for('static', filename=css)
+        for idx,script in enumerate(self.scripts):
+            if not script.startswith("http"):
+                self.scripts[idx] = url_for('static', filename=script)
+        return flask.render_template("page.html", **self.template_vars)
 
-    @property
-    def scripturls(self):
-        return [ "https://code.jquery.com/jquery-3.4.1.min.js" ,
-                 url_for('static', filename="jquery.fitvids.js"),
-                f"{self.cdnbase}/datatables.min.js" ]
+    def show_form(self, form):
+        self.script_sources.append(form)
+        form.validate_on_submit()
+        if form.response:
+            if isinstance(form.response, dict):
+                self.redirect(
+                    form.response.pop('url', flask.request.url), 
+                    **form.response)
+            else: #Allow for form to specify a raw string to be returned
+                  #This will override the normal html response
+                self.redirection = form.response
+        else:
+            if hasattr(form, 'scripts'):
+                self.scripts.extend(form.scripts)
+            
+            with self.content:
+                form.html
+        return self.response
 
-    @property
-    def html(self):
-        "Late bind scriptage and return the html of the page"
-        if hasattr(self, '_redirection'):
-            return self._redirection
+    def show_table(self, table):
+        self.script_sources.append(table)
+        self.content.add(table)
+        return self.response
 
-        if 'monitor' in executor.futures._futures:
-            if executor.futures.done('monitor'):
-                executor.futures.pop('monitor')
-            else:
-                flask.flash(executor.status)
-                self.doc.head.add(
-                    tags.meta(http_equiv="refresh", 
-                              content=f"3;{flask.request.url}"))
-        self.script_list.append(
-            f"""$(document).ready( 
-                    function() {{ 
-                        {" ".join(self.on_ready_scriptage)} 
-                    }}); """)
-        self.script_list.extend(self.scriptage)
-        return str(self.doc)
-
-    def _link_css(self, css):
-        if os.path.exists(f"static/{css}"):
-            tags.link(rel="stylesheet", type="text/css", 
-                      href=url_for('static', filename=css))
-        elif css.startswith('http'):
-            tags.link(rel="stylesheet", type="text/css", href=css)
-
-    def integrate(self, tag, container=None):
-        """Integrates the given tag into the page using container
-
-            Integration means merging the DOM content of the tag itself into
-            the given container which defaults to the Page's internal content
-            element,
-        """
-        if container is None: container = self.content
-        container.add(tags.a(name=tag.id), tag)
-        with self.doc.head:
-            if hasattr(tag, 'cssfiles'):
-                for css in tag.cssfiles:
-                    self._link_css(css)
-            if hasattr(tag, 'scripturls'):
-                for script in tag.scripturls:
-                    tags.script(crossorigin="anonymous", src=script)
-        if hasattr(tag, "scriptage"): 
-            self.scriptage.append(tag.scriptage)
-        if hasattr(tag, "on_ready_scriptage"): 
-            self.on_ready_scriptage.append(tag.on_ready_scriptage)
-        setattr(self, tag.__class__.__name__, tag)
-        return tag
-
-    def redirect(self, url, to_form=None, with_msg=False, **kwargs): 
+    def redirect(self, url, to_form=None, with_msg=False, refresh=False, **kwargs): 
         if to_form is not None:
             to_form = to_form.id 
             url = f"{url}#{to_form}"
@@ -138,11 +96,14 @@ class MannaPage(object):
             if not isinstance(with_msg, str):
                 with_msg = " ".join(with_msg)
             flask.flash(with_msg, to_form)
-            self.on_ready_scriptage.append(f'window.location.hash = "{to_form}"; ')
-        self._redirection = flask.redirect(url, **kwargs)
+            self.on_ready.append(f'window.location.hash = "{to_form}"; ')
+        if refresh:
+            with self.doc.head:
+                tags.meta(http_equiv="refresh", content=f"3;{flask.request.url}")
+        url += "&".join([f"?{k}={v}" for k,v in kwargs.items()])
+        self.redirection = flask.redirect(url)
 
-    @property
-    def roku(self):
+    def roku(self, vids):
         tstamp = datetime.now(tz=timezone.utc)
         tstamp = tstamp.isoformat(timespec="seconds")
         rfeed = dict(
@@ -150,12 +111,12 @@ class MannaPage(object):
             lastUpdated=tstamp,
             language='en',
             movies=[dict(id=x.uri.split('/')[2],
-                        title=f"{x.series.name}-{x.name}",
+                        title=f"{x.parent_series_name}-{x.name}",
                         genres=["faith"],
                         tags=["faith"],
                         thumbnail=x.plink,
                         content=dict(
-                             dateAdded=x.create_date.isoformat(),
+                             dateAdded=x.date.strftime("%Y-%m-%d"),
                              duration=x.duration,
                              videos=[
                                 dict(url=x.vlink, 
@@ -163,15 +124,15 @@ class MannaPage(object):
                                      videoType="MP4"), ],
                              ),
                        releaseDate=tstamp,
-                       shortDescription=x.series.name,)
-                    for i,x in enumerate(self.videos) ],)
+                       shortDescription=x.parent_series_name,)
+                    for i,x in enumerate(vids) ],)
         return flask.jsonify(rfeed)
-
 
     def play_series(self, series):
         with self.content:
             tags.div(raw(series.html), id="player")
-        return self.html
+        return self.response
+
 
 class CatalogEditPage(MannaPage):
     def __init__(self, catalog):
@@ -221,7 +182,7 @@ class AudioPage(MannaPage):
         self.video = video
 
     @property
-    def html(self):
+    def response(self):
         def generate_mp3():
             import subprocess as sp
             ffin = f' -i "{self.video.vlink}" '
@@ -238,46 +199,11 @@ class AudioPage(MannaPage):
         return flask.Response(generate_mp3(), mimetype="audio/mpeg")
 
 
-class VideoPage(MannaPage):
-    def __init__(self, vid):
-        super().__init__(f"{vid.name} of {vid.series.name}")
-        self.on_ready_scriptage.append("$('#content').fitVids()")
-        with self.content:
-            quality = flask.request.args.get('quality', 'auto')
-            if quality == 'auto':
-                vhtml = vid.html
-                altdisp = altqual = '720p'
-            else:
-                tags.div(f"({quality} Version)", id="ver")
-                vmatch = re.match(r'(.*src=")(\S+)(".*)', vid.html)
-                vhtml = f"{vmatch.group(1)}{vmatch.group(2)}"
-                vhtml = f"{vhtml}&amp;quality={quality}{vmatch.group(3)}"
-                altqual = 'auto'
-                altdisp = 'Hi Res'
-            tags.div(
-                raw(vhtml),
-                tags.a(tags.button("Play Audio"),
-                       href=url_for('play_audio', 
-                                    series=vid.series.name, 
-                                    video=vid.name)),
-                tags.a(tags.button("Download Audio"),
-                       href=url_for('play_audio', 
-                                    series=vid.series.name, 
-                                    video=vid.name),
-                                    download=vid.name),
-                tags.a(tags.button(f"Play {altdisp} Video"), 
-                       href=url_for('play_latest', 
-                                    series=vid.series.name, 
-                                    video=vid.name,
-                                    quality=altqual)),
-                tags.a(tags.button("Download Video"), href=vid.dlink),)
-
-
-class VideoEditPage(VideoPage):
+class VideoEditPage(MannaPage):
     def __init__(self, video):
         super().__init__(video)
         purge_form = self.integrate(mannatags.PurgeVideoForm(video))
-        self.on_ready_scriptage.append(f"""
+        self.on_ready.append(f"""
             $('#{purge_form.id}').click( 
                     function () {{ 
                         return confirm('Purge video: {video.name} ?') 
@@ -313,6 +239,7 @@ class SeriesEditPage(VideoSetPage):
         self.redate(series)
         self.rename(series)
         self.normalize(series)
+        self.commit(series)
 
     def upload_to(self, series):
         upform = self.integrate(mannatags.UploadForm(series, 2))
@@ -327,7 +254,8 @@ class SeriesEditPage(VideoSetPage):
                         self.vtable._make_table_row(vid)
                     msg.append(
                         f"Uploaded {vid.name} to {series.name} " 
-                        + f"with post date {vid.create_date}...")
+                        + "with post date" 
+                        + f"{vid.date.strftime('%Y-%m-%d')}...")
                 else:
                     msg.append(f"Failed upload: {resp}")
             self.redirect(flask.request.url, with_msg=msg)
@@ -384,7 +312,7 @@ class SeriesEditPage(VideoSetPage):
             if rename_form.new_series_name: 
                 series.name = rename_form.new_series_name
                 series.save()
-            return self.html
+            return self.response
 
     def normalize(self, series):
         normalize_form = self.integrate(mannatags.NormalizeSeries(series))
@@ -396,11 +324,11 @@ class SeriesEditPage(VideoSetPage):
                 flask.request.url, 
                 with_msg=f"Normalized names in {series.name}")
 
-
-class CatalogPage(MannaPage):
-    def __init__(self, catalog):
-        super().__init__("Catalog of Series")
-        self.integrate(mannatags.SeriesTable(catalog, pageLength=25))
+    def commit(self, series):
+        commit_form = self.integrate(mannatags.CommitSeries(series))
+        if commit_form.id in flask.request.form:
+            for vid in series.videos:
+                vid.commit_meta()
 
 
 class ErrorPage(MannaPage):

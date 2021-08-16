@@ -1,0 +1,12 @@
+{% extends 'table.html' %}
+{% block table_head %}
+   <th>Date</th>
+   <th>Series</th>
+   <th>Lesson</th>
+   <th>Duration</th>
+{% endblock %}
+{% block table_body %}
+   {% if not vids %}
+      <h3>No videos found...</h3>
+    {% endif %}
+{% endblock %}

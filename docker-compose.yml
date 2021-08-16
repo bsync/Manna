@@ -44,19 +44,9 @@ services:
          - static_html:/app/static
       ports:
          - 8001:8001
-      depends_on: 
-         - mongodb
       env_file: secrets
-   mongodb:
-      image: bitnami/mongodb:4.0
-      container_name: mongodb
-      ports:
-         - 27017:27017
-      volumes:
-         - mongodb_data:/bitnami
 volumes:
    nginx_secrets:
    static_html:
    joomla_html:
    mysql_data:
-   mongodb_data:
