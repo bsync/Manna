@@ -1,6 +1,8 @@
 <div id="ver" style="text-align: center;"> Version: {{ vid.width }} x {{ vid.height }} {{ vid.quality }}
    <div data-vimeo-url="{{vid.link}}" id="player"></div>
-   <a href={{vid.play_audio_link}}><button>Play Audio</button></a>
-   <a href={{vid.download_audio_link}}><button>Download Audio</button></a>
-   <a href={{vid.alt_quality_link}}><button>Download Video</button></a>
+   <div style="margin: 30px">
+      <a href={{vid.play_audio_link}}><button>Play Audio</button></a>
+      <a href={{vid.download_audio_link}}><button>Download Audio</button></a>
+      <a href={{vid.alt_quality_link}}><button>Download Video</button></a>
+   </div>
 </div>

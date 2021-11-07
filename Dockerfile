@@ -1,17 +1,29 @@
-FROM docksync/neojedi as base
-FROM base as builder
-RUN mkdir /install
-WORKDIR /install
-COPY requirements.txt /requirements.txt
-RUN apk add gcc musl-dev curl-dev python3-dev libressl-dev libffi-dev
-RUN pip install --user -r /requirements.txt
+# For more information, please refer to https://aka.ms/vscode-docker-python
+FROM python:3.8-slim-buster
 
-FROM base
-RUN apk add ffmpeg libcurl
-COPY --from=builder /root/.local /usr/local
-#dateutil package doesn't seem to honor prefix so reinstall it here
-#RUN pip install python-dateutil  
+EXPOSE 8001
+
+# Keeps Python from generating .pyc files in the container
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# Turns off buffering for easier container logging
+ENV PYTHONUNBUFFERED=1
+
+# Add additional deps needed for pycurl requirement
+RUN apt -y update && apt -y install gcc libcurl4-openssl-dev libssl-dev
+
+# Install pip requirements
+COPY requirements.txt .
+RUN python -m pip install -r requirements.txt
+
 WORKDIR /app
-COPY *.py serve ./
-COPY static /app/static
-CMD [ "./serve" ]
+COPY . /app
+
+# Creates a non-root user with an explicit UID and adds permission to access the /app folder
+# For more info, please refer to https://aka.ms/vscode-docker-python-configure-containers
+#RUN adduser -u 5678 --disabled-password --gecos "" appuser && chown -R appuser /app
+#USER appuser
+
+# During debugging, this entry point will be overridden. For more information, please refer to https://aka.ms/vscode-docker-python-debug
+#CMD ["gunicorn", "--bind", "0.0.0.0:8001", "--env", "SCRIPT_NAME=/manna", "manna:create_app()"]
+CMD ./serve

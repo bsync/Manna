@@ -1,16 +1,11 @@
-#!/bin/ash
+#!/bin/bash
 echo "Serving up the Manna since 2020!"
 
-if [ "$FLASK_ENV" == "development" ]; then
-	export FLASK_APP=manna
-   #exec python manna.py --ssl_context='adhoc' --host localhost --port 8001 
-   exec python manna.py --host localhost --port 8001
-else
-   exec gunicorn -b 0.0.0.0:8001 \
-      -w ${WORKERS:-4} \
-      -t 480 \
-      -e SCRIPT_NAME=/manna \
-      --certfile=/etc/letsencrypt/live/${DOMAIN}/fullchain.pem \
-      --keyfile=/etc/letsencrypt/live/${DOMAIN}/privkey.pem \
-      'manna:app'
-fi
+gunicorn -b 0.0.0.0:8001 \
+   -w ${WORKERS:-1} \
+   -t 480 \
+   -e SCRIPT_NAME=/manna \
+   --reload \
+   --certfile=/etc/letsencrypt/live/pleromabiblechurch.org/fullchain.pem \
+   --keyfile=/etc/letsencrypt/live/pleromabiblechurch.org/privkey.pem \
+   manna:app

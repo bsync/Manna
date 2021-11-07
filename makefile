@@ -1,6 +1,3 @@
-test:
-	python -m pytest tests.py
-
 production: 
 	docker-compose -f docker-compose.yml -f docker-compose.pro.yml up ${FLAGS}
 
@@ -12,15 +9,15 @@ restart:
 
 dev:
 	docker-compose stop manna
-	docker-compose -f docker-compose.yml -f docker-compose.local.yml \
+	docker-compose -f docker-compose.yml -f dev.yml \
 		run \
+		-e DOMAIN="pleromabiblechurch.org" \
 		-e FLASK_DEBUG=0 \
 		-e WORKERS=1 \
 		-e FLASK_ENV="development" \
 		--name mannadbg \
 		--service-ports \
-		--rm \
-		manna ash
+		manna bash
 
 debug_pro:
 	docker-compose stop manna
@@ -32,7 +29,7 @@ debug_pro:
 		--rm manna
 			   
 shell:
-	docker-compose run --rm --entrypoint ash manna
+	docker-compose run --rm --entrypoint bash manna
 
 # Rules to dump production volumes
 pro_dump: 

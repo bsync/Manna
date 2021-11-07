@@ -7,6 +7,6 @@ class VideoPlayer(object):
     def __init__(self, vid, *args, **kwargs):
         self.template_vars = dict(vid=vid)
         self.scriptage = """
-            new Vimeo.Player('player')
-            $("#player").fitVids()
+            vp = new Vimeo.Player('player')
+            vp.on('loaded', function(data) { $("#player").fitVids() })
         """

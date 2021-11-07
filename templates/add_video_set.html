@@ -1,0 +1,22 @@
+{% extends "forms_base.html" %}
+	{% block manna_form %}
+		{% for upunit in form.vidups %}
+		<div id="upbox">
+			<div style="display: grid;" class="upunit">
+				Upload {{ loop.index }}
+				{{ upunit.video_name.label }} {{ upunit.video_name(class_="video_name") }}
+				{{ upunit.video_author.label }} {{ upunit.video_author(value="Pastor") }}
+				{{ upunit.video_file.label }} {{ upunit.video_file(class_="video_file") }}
+				{{ upunit.video_date.label }} {{ upunit.video_date }}
+				<label>Upload Progress:</label> <div class="progress"></div>
+				<div class="status" style="background-color: black; color: red;"></div>
+				{{ upunit.series_id(class_="series_id", value=form.series.id) }}
+				{{ upunit.series_uri }}
+				{{ upunit.vid_id(class_="vid_id") }}
+			</div>
+		</div>
+		<hr>
+		{% endfor %}
+		<button class="add_field" style="display: inline-block">+</button>
+		<button class="del_field" style="display: inline-block">-</button>
+	{% endblock %}

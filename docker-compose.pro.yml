@@ -13,7 +13,7 @@ services:
          - ./nginx/pleroma.conf:/etc/nginx/conf.d/pleroma.conf
    manna:
       environment:
-         - DOMAIN=tullahomabiblechurch.org
+         - DOMAIN=pleromabiblechurch.org
       volumes:
          - ./:/app
          - ./static/:/app/static

@@ -14,9 +14,12 @@ class DataTable(object):
         self.kwargs.setdefault('processing', "true") 
 
     @property
+    def dtargs(self):
+        return ",".join([ f' {x}: {y}' for x,y in self.kwargs.items() ])
+
+    @property
     def scriptage(self):
-        dtargs = ",".join([ f' {x}: {y}' for x,y in self.kwargs.items() ])
-        return f"""var {self.id} = $('#{self.id}').DataTable({{{dtargs}}}) """
+        return f"$('#{self.id}').DataTable({{{self.dtargs}}});"
 
     _tblcnt = 0
     @property
@@ -58,26 +61,14 @@ class VideoTable(DataTable):
     template = "vid_table.html"
     def __init__(self, vids, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.kwargs['columnDefs'] = [{ "width":"50%", "targets":2 }]
         self.template_vars = dict(vids=vids, tbl_id=self.id)
 
 
 class UserTable(DataTable):
+    template = "user_table.html"
     def __init__(self, users, *args, **kwargs):
         super().__init__(*args,  **kwargs)
-        self.refresh(users)
+        self.users = users.query.all()
+        self.template_vars = dict(users=self.users, tbl_id=self.id)
 
-    def refresh(self, users):
-        self.head.clear()
-        with self.head:
-            tags.th("Name", _class="dt-head-left")
-            tags.th("Email", _class="dt-head-left")
-            tags.th("Active", _class="dt-head-left")
-        self.body.clear()
-        with self.body:
-            @tags.tr
-            def _row(u):
-                tags.td(f"{u.name}")
-                tags.td(f"{u.email}")
-                tags.td(f"{u.is_active}")
-            for u in users: 
-                _row(u)

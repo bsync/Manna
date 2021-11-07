@@ -1,33 +1,34 @@
 $(document).ready(function() {
-    var max_fields = $("#upbox").data("maxcnt");
-    var x = 1;
-    $(".add_field").click(function(e) {
-        e.preventDefault();
-        if (x < max_fields) {
-            x++;
-            newunit = $(".upunit").last().clone(true)
-            newunit.find('.fileselect').val("")
-            var vname = newunit.find(".vidname").first()
-            rmatch = (vname.val().match(/(\D*)(\d+$)/) || [])
-            vname.val(rmatch[1] + (+rmatch[2] + 1))
-            newunit.prepend("<hr><hr>")
-            newunit.appendTo("#upbox")
+	$(".upunit:not(:first)").hide()
+	$(".del_field").hide()
+	$(".add_field").click(function(e) {
+	if ($(".upunit:hidden").length > 0) {
+        	e.preventDefault()
+		newunit = $(".upunit:hidden:first")
+		newunit.show()
+        newunit.find('.fileselect').val("")
+        var vname = newunit.find(".vidname").first()
+        rmatch = (vname.val().match(/(\D*)(\d+$)/) || [])
+        vname.val(rmatch[1] + (+rmatch[2] + 1))
         } else {
-            alert(`Only ${max_fields} uploads at a time`)
+            $(".add_field").hide()
+            $(".del_field").show()
         }
     });
 
     $(".del_field").click(function(e) {
         e.preventDefault();
-        if (x > 1) {
-           $(".upunit").last().remove();
-           x--;
-        }
+	 	  if ($(".upunit:not:hidden").length > 0) {
+            $(".upunit").last().hide()
+		  } else {
+            $(".add_field").show()
+            $(".del_field").hide()
+		  }
     });
 })
 
 document.addEventListener('DOMContentLoaded', function() {
-    var browse = $("#UploadForm_Submit")
+    var browse = $("#Upload_Submit")
     browse[0].addEventListener('click', handleFileSelect, false)
 })
 
