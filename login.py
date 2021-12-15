@@ -1,27 +1,24 @@
-import flask, os, requests, json
-import dominate.tags as tags
-import flask_user, flask_login
+import os
 import pages, forms
-from oauthlib.oauth2 import WebApplicationClient
-from urllib.parse import unquote
-from datetime import datetime
+import flask_user, flask_login
+from models import mdb, User, UserInvitation
+from flask import redirect, request, flash
 from flask_wtf import FlaskForm
-from models import mdb, User, Role
+from urllib.parse import quote, unquote    # Python 3
 try:
     import passcheck
 except:
     passcheck = False
 
-class LoginManager(flask_user.UserManager):
-    gclient = WebApplicationClient(os.environ.get("GOOGLE_CLIENT_ID"))
+class UserLoginManager(flask_user.UserManager):
     def __init__(self, app):
-        super().__init__(app, mdb, User)
+        super().__init__(app, mdb, User, UserInvitationClass=UserInvitation)
         mdb.init_app(app)
-        app.route("/google_login", methods=['GET', 'POST'])(self.google_login)
-        app.route("/user/sign-in/edit", methods=['GET', 'POST'])(
-            self.required(self.confirm_users))
-        app.route("/user/sign-out/edit", methods=['GET', 'POST'])(
-                lambda : flask.redirect(flask.url_for('confirm_users')))
+        self.app = app
+        self.Users = User
+        rr = self.roles_required('Admin')(self.manage_registrations)
+        app.route("/user/sign-in/edit", methods=['GET', 'POST'])(rr)
+        app.route("/user/sign-out/edit", methods=['GET', 'POST'])(rr)
 
     @property 
     def required(self):
@@ -31,81 +28,27 @@ class LoginManager(flask_user.UserManager):
     def roles_required(self):
         return flask_user.roles_required
 
-    def google_login(self):
-        # Use library to construct the request for Google login and provide
-        # scopes that let you retrieve user's profile from Google
-        if 'code' not in flask.request.args:
-            rd_url = flask.request.url_root.strip('/') + flask.request.path
-            request_uri = self.gclient.prepare_request_uri(
-                self.google_provider_cfg("authorization_endpoint"),
-                redirect_uri=rd_url, #flask.url_for("google_auth", _external=True),
-                scope=["openid", "email", "profile"],
-                state=flask.request.form['next'].partition('/manna')[2])
-            return flask.redirect(request_uri)
-        else:
-            return flask.redirect(
-                self.process_google_auth(
-                    flask.request.url, 
-                    flask.request.base_url, 
-                    flask.request.args.get('code')))
+    def manage_registrations(self):
+        return pages.RegistrationPage(self).response
 
-    def confirm_users(self):
-        pg = pages.MannaPage("Registration Confirmation")
-        pg.add(forms.RegistrationForm(User))
-        pg.add(forms.NewUserForm())
-        return pg.response
+    def register_view(self):
+        #import pdb; pdb.set_trace()
+        return super().register_view()
 
-    def google_provider_cfg(self, key):
-        GOOGLE_OPEN_ID_URL="https://accounts.google.com/.well-known/openid-configuration"
-        if not hasattr(self, '_gpc'):
-            self._gpc = requests.get(GOOGLE_OPEN_ID_URL).json()
-        return self._gpc[key]
+    def login_view(self):
+        return pages.LoginPage(self).response
 
-    def process_google_auth(self, auth_url, redir_url, gcode):
-        # Get authorization code Google sent back to you
-        token_url, headers, body = self.gclient.prepare_token_request(
-            self.google_provider_cfg("token_endpoint"),
-            authorization_response=auth_url,
-            redirect_url=redir_url, 
-            code=gcode)
-        token_response = requests.post(
-            token_url,
-            headers=headers,
-            data=body,
-            auth=(self.gclient.client_id, os.getenv('GOOGLE_CLIENT_SECRET')),)
-        # Parse the tokens!
-        self.gclient.parse_request_body_response(json.dumps(token_response.json()))
-        # Now that you have tokens (yay) let's find and hit the URL
-        # from Google that gives you the user's profile information,
-        # including their Google profile image and email
-        userinfo_endpoint = self.google_provider_cfg("userinfo_endpoint")
-        uri, headers, body = self.gclient.add_token(userinfo_endpoint)
-        userinfo_response = requests.get(uri, headers=headers, data=body)
+    def login(self, user):
+        flask_login.login_user(user)
 
-        # The user authenticated with Google, authorized your
-        # app, and now you've verified their email through Google!
-        if userinfo_response.json().get("email_verified"):
-            unique_id = userinfo_response.json()["sub"]
-            users_email = userinfo_response.json()["email"]
-            picture = userinfo_response.json()["picture"]
-            #users_name = userinfo_response.json()["given_name"]
-        else:
-            return "User email not available or not verified by Google.", 400
-        # Create a user in your mdb with the information provided by Google
-        user = User.query.filter_by(email=users_email).first()
-        if not user:
-            user = User(email=users_email, active=(User.query.count() <= 1))
-            mdb.session.add(user)
-            mdb.session.commit()
-
-        if user.is_active: # Begin user session by logging the user in
-            flask_login.login_user(user)
-            return f"{flask.request.url_root}{flask.request.args.get('state')}"
-        else: #An entry for the user now exists but needs to be made active before first use.
-            flask.flash(f"Waiting for {user.name} confirmation.")
-            return flask.url_for("list_latest")
-
-    def logout():
+    def logout(self):
         flask_login.logout_user()
         return flask.redirect(flask.url_for("list_latest"))
 
+    def unauthenticated_view(self):
+        """ Prepare a Flash message and redirect to USER_UNAUTHENTICATED_ENDPOINT"""
+        # Prepare Flash message
+        flash(f"You must be signed in to access '{request.path.rpartition('/')[2]}'", 'error')
+        # Redirect to USER_UNAUTHORIZED_ENDPOINT
+        safe_next_url = self.make_safe_url(request.url)
+        return redirect(self._endpoint_url(self.USER_UNAUTHENTICATED_ENDPOINT)+'?next='+quote(safe_next_url))

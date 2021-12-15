@@ -5,7 +5,7 @@ import flask_user
 class MannaDB(SQLAlchemy):
     def init_app(self, app):
         super().init_app(app)
-        # Create default user with 'Admin' and 'EndUser' roles
+        # Create default user with 'Admin' role
         with app.app_context():
             self.create_all()
             if not User.query.filter(User.email == 'james.horine@gmail.com').first():
@@ -15,7 +15,6 @@ class MannaDB(SQLAlchemy):
                     email_confirmed_at=datetime.utcnow(),
                 )
                 user.roles.append(Role(name='Admin'))
-                user.roles.append(Role(name='EndUser'))
                 self.session.add(user)
                 self.session.commit()
 
@@ -59,3 +58,14 @@ class UserRoles(db.Model):
     id = db.Column(db.Integer(), primary_key=True)
     user_id = db.Column(db.Integer(), db.ForeignKey('users.id', ondelete='CASCADE'))
     role_id = db.Column(db.Integer(), db.ForeignKey('roles.id', ondelete='CASCADE'))
+
+
+class UserInvitation(db.Model):
+    __tablename__ = 'user_invitations'
+    id = db.Column(db.Integer, primary_key=True)
+    # UserInvitation email information. The collation='NOCASE' is required
+    # to search case insensitively when USER_IFIND_MODE is 'nocase_collation'.
+    email = db.Column(db.String(255, collation='NOCASE'), nullable=False)
+    # save the user of the invitee
+    invited_by_user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+

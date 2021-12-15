@@ -51,15 +51,15 @@ class DataTable(object):
 
 class CatalogTable(DataTable):
     template = "catalog_table.html"
-    def __init__(self, catalog, *args, **kwargs):
-        kwargs.setdefault('order', [[2,"asc"]])
+    def __init__(self, *args, catalog=None, **kwargs):
+        kwargs.setdefault('order', [[0,"desc"]])
         super().__init__(*args, **kwargs)
         self.template_vars = dict(catalog=catalog, tbl_id=self.id)
 
 
 class VideoTable(DataTable):
     template = "vid_table.html"
-    def __init__(self, vids, *args, **kwargs):
+    def __init__(self, *args, vids=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.kwargs['columnDefs'] = [{ "width":"50%", "targets":2 }]
         self.template_vars = dict(vids=vids, tbl_id=self.id)

@@ -1,6 +1,7 @@
 {% extends "forms_base.html" %}
-	{% block manna_form %}
-     {% include "vid_table.html" %}
-     <p> {{form.example}} </p>
-     <div id='Normalize_form_results' style="background-color:black; color:red;"></div>
+	{% block manna_subforms %}
+		{% include "vid_table.html" %}
+		<p> {{form.example}} </p>
+		<div id='Normalize_form_results' style="background-color:black; color:red;"></div>
+		{{ super() }}
 	{% endblock %}

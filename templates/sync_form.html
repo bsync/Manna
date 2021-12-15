@@ -1,5 +1,6 @@
 {% extends "forms_base.html" %}
-	{% block manna_form %}
-     {% include "vid_table.html" %}
-     <p>Attempt to resynchronize any new content in this series</p>
+	{% block manna_subforms %}
+	     {% include "vid_table.html" %}
+	     <p>Attempt to resynchronize any new content in this series</p>
+	     {{ super() }}
 	{% endblock %}

@@ -1,57 +1,63 @@
-import flask, os, traceback, bcrypt
-import wtforms.fields as fields
+import flask, os, requests, json
 import wtforms.validators as validators
-from wtforms.fields.html5 import DateField, EmailField
-from datetime import datetime, date
-from flask_wtf import FlaskForm
+from flask_mail import Message
 from tables import VideoTable, UserTable
 from vidstore import MannaStore
 from models import mdb, User, Role
+from wtforms.fields import StringField, PasswordField
+from wtforms.fields import IntegerField, HiddenField, FileField
+from wtforms.fields import SelectField, SubmitField, TextAreaField
+from wtforms.fields.html5 import DateField, EmailField
+from flask_wtf import FlaskForm, RecaptchaField
+from flask_login import current_user
+from oauthlib.oauth2 import WebApplicationClient
+from datetime import date
 
-
-class Submital(str):
-    def __new__(cls, content, **kwargs):
-        return str.__new__(cls, content)
-
-    def __init__(self, istr, disabled=False):
-        super().__init__()
-        self.istr = istr
-        self.booleans = "disabled" if disabled else ""
-
-    @property
-    def id(self):
-        return self.istr
-
+def redirect(url='', to_form=None, with_msg=False, **kwargs): 
+    if to_form is not None:
+        to_form = to_form.id 
+        url = f"{url}#{to_form}"
+    if with_msg:
+        if not isinstance(with_msg, str):
+            with_msg = " ".join(with_msg)
+        flask.flash(with_msg, to_form)
+    url += "&".join([f"?{k}={v}" for k,v in kwargs.items()])
+    return flask.redirect(url)
 
 class MannaForm(FlaskForm):
-    submital = Submital("Manna_Form")
-    form_id = fields.HiddenField("form_id") 
-    vimeo_token_field = fields.HiddenField(default=os.getenv('VIMEO_TOKEN'))
+    template = "forms_base.html"
+    target = ""
     scripts = [ "https://code.jquery.com/jquery-3.6.0.min.js"]
+    vimeo_token_field = HiddenField(default=os.getenv('VIMEO_TOKEN'))
+    submit = SubmitField("Submit")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.mstore = MannaStore()
         self.today=f"{date.today().isoformat()}"
         self.template_vars = dict(form=self)
-        if self.was_submitted:
-            try:
-                self.on_validated()
-            except Exception as e:
-                emsg = str(e) + traceback.format_exc()
-                flask.flash(f"Operation failed for {self}: {emsg}")
 
     @property
     def name(self):
-        return self.submitals[0]
-
-    @property
-    def submitals(self):
-        return [ self.submital ]
+        return self.__class__.__name__
 
     @property
     def was_submitted(self):
         return self.validate_on_submit() and flask.request.form['form_id'] == self.name
+
+    @property
+    def content_fields(self):
+        yfields = [ RecaptchaField, StringField, EmailField, 
+                    PasswordField, TextAreaField, SelectField ]
+        for field in self._fields.values():
+            if type(field) in yfields:
+                yield field
+
+    @property
+    def submit_fields(self):
+        for field in self._fields.values():
+            if type(field) in [ SubmitField ]:
+                yield field
 
     def on_validated(self):
         pass
@@ -64,24 +70,24 @@ class MannaForm(FlaskForm):
 
 
 class AddSeriesToCatalogForm(MannaForm):
-    submital = Submital("Add_a_series_to_the_catalog")
-    series_name = fields.StringField("Name the Series", [validators.InputRequired()])
+    submit = SubmitField("Add_a_series_to_the_catalog")
+    series_name = StringField("Name the Series", [validators.InputRequired()])
 
     def on_validated(self):    
         aseries = self.mstore.add_new_series(self.series_name.data, "TODO: Describe me")
-        self.redirect(with_msg=f"Added series {aseries.name}")
+        self.redirection=redirect(with_msg=f"Added series {aseries.name}")
 
 
 class SyncWithCatalogForm(MannaForm):
-    submital = Submital("Sync_entire_catalog_with_backing_store")
+    submit = SubmitField("Sync_entire_catalog_with_backing_store")
 
     def on_validated(self):    
         self.mstore.clear_cache()
-        self.redirect(with_msg=f"Cached series have been refreshed...")
+        self.redirection=redirect(with_msg=f"Cached series have been refreshed...")
 
 
 class SeriesForm(MannaForm):
-    submital = Submital("Series_Form")
+    submit = SubmitField("Series_Form")
     table_options = { 'pageLength':5 }
 
     def __init__(self, series, *args, **kwargs):
@@ -104,22 +110,27 @@ class SeriesForm(MannaForm):
 
 
 class AddVideoForm(SeriesForm):
-    submital = Submital("Add_Video")
-    video_name = fields.StringField("Video Name:", [validators.InputRequired()])
-    video_author = fields.StringField("Presented by:", [validators.InputRequired()])
-    video_file = fields.FileField("Video File:", [validators.InputRequired()])
-    video_date = DateField("Video Date:", [validators.InputRequired()], default=date.today())
-    series_id = fields.HiddenField("series id")
-    series_uri = fields.HiddenField("series uri")
-    vid_id = fields.HiddenField("uploaded video ids")
+    submit = SubmitField("Add_Video")
+    video_name = StringField("Video Name:")
+    #video_name = StringField("Video Name:", [validators.InputRequired()])
+    video_author = StringField("Presented by:")
+    #video_author = StringField("Presented by:", [validators.InputRequired()])
+    video_file = FileField("Video File:")
+    #video_file = FileField("Video File:", [validators.InputRequired()])
+    video_date = DateField("Video Date:", default=date.today())
+    #video_date = DateField("Video Date:", [validators.InputRequired()], default=date.today())
+    series_id = HiddenField("series id")
+    series_uri = HiddenField("series uri")
+    vid_id = HiddenField("uploaded video ids")
 
 
 class AddVideoSetForm(SeriesForm):
     template = "add_video_set.html"
-    submital = Submital("Upload_Videos")
+    submit = SubmitField("Upload_Videos", id="upload_videos")
 
     def __init__(self, series, cnt=2, *args, **kwargs):
         super().__init__(series, *args, **kwargs)
+        self.legend = f"Upload videos to {series.name}"
         self.vimeo_token = os.getenv('VIMEO_TOKEN')
         self.vidups = []
         for vidx in range(0,cnt):
@@ -133,9 +144,13 @@ class AddVideoSetForm(SeriesForm):
 
     def on_validated(self):    
         self.vidids = [ vid for vid in flask.request.form.getlist('vid_id') if vid ]
-        self.vidnames = flask.request.form.getlist('video_name')[:len(self.vidids)]
-        flask.flash(f"Added {self.vidnames} to {self.series.name}") 
-        self.mstore.purge_cache(self.series)
+        import pdb; pdb.set_trace()
+        if len(self.vidids):
+            self.vidnames = flask.request.form.getlist('video_name')[:len(self.vidids)]
+            flask.flash(f"Added {self.vidnames} to {self.series.name}") 
+            self.mstore.purge_cache(self.series)
+        else:
+            flask.flash(f"Must provide at least one video to add to {self.series.name}.")
 
     @property
     def scriptage(self):
@@ -163,11 +178,11 @@ class AddVideoSetForm(SeriesForm):
                 }
             }) 
 
-            $("#Upload_Videos_submit").click(function(evt) {
+            $("#upload_videos").click(function(evt) {
                evt.stopPropagation()
                evt.preventDefault()
                var ups = $.map($(".upunit:visible"), function(unit) { return perform_upload_for(unit) })
-               //$.when(...ups).done(function() { $("#Upload_Videos").submit() })
+               $.when(ups).done(function() { $("#AddVideoSetForm").submit() })
             })
 
             function perform_upload_for(unit) {
@@ -258,13 +273,13 @@ class AddVideoSetForm(SeriesForm):
 
 
 class PurgeVideoFromSeries(SeriesForm):
-    template = "purge_video.html"
-    submital = Submital("Purge_Video")
-    vidlist = fields.SelectField("Choose a video to purge:", validate_choice=False) 
+    submit = SubmitField("Purge_Video")
+    vidlist = SelectField("Choose a video to purge:", validate_choice=False) 
     table_options = { 'select':{ 'style':'single'} }
 
     def __init__(self, series, *args, **kwargs):
         super().__init__(series, *args, **kwargs)
+        self.legend = f"Purge videos from {series.name}"
         self.vidlist.choices = [ v.name for v in series.videos() ]
 
     def on_validated(self):    
@@ -283,14 +298,16 @@ class PurgeVideoFromSeries(SeriesForm):
 
 class RedateSeriesForm(SeriesForm):
     template = "redate_form.html"
-    submital = Submital("Redate Videos")
+    submit = SubmitField("Redate_Videos")
+    submit = SubmitField("Redate_Videos", id="redate_videos")
     table_options = { 'select':{ 'style':'multi'} }
-    start_date = fields.DateField(id="start_date") 
-    date_inc = fields.IntegerField(id="date_inc", default=3, render_kw=dict(size=2))
-    vid_set = fields.IntegerField(id="vid_set", default=2, render_kw=dict(size=2))
+    start_date = DateField(id="start_date") 
+    date_inc = IntegerField(id="date_inc", default=3, render_kw=dict(size=2))
+    vid_set = IntegerField(id="vid_set", default=2, render_kw=dict(size=2))
 
     def __init__(self, series, *args, **kwargs):
         super().__init__(series, *args, **kwargs)
+        self.legend = f"Redate videos in {series.name}"
         self.scripts.extend([ "date.format.js" ])
 
     @property
@@ -327,7 +344,7 @@ class RedateSeriesForm(SeriesForm):
                 function changing_selection(e,dt,type,idxs) { set_redate_strategy(type) }
                 dtable.on('select', changing_selection)
                 dtable.on('deselect', changing_selection)
-                $("#RedateVideos input[type=submit]").click(
+                $("#redate_videos").click(
                   function(evt) { 
                     evt.preventDefault()
                     var vc = dtable.rows('.selected').data()
@@ -370,10 +387,11 @@ class RedateSeriesForm(SeriesForm):
 
 class NormalizeSeries(SeriesForm):
     template = "normalize_form.html"
-    submital = Submital("Normalize_Titles")
+    submit = SubmitField("Normalize_Titles")
 
     def __init__(self, series, *args, **kwargs):
         super().__init__(series, *args, **kwargs)
+        self.legend = f"Normalize videos in {series.name}"
         if not self.is_noramlizable:
             self.booleans = "disabled" 
 
@@ -418,46 +436,28 @@ class NormalizeSeries(SeriesForm):
 
 class SyncWithSeriesForm(SeriesForm):
     template = "sync_form.html"
-    submital = Submital("Sync_Videos")
+    submit = SubmitField("Sync_Videos")
+    legend = "Syncornize videos"
 
     def on_validated(self):    
         self.mstore.purge_cache(self.series)
         flask.flash(f"Resynced series {self.series.name}.")
 
 
-class NewUserForm(MannaForm):
-    template = "new_user_form.html"
-    submital = Submital("Add")
-    #username = fields.StringField('Username', [validators.Length(min=4, max=25)])
-    email = EmailField('Email address', [validators.DataRequired(), validators.Email()])
-    password = fields.PasswordField('New Password', 
-        [ validators.DataRequired(),
-          validators.EqualTo('confirm_pass', message='Passwords must match') ])
-    confirm_pass = fields.PasswordField('Repeat Password')
-    isadmin = fields.BooleanField('Admin', default=False)
-
-    def on_validated(self):    
-        form = flask.request.form
-        pword = bcrypt.hashpw(form['password'].encode("utf-8"), bcrypt.gensalt())
-        newuser = User( 
-            email=form['email'],
-            email_confirmed_at=datetime.utcnow(),
-            password=pword)
-        if 'isadmin' in  form:
-            newuser.roles.append(Role.query.filter_by(name='Admin').first())
-        newuser.roles.append(Role.query.filter_by(name='EndUser').first())
-        mdb.session.add(newuser)
-        mdb.session.commit()
-
-
 class RegistrationForm(MannaForm):
-    template = "confirm_registration.html"
-    submital = Submital("Register", disabled=True)
-    user_selection = fields.HiddenField()
+    template = "regform.html"
+    rendopts=dict(disabled=True)
+    submit = None
+    register = SubmitField("Register", render_kw=rendopts)
+    unregister = SubmitField("Unregister", render_kw=rendopts)
+    delete = SubmitField("Delete", render_kw=rendopts)
+    promote = SubmitField("Promote", render_kw=rendopts)
+    demote = SubmitField("Demote", render_kw=rendopts)
+    user_selection = HiddenField()
 
-    def __init__(self, users):
+    def __init__(self, login_manager):
         super().__init__()
-        self.table = UserTable(users, select={ 'style':'single'}) 
+        self.table = UserTable(login_manager.Users, select={ 'style':'single'}) 
         self.template_vars.update(self.table.template_vars)
         self.scripts.extend(self.table.scripts)
         self.css = self.table.css
@@ -469,17 +469,14 @@ class RegistrationForm(MannaForm):
                     var udata = dt.data()
                     var uregd = udata[2] == "True"
                     var uid = udata[3]
+                    var isadmin = udata[0] == "Admin"
                     $('#user_selection').val(uid); 
-                    $('#Register_submit').prop('disabled', uregd)
-                    $('#Unregister_submit').prop('disabled', !uregd || uid == "1")
-                    $('#Delete_submit').prop('disabled', uregd)
+                    $('#register').prop('disabled', uregd)
+                    $('#unregister').prop('disabled', !uregd || uid == "1")
+                    $('#promote').prop('disabled', isadmin || uid == "1")
+                    $('#demote').prop('disabled', !isadmin || uid == "1")
+                    $('#delete').prop('disabled', uregd)
                 })"""
-
-    @property
-    def submitals(self):
-        return [ self.submital, 
-                 Submital("Unregister", disabled=True), 
-                 Submital("Delete", disabled=True)]
 
     @property
     def selected_user(self):
@@ -488,13 +485,182 @@ class RegistrationForm(MannaForm):
 
     @property
     def operation(self):
-        return flask.request.form['submission']
+        for op in "register unregister promote demote delete".split():
+            if op in flask.request.form:
+                return flask.request.form[op]
+        return None
 
     def on_validated(self):    
         su = self.selected_user
+        aRole = Role.query.filter(Role.name == 'Admin').first()
         if su:
-            su.active = (self.operation == "Register")
-            if self.operation == "Delete":
+            if self.operation in "Register Unregister".split():
+                su.active = (self.operation == "Register")
+            elif self.operation == "Promote":
+                if aRole not in su.roles:
+                    su.roles.append(aRole)
+            elif self.operation == "Demote":
+                if aRole in su.roles:
+                    su.roles.clear()
+            elif self.operation == "Delete":
                 mdb.session.delete(su)
             mdb.session.commit()
+        self.redirection=redirect(with_msg=f"{self.operation} completed!")
+
+
+class InviteUserForm(MannaForm):
+    #template = "invform.html"
+    email = EmailField('Email address', [validators.DataRequired(), validators.Email()])
+    submit = SubmitField("Invite")
+
+    def __init__(self, login_manager):
+        super().__init__()
+        self.lm = login_manager
+
+    def on_validated(self):
+        email = self.email.data
+        user, user_email = self.lm.db_manager.get_user_and_user_email_by_email(email)
+        if user:
+            flash("User with that email has already registered", "error")
+            return redirect(flask.url_for('user.invite_user'))
+
+        # Add UserInvitation
+        user_invitation = self.lm.db_manager.add_user_invitation(
+            email=email,
+            invited_by_user_id=current_user.id)
+        self.lm.db_manager.commit()
+
+        try:
+            # Send invite_user email
+            self.lm.email_manager.send_invite_user_email(current_user, user_invitation)
+        except Exception as e:
+            # delete new UserInvitation object if send fails
+            self.lm.db_manager.delete_object(user_invitation)
+            self.lm.db_manager.commit()
+            raise
+
+        # Flash a system message
+        flask.flash('Invitation has been sent.', 'success')
+
+        # Redirect
+        safe_next_url = self.lm._get_safe_next_url('next', 'list_latest')
+        self.redirection = redirect(safe_next_url)
+
+class RequestAccessForm(MannaForm):
+    template = "request_access_form.html"
+    legend = "Or by requesting access by email"
+    submit = SubmitField("Request_Access")
+    email = EmailField('Email address', [validators.DataRequired(), validators.Email()])
+    comments = TextAreaField(
+        u'Your comments:', 
+        [validators.optional(), validators.length(max=200)],
+        default="Maybe give us an idea who you are and why you are requesting access...:")
+    recaptcha = RecaptchaField()
+
+    def __init__(self, lmanager):
+        super().__init__()
+        self.lm = lmanager
+
+    def on_validated(self):    
+        mailer = self.lm.email_adapter.mail
+        rcpt = self.lm.USER_EMAIL_SENDER_EMAIL
+        msg = Message("Request for Manna Access", recipients=[rcpt])
+        msg.body = f"{self.email.data} says '{self.comments.data}'"
+        mailer.send(msg)
+        self.redirection=redirect(with_msg="Request sent....please allow a day or so for response")
+
+
+class GoogleLoginForm(MannaForm):
+    template = "google_login_form.html"
+    legend = "Using your very own google account"
+    submit = SubmitField("Google_Authorize")
+    gclient = WebApplicationClient(os.environ.get("GOOGLE_CLIENT_ID"))
+
+    def __init__(self, lmanager):
+        super().__init__()
+        self.lm = lmanager
+        if 'code' in flask.request.args:
+            self.redirection=redirect(
+                self.process_google_auth(
+                    flask.request.url, 
+                    flask.request.base_url, 
+                    flask.request.args.get('code')))
+
+
+    def on_validated(self):
+        # Use gclient to construct the request for Google login and provide
+        # scopes that let you retrieve user's profile from Google
+        next_url = flask.request.args.get('next', f"{flask.request.root_path}/")
+        next_url = next_url.partition(flask.request.root_path)[2]
+        request_uri = self.gclient.prepare_request_uri(
+            self.google_provider_cfg("authorization_endpoint"),
+            redirect_uri=flask.request.base_url, #flask.url_for("google_auth", _external=True),
+            scope=["openid", "email", "profile"],
+            state=next_url)
+        self.redirection=redirect(request_uri)
+
+    def google_provider_cfg(self, key):
+        GOOGLE_OPEN_ID_URL="https://accounts.google.com/.well-known/openid-configuration"
+        if not hasattr(self, '_gpc'):
+            self._gpc = requests.get(GOOGLE_OPEN_ID_URL).json()
+        return self._gpc[key]
+
+    def process_google_auth(self, auth_url, redir_url, gcode):
+        # Get authorization code Google sent back to you
+        token_url, headers, body = self.gclient.prepare_token_request(
+            self.google_provider_cfg("token_endpoint"),
+            authorization_response=auth_url,
+            redirect_url=redir_url, 
+            code=gcode)
+        token_response = requests.post(
+            token_url,
+            headers=headers,
+            data=body,
+            auth=(self.gclient.client_id, os.getenv('GOOGLE_CLIENT_SECRET')),)
+        # Parse the tokens!
+        self.gclient.parse_request_body_response(json.dumps(token_response.json()))
+        # Now that you have tokens (yay) let's find and hit the URL
+        # from Google that gives you the user's profile information,
+        # including their Google profile image and email
+        userinfo_endpoint = self.google_provider_cfg("userinfo_endpoint")
+        uri, headers, body = self.gclient.add_token(userinfo_endpoint)
+        userinfo_response = requests.get(uri, headers=headers, data=body)
+
+        # The user authenticated with Google, authorized your
+        # app, and now you've verified their email through Google!
+        if userinfo_response.json().get("email_verified"):
+            unique_id = userinfo_response.json()["sub"]
+            users_email = userinfo_response.json()["email"]
+            picture = userinfo_response.json()["picture"]
+            #users_name = userinfo_response.json()["given_name"]
+        else:
+            return "User email not available or not verified by Google.", 400
+        # Create a user in your mdb with the information provided by Google
+        user = User.query.filter_by(email=users_email).first()
+        if not user:
+            user = User(email=users_email, active=(User.query.count() <= 1))
+            mdb.session.add(user)
+            mdb.session.commit()
+
+        if user.is_active: # Begin user session by logging the user in
+            self.lm.login(user)
+            flask.flash(f"{user.email} is now logged in.")
+            return f"{flask.request.url_root}{flask.request.args.get('state')}"
+        else: #An entry for the user now exists but needs to be made active before first use.
+            flask.flash(f"Waiting for {user.name} confirmation.")
+            return flask.url_for("list_latest")
+
+
+class LoginUserForm(InviteUserForm):
+    template = "login_form.html"
+    legend = "Using a previously established account"
+    password = PasswordField("Password", [validators.DataRequired()])
+    recaptcha = RecaptchaField()
+    submit = SubmitField("Login")
+
+    def on_validated(self):
+        safe_next_url = self.lm._get_safe_next_url('next', self.lm.USER_AFTER_LOGIN_ENDPOINT)
+        user, user_email = self.lm.db_manager.get_user_and_user_email_by_email(self.email.data)
+        if user:
+            self.redirection=self.lm._do_login_user(user, safe_next_url)
 

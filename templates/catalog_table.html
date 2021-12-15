@@ -5,12 +5,14 @@
    <th>Lesson Count</th>
 {% endblock %}
 {% block table_body %}
-   {% for series in catalog: %}
-      <tr>
-         <td>{{ series.date.strftime("%Y-%m-%d") }}</td>
-         <td> <a href={{url_for('.show_series_page', series=series.name)}} 
-                 onclick="shift_edit(event, this)">{{series.name}}</a></td>
-         <td>{{ series.video_count }}</td> 
-      </tr>
-   {% endfor %}
+   {% if catalog %}
+	   {% for series in catalog: %}
+	      <tr>
+		 <td>{{ series.date.strftime("%Y-%m-%d") }}</td>
+		 <td> <a href={{url_for('.show_series_page', series=series.name)}} 
+			 onclick="shift_edit(event, this)">{{series.name}}</a></td>
+		 <td>{{ series.video_count }}</td> 
+	      </tr>
+	   {% endfor %}
+   {% endif %}
 {% endblock %}

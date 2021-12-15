@@ -12,12 +12,10 @@
       {% for vid in vids %}
       <tr>
          <td>{{vid.date.strftime("%Y-%m-%d") }}</td>
-         <td>{{vid.parent_series_name}}</td>
+	 <td><a href={{ url_for('show_series_page', series=vid.parent_name) }}>{{vid.parent_name}}</a></td>
          <td><a href={{vid.uri}}>{{vid.name}}</a></td>
          <td>{{vid.duration}}</td>
       </tr>
       {% endfor %}
-   {% else %}
-      <h3>No videos found...</h3>
    {% endif %}
 {% endblock %}

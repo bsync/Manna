@@ -1,0 +1,6 @@
+{% extends "forms_base.html" %}
+	{% block manna_form %}
+		{% include "user_table.html" %}
+		{{ form.user_selection }}
+		{{ super() }}
+	{% endblock %}

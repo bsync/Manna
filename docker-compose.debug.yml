@@ -1,0 +1,19 @@
+version: '3.1'
+services:
+  manna:
+    container_name: mdev
+    image: manna
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    stdin_open: true
+    tty: true
+    command: bash
+    ports:
+      - 8001:8001
+      - 5678:5678
+    environment:
+      - WORKERS=1
+      - FLASK_APP=manna.py
+    volumes:
+      - ./:/app
