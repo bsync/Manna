@@ -17,6 +17,16 @@ class MannaDB(SQLAlchemy):
                 user.roles.append(Role(name='Admin'))
                 self.session.add(user)
                 self.session.commit()
+            if 'GUEST_EMAIL' in app.config:
+                if not User.query.filter(User.email == app.config['GUEST_EMAIL']).first():
+                    user = User(
+                        username='guest',
+                        email=app.config['GUEST_EMAIL'],
+                        email_confirmed_at=datetime.utcnow(),
+                        password=app.config.get('GUEST_PASS', ''),
+                    )
+                    self.session.add(user)
+                    self.session.commit()
 
 mdb = db = MannaDB()
 

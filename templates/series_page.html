@@ -1,0 +1,29 @@
+{% extends "page.html" %}
+   {% block main %}
+       <h3 class="table-title">{{page.series.name}}</h3>
+       <table id="series">
+          <thead>
+             <th>Date</th>
+             <th>Lesson</th>
+             <th>Duration</th>
+          </thead>
+          <tbody> </tbody>
+       </table>
+	{% endblock %}
+	{% block scriptage %}
+		$("#series").DataTable({ 	
+            ajax: "?dt_json", 
+		    serverSide: true, 
+		    processing: true, 
+            columns: [
+                { data: "date" },
+                { data: "name",
+                  render: function(data, type, row) { 
+                    if(type === 'display'){
+                        data = `<a href="?video_id=${row.id}">${data}</a>`
+                    }
+                    return data 
+                  } },
+                { data: "duration" },
+            ]}) 
+	{% endblock %}

@@ -1,103 +1,108 @@
-import config, pages, forms
-from flask import Flask, redirect, url_for, request, flash, Markup, jsonify
+import flask, pages, vidstore
+from urllib.parse import unquote
+from datetime import datetime, timezone
+from flask import url_for, request, Markup, render_template
 from werkzeug.exceptions import HTTPException
-from vidstore import MannaStore
 from players import VideoPlayer
 from flask_wtf.csrf import CSRFProtect
+from flask_bootstrap import Bootstrap
 from login import UserLoginManager
 
-class Manna(Flask):
-    def __init__(self, cfg):
+class Manna(flask.Flask):
+
+    def __init__(self):
         super().__init__(__name__)
-        self.config.from_object(cfg)
+        self.config.from_pyfile("manna.cfg")
         csrf = CSRFProtect(self)
-        lm = UserLoginManager(self)
-        mstore = MannaStore()
+        mstore = vidstore.MannaStore(self.config)
+        ulm = UserLoginManager(self)
+        Bootstrap(self)
 
         @self.route("/")
-        def list_latest():
-            vids = mstore.latest_videos(app.config['LATEST_CNT'])
-            for vid in vids:
-                vid.uri = url_for(".play_latest",
-                                  series=vid.parent_name, 
-                                  video=vid.name)
-            return pages.VideoListPage("Latest Lessons", vids).response
+        def index():
+            return flask.redirect(url_for('.recents'))
 
-        @self.route("/latest/series/<series>/videos/<video>") 
-        def play_latest(series, video):
-            series = mstore.series_by_name(series)
-            video = series.video_by_name(video)
-            latest_vids = mstore.latest_videos(app.config['LATEST_CNT'])
-            if video.uri in [ lv.uri for lv in latest_vids ]:
-                return pages.VideoPage("Play Latest", video).response
+        @self.route("/recent")
+        def recents():
+            pg = pages.RecentVideosPage(mstore, **request.args)
+            if pg.is_playable:
+                return render_player_for(pg)
             else:
-                return pages.ErrorPage(f"{video.name} is not recent").response
+                return flask.render_template("recents.html", page=pg)
 
-        @self.route("/catalog")
-        def show_catalog_page():
-            reqargs = self.ajax_url_for('show_catalog_page')
-            return pages.CatalogPage(mstore, **reqargs).response
+        @self.route("/recent/edit/")
+        @ulm.roles_required('Admin')
+        def edit_recents():
+            pg = pages.EditRecentVideosPage(mstore, **request.args)
+            if pg.is_playable:
+                return render_player_for(pg)
+            if 'make_recent' in request.args:
+                return pg.include_as_recent(request.args.get('make_recent'))
+            return flask.render_template("missing_recent_vids.html", page=pg)
 
-        @self.route("/catalog/edit", methods=['GET', 'POST'])
-        @lm.roles_required('Admin')
-        def edit_catalog_page():
-            reqargs = self.ajax_url_for('show_catalog_page')
-            return pages.CatalogEditPage(mstore, **reqargs).response
+        @self.route("/archives")
+        def view_archives():
+            pg = pages.MannaStorePage(mstore, **request.args)
+            if pg.has_json: 
+                return pg.json
+            else:
+                return flask.render_template("catalog_page.html", page=pg)
 
-        @self.route("/catalog/<series>")
-        @lm.required
-        def show_series_page(series):
-            series = mstore.series_by_name(series)
-            reqargs = self.ajax_url_for('show_series_page', series=series.name)
-            return pages.SeriesPage(series, **reqargs).response
+        @self.route("/archives/<series>")
+        @ulm.login_required
+        def view_series(series):
+            pg = pages.SeriesPage(mstore, series, **request.args)
+            if pg.is_playable:
+                return render_player_for(pg)
+            elif pg.has_json:
+                return pg.json
+            else:
+                return flask.render_template("series_page.html", page=pg)
 
-        @self.route("/catalog/<series>/edit", methods=['GET', 'POST', 'DELETE'])
-        @lm.roles_required('Admin')
+        @self.route("/archives/<series>/edit", methods=['GET', 'POST', 'DELETE'])
+        @ulm.roles_required('Admin')
         def edit_series_page(series):
-            series = mstore.series_by_name(series)
-            reqargs = self.ajax_url_for('show_series_page', series=series.name)
-            return pages.SeriesEditPage(series, **reqargs).response
+            pg=pages.SeriesEditPage(mstore, series, **request.args)
+            if pg.is_playable:
+                return flask.redirect(url_for('.play_restricted', **request.args))
+            elif pg.has_json:
+                return pg.json
+            else:
+                return flask.render_template("series_edit_page.html", page=pg)
 
-        @self.route("/catalog/<series>/edit/move", methods=['POST'])
-        @lm.roles_required('Admin')
-        def move_video_to(series):
-            series = mstore.series_by_name(series)
-            avsf = forms.AddVideoSetForm(series)
-            flash(f"Added {avsf.vidnames} to {series.name}") 
-            tc = [ f"{vname}:{vid}," for vname, vid in zip(avsf.vidnames, avsf.vidids) ]
-            return redirect(url_for("edit_series_page", series=series.name, tcode=tc))
 
-        @self.route("/catalog/<series>/videos/<video>") 
-        @lm.required
-        def play_restricted(series, video):
-            series = mstore.series_by_name(series)
-            video = series.video_by_name(video)
-            turl = url_for('show_series_page', series=series.name)
-            mp = pages.MannaPage(Markup(f'{video.name} of <a href="{turl}">{series.name}</a>'))
-            mp.add(VideoPlayer(video))
-            return mp.response
+        @self.route("/archives/edit", methods=['GET', 'POST'])
+        @ulm.roles_required('Admin')
+        def edit_catalog_page():
+            return pages.CatalogEditPage(mstore).response
 
-        @self.route("/catalog/<series>/videos/<video>/edit", methods=['GET', 'POST'])
-        @lm.roles_required('Admin')
+        @self.route("/archives/<series>/videos/<video>/edit", methods=['GET', 'POST'])
+        @ulm.roles_required('Admin')
         def edit_video(series, video):
-            mp = pages.MannaPage(f"Edit {series} {video}")
-            series = mstore.series_by_name(series)
-            video = series.video_by_name(video)
-            redate=request.args.get('redate', False)
-            #mp.playvid(video)
-            if redate:
-                video.redate(redate)
-                return(f"Redated {video.name}: {redate}")
-            if 'normalize' in request.args:
-                vname = video.name
-                video.save(name=series.normalized_name(vname))
-                return(f"Normalized {vname} to {video.name}")
-            if request.args.get('purge', False):
-                video.purge()
-                return(f"Purged {video.name}")
-            return mp.response
+            try:
+                series = mstore.series_by_name(series)
+                if 'move_to' in request.args:
+                    series.add_videos(request.args['move_to'])
+                    return(f"{video} moved to {series.name}")
+                else:
+                    video = series.video_by_name(video)
+                    if 'redate' in request.args:
+                        newdate = request.args['redate']
+                        video.redate(newdate)
+                        mstore.adjust_recents(video)
+                        return(f"Redated {video.name} to {newdate}")
+                    if 'normalize' in request.args:
+                        vname = video.name
+                        video.save(name=series.normalized_name(vname))
+                        return(f"Normalized {vname} to {video.name}")
+                    if 'purge' in request.args:
+                        series.purge_video(video.name)
+                        return(f"Purged {video.name}")
+                    raise Exception("Not a valid edit operation for {video.name} of {series.name} !")
+            except Exception as ex:
+                return str(ex)
 
-        @self.route("/catalog/<series>/audios/<video>") 
+        @self.route("/archives/<series>/audios/<video>") 
         def play_audio(series, video):
             series = mstore.series_by_name(series)
             video = series.video_by_name(video)
@@ -105,22 +110,39 @@ class Manna(Flask):
 
         @self.route("/roku")
         def roku():
-            mp = pages.MannaPage("Latest Listing")
-            vids = mstore.latest_videos(app.config['LATEST_CNT'])
-            return mp.roku(vids)
+            tstamp = datetime.now(tz=timezone.utc)
+            tstamp = tstamp.isoformat(timespec="seconds")
+            rfeed = dict(
+                providerName="Pleroma Videos",
+                lastUpdated=tstamp,
+                language='en',
+                movies=[dict(id=x.uri.split('/')[2],
+                            title=f"{x.parent_name}-{x.name}",
+                            genres=["faith"],
+                            tags=["faith"],
+                            thumbnail=x.plink,
+                            content=dict(
+                                 dateAdded=x.date.strftime("%Y-%m-%d"),
+                                 duration=x.duration,
+                                 videos=[
+                                    dict(url=x.vlink, 
+                                         quality="HD", 
+                                         videoType="MP4"), ],),
+                           releaseDate=tstamp,
+                           shortDescription=x.parent_name,)
+                        for i,x in enumerate(mstore.recent_videos) ],)
+            return flask.jsonify(rfeed)
 
         @self.errorhandler(HTTPException)
         def error_page(err):
-            mp = pages.MannaPage("Routing Error:")
+            mp = pages.MannaPage("Trouble in Paradise...")
             oe = getattr(err, 'original_exception', "")
-            mp.show_errors(f"Error routing to {request.url}", err.description, str(oe))
-            return mp.response
+            flask.flash(f"Error routing to {request.url} {err.description} {oe}")
+            return flask.render_template("page.html", page=mp)
 
-    def ajax_url_for(self, endpoint, **uargs):
-        reqargs = request.args.copy()
-        reqargs.setdefault('ajax', url_for(endpoint, ajax='', **uargs))
-        return reqargs
-            
+        def render_player_for(pg):
+            if pg.has_audio:
+                return flask.Response(pg.audio, mimetype="audio/mpeg")
+            else:
+                return flask.render_template("player.html", page=pg)
 
-
-app=Manna(config.DevelopmentConfig())

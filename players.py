@@ -1,6 +1,5 @@
 
 class VideoPlayer(object):
-    template = "vid_player.html"
     scripts = ["https://player.vimeo.com/api/player.js",
                "https://code.jquery.com/jquery-3.6.0.min.js",
                "jquery.fitvids.js"]

@@ -1,4 +1,52 @@
-{% extends "forms_base.html" %}
-	{% block manna_form %}
+{% extends "page.html" %}
+	{% block formset %}
+    <div id="formgroup">
+      <ul>
+         <li><a href="#email_login">Email Login</a></li>
+         <li><a href="#google_login">Google Login</a></li>
+         <li><a href="#register">Request Login</a></li>
+      </ul>
+      {% import "bootstrap/wtf.html" as wtf %}
+      <div id="email_login">
+		<fieldset>
+			<legend>User Login Form</legend>
+			<h4>Login with a previously registered email and a password (scroll down to register.)</h4>
+            <form class="form" method="post" role="form">
+                    {{ page.login_form.hidden_tag() }}
+                    {{ wtf.form_errors(page.login_form, hiddens="only") }}
+                    {{ page.login_form.prefix }}
+                    {{ wtf.form_field(page.login_form.email) }}
+                    {{ wtf.form_field(page.login_form.password) }}
+                    {{ wtf.form_field(page.login_form.recaptcha) }}
+                    {{ wtf.form_field(page.login_form.submit) }}
+            </form>
+		</fieldset>
+      </div>
+      <div id="google_login">
+		<fieldset>
+			<legend>Google User Login</legend>
+			<h4>Login with your google account. </h4>
+            <form class="form" method="post" role="form">
+                {{ page.glogin_form.hidden_tag() }}
+                {{ wtf.form_field(page.glogin_form.submit) }}
+            </form>
+		</fieldset>
+      </div>
+      <div id="register">
+		<fieldset>
+			<legend>User Account Request Form</legend>
+        <form class="form" method="post" role="form">
+            {{ page.request_form.hidden_tag() }}
+            {{ wtf.form_field(page.request_form.email) }}
+             <h4>In the comments, give us an idea who you are and why you are requesting access.</h4>
+            {{ wtf.form_field(page.request_form.comments) }}
+            {{ wtf.form_field(page.request_form.recaptcha) }}
+            {{ wtf.form_field(page.request_form.submit) }}
+		</fieldset>
+      </div>
+    </div>
+	{% endblock %}
+	{% block scriptage %}
 		{{ super() }}
+		$("#formgroup").tabs()
 	{% endblock %}

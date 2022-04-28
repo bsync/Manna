@@ -1,0 +1,41 @@
+{% macro render_form(form, class="form") -%}
+	{% import "bootstrap/wtf.html" as wtf %}
+		<form class="{{class}}" method="post" role="form">
+				{{ form.hidden_tag() }}
+				{{ wtf.form_errors(form, hiddens="only") }}
+				{{ form.prefix }}
+				{% for field in form.visifields %}
+					 {{ wtf.form_field(field) }}
+				{% endfor %}
+		</form>
+{% endmacro %}
+
+{% macro render_table(table) -%}
+   <table id="table_{{table.id}}">
+      <thead>
+         {% for name in table.head %}
+         <th>{{name}}</th>
+         {% endfor %}
+      </thead>
+      <tbody>
+         {% for row in table.body %}
+            <tr id="{{row.id}}">
+               {{ caller(row) }}
+            </tr>
+         {% endfor %}
+      </tbody>
+   </table>
+{% endmacro %}
+
+{% macro render_dtable(table) -%}
+	$("#table_{{table.id}}").DataTable(
+		{ 	ajax: "{{table.ajax}}", 
+			serverSide: true, 
+			processing: true, 
+			"columns": [
+				{% for name in table.head %}
+					{"data":"{{name}}"},
+				{% endfor %}
+				]
+		}) 
+{% endmacro %}

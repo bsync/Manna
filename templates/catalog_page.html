@@ -1,0 +1,29 @@
+{% extends "page.html" %}
+   {% block main %}
+       <h3 class="table-title" >Catalog of Series</h3>
+       <table id="catalog">
+          <thead>
+             <th>Date</th>
+             <th>Series</th>
+             <th>Count</th>
+          </thead>
+          <tbody> </tbody>
+       </table>
+	{% endblock %}
+	{% block scriptage %}
+		$("#catalog").DataTable({ 	
+            ajax: "?dt_json",
+		    serverSide: true, 
+		    processing: true, 
+            columns: [
+                { data: "date" },
+                { data: "name",
+                  render: function(data, type, row) { 
+                    if(type === 'display') 
+                        data = `<a href="${window.location}/${row.name}" ` + 
+                               `   onclick="shift_edit(event, this)">${data}</a>`
+                    return data 
+                  } },
+                { data: "video_count" },
+            ]}) 
+	{% endblock %}
