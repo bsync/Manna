@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import multiprocessing, gunicorn.app.wsgiapp as wsgi
 import sys
 
@@ -27,12 +28,12 @@ if __name__ == '__main__':
 	
 	MannaApp(
             bind='%s:%s' % ('0.0.0.0', '8001'),
-            #max_requests=1,
             timeout=480, 
-            certfile="/etc/letsencrypt/live/pleromabiblechurch.org/fullchain.pem",
-            keyfile="/etc/letsencrypt/live/pleromabiblechurch.org/privkey.pem",
+            certfile="/etc/letsencrypt/live/tullahomabiblechurch.org/fullchain.pem",
+            keyfile="/etc/letsencrypt/live/tullahomabiblechurch.org/privkey.pem",
             raw_env=['SCRIPT_NAME=/manna'],
-            workers=1,  #(multiprocessing.cpu_count() * 2) + 1
-            reload=True,
+            workers=(multiprocessing.cpu_count() * 2) + 1
+            #workers=1, 
+            #max_requests=1,
         ).run()
 

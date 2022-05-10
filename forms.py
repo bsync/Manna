@@ -6,7 +6,7 @@ from models import mdb, User, Role
 from wtforms.fields import StringField, PasswordField
 from wtforms.fields import IntegerField, HiddenField, FileField
 from wtforms.fields import SubmitField, TextAreaField
-from wtforms.fields.html5 import DateField, EmailField
+from wtforms.fields import DateField, EmailField
 from wtforms.fields import FormField, FieldList
 from flask_wtf import FlaskForm, RecaptchaField
 from flask_login import current_user

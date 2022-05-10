@@ -102,12 +102,6 @@ class Manna(flask.Flask):
             except Exception as ex:
                 return str(ex)
 
-        @self.route("/archives/<series>/audios/<video>") 
-        def play_audio(series, video):
-            series = mstore.series_by_name(series)
-            video = series.video_by_name(video)
-            return pages.AudioPage(video).response
-
         @self.route("/roku")
         def roku():
             tstamp = datetime.now(tz=timezone.utc)
@@ -123,7 +117,7 @@ class Manna(flask.Flask):
                             thumbnail=x.plink,
                             content=dict(
                                  dateAdded=x.date.strftime("%Y-%m-%d"),
-                                 duration=x.duration,
+                                 duration=str(x.duration),
                                  videos=[
                                     dict(url=x.vlink, 
                                          quality="HD", 

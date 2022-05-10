@@ -10,7 +10,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
 # Add additional deps needed for pycurl requirement
-RUN apt -y update && apt -y install gcc libcurl4-openssl-dev libssl-dev
+RUN apt -y update && apt -y install gcc libcurl4-openssl-dev libssl-dev ffmpeg vim git procps
 
 # Install pip requirements
 COPY requirements.txt .
@@ -26,4 +26,4 @@ COPY . /app
 
 # During debugging, this entry point will be overridden. For more information, please refer to https://aka.ms/vscode-docker-python-debug
 #CMD ["gunicorn", "--bind", "0.0.0.0:8001", "--env", "SCRIPT_NAME=/manna", "manna:create_app()"]
-CMD ./serve
+CMD ./serve.py

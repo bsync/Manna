@@ -100,8 +100,8 @@ class EditRecentVideosPage(RecentVideosPage):
 
 class CatalogEditPage(MannaStorePage):
 
-    def __init__(self, mstore, title="Manna"):
-        super().__init__(mstore, title)
+    def __init__(self, mstore):
+        super().__init__(mstore)
         asform = self.add(forms.AddSeriesToCatalogForm())
         if asform.was_submitted:
             mstore.add_new_series(asform.series_name.data)
@@ -117,7 +117,7 @@ class SeriesPage(MannaStorePage):
         svids = self.series.videos(**kwargs) 
         qdicts = [ dict(id=x.id,
                    date=x.date.strftime("%Y-%m-%d"), 
-                   name=x.name, 
+                   name=x.described, 
                    duration=str(x.duration)) for x in svids ]
         return json.dumps(dict(
             data=qdicts,

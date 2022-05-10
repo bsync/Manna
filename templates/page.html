@@ -34,7 +34,7 @@
 			.form-control { width: 100%; }
 			.menu {
 			  display: grid;
-			  grid-template-columns: auto auto auto auto;
+			  grid-template-columns: auto auto auto;
 			  text-align: center;
 			  padding: 10px;
               font-weight:bold; 
@@ -58,11 +58,10 @@
 	{% endblock %}
 	{% block title %}{{page.title}}{% endblock %}
    {% block content %}
-		<h2 class="site-title"> {{ page.site_name }} </h2>
+       <h2 class="site-title"><a href="/">{{ page.site_name }}</a></h2>
 		<h3 class="menu" >
-			<a href="{{ url_for('recents') }}" onclick="shift_edit(event, this)">Manna</a>
+			<a href="{{ url_for('recents') }}" onclick="shift_edit(event, this)">Recent</a>
 			<a href="{{ url_for('view_archives') }}" onclick="shift_edit(event, this)">Archives</a>
-			<a href="/">Back to the Front</a>
 			{% if not current_user.is_authenticated %}
 				<a href="{{ url_for('user.login') }}" onclick="shift_edit(event, this)">Login/Register </a>
 			{% else %}

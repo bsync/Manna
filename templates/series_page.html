@@ -16,7 +16,7 @@
 		    serverSide: true, 
 		    processing: true, 
             columns: [
-                { data: "date" },
+                { width: "20%", data: "date" },
                 { data: "name",
                   render: function(data, type, row) { 
                     if(type === 'display'){
@@ -24,6 +24,6 @@
                     }
                     return data 
                   } },
-                { data: "duration" },
+                { width: "20%", data: "duration" },
             ]}) 
 	{% endblock %}

@@ -53,8 +53,7 @@ class MannaStore(vimeo.VimeoClient):
     def audio_by_id(self, id):
         vid = self.video_by_id(id)
         ffin = f' -i "{vid.vlink}" '
-        ffopts = " -af silenceremove=1:1:.01 "
-        ffopts += "-ac 1 -ab 64k -ar 44100 -f mp3 "
+        ffopts = "-ac 1 -ab 64k -ar 44100 -f mp3 "
         ffout = ' - '
         ffmpeg = 'ffmpeg' + ffin + ffopts + ffout
         tffmpeg = "timeout -s SIGKILL 300 " + ffmpeg 
@@ -114,8 +113,8 @@ class MannaStore(vimeo.VimeoClient):
             per_page=length,
             page=math.ceil((int(params.get('start', 0))+1)/length),
             fields=cls.FIELDS,
-            sort=sort_col_src_name if sort_col_src_name in "date duration".split() else 'alphabetical',
-            direction=params.get('order[0][dir]', 'desc')) #table's sort direction
+            sort=sort_col_src_name if sort_col_src_name in "date duration".split() else 'name',
+            direction=params.get('direction', params.get('order[0][dir]', 'desc'))) #table's sort direction
         if 'query' in params:
             vimeo_params.update(query=params['query'])
         elif 'search[value]' in params:
@@ -291,7 +290,7 @@ class Series(Record):
 
     @property
     def highest_numbered_title(self):
-        vids = self.videos()
+        vids = self.videos(direction="desc", length=10)
         if len(vids) > 0: 
             vid_names_str=' '.join([ vid.name for vid in vids ])
             vid_num_strs=re.findall('\d+', vid_names_str)
@@ -322,8 +321,8 @@ class Series(Record):
         return self.source.purge_video_from_series(self, vidname)
 
     def next_vidnames(self, n):
-        svids = sorted(self.videos(), key=lambda v : v['created_time'])
-        lvidname = svids[-1].name if len(svids) else "Video #0"
+        svids = self.videos(direction="desc", length=10)
+        lvidname = svids[0].name if len(svids) else "Video #0"
         nvidnames = []
         for x in range(n):
             nvidname = re.sub(
