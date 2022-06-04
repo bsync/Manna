@@ -108,12 +108,11 @@ class MannaStore(vimeo.VimeoClient):
     def collect(self, cls, uri=None, **params):
         uri = cls.URI if uri is None else uri
         length = int(params.get('length', 10))
-        sort_col_src_name = params.get(f"columns[{params.get('order[0][column]', 0)}][data]", 'date')
         vimeo_params = dict(
             per_page=length,
             page=math.ceil((int(params.get('start', 0))+1)/length),
             fields=cls.FIELDS,
-            sort=sort_col_src_name if sort_col_src_name in "date duration".split() else 'name',
+            sort=params.get(f"columns[{params.get('order[0][column]', 0)}][data]", 'date'),
             direction=params.get('direction', params.get('order[0][dir]', 'desc'))) #table's sort direction
         if 'query' in params:
             vimeo_params.update(query=params['query'])
