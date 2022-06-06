@@ -7,23 +7,17 @@
              <th>Series</th>
              <th>Count</th>
           </thead>
-          <tbody> </tbody>
+          <tbody> 
+            {% for series in page.catalog %}
+                <tr id="{{series.id}}">
+                    <td> {{series.date.strftime("%m-%d-%Y")}}</td>
+		    <td> <a href={{url_for("view_archive", series=series.name)}}>{{series.name}}</a> </td>
+                    <td> {{series.video_count}} </td>
+                </tr>
+            {% endfor %}
+           </tbody>
        </table>
-	{% endblock %}
+   {% endblock %}
 	{% block scriptage %}
-		$("#catalog").DataTable({ 	
-            ajax: "?dt_json",
-		    serverSide: true, 
-		    processing: true, 
-            columns: [
-                { data: "date" },
-                { data: "name",
-                  render: function(data, type, row) { 
-                    if(type === 'display') 
-                        data = `<a href="${window.location}/${row.name}" ` + 
-                               `   onclick="shift_edit(event, this)">${data}</a>`
-                    return data 
-                  } },
-                { data: "video_count" },
-            ]}) 
+		$("#catalog").DataTable()
 	{% endblock %}

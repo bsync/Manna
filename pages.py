@@ -1,167 +1,174 @@
-import os, flask, traceback, forms
+import os, flask, traceback, json
 from flask.globals import _app_ctx_stack, _request_ctx_stack
 from werkzeug.urls import url_parse
 from flask import url_for
 from collections import namedtuple
-import json
+from flask_wtf.csrf import CSRFProtect
+from flask_bootstrap import Bootstrap
+import forms
 
-class MannaPage(list):
-    def __init__(self, title="Manna"):
-        super().__init__()
-        self.title = title
+class Mannager:
+    def __init__(self, app):
+        Bootstrap(app)
+        CSRFProtect(app)
 
-    @property
-    def site_name(self):
-        return flask.current_app.config.get('TITLE', 'Manna')
+    class MannaPage(list):
+        def __init__(self, title="Manna"):
+            super().__init__()
+            self.title = title
 
-    @property
-    def breadcrumbs(self):
-        return BreadCrumbs(flask.request)
+        @property
+        def site_name(self):
+            return flask.current_app.config.get('TITLE', 'Manna')
 
-    @property
-    def forms(self):
-        return filter(lambda x : isinstance(x, forms.MannaForm), self)
+        @property
+        def breadcrumbs(self):
+            return BreadCrumbs(flask.request)
 
-    def add(self, component):
-        self.append(component)
-        return component
+        @property
+        def forms(self):
+            return filter(lambda x : isinstance(x, forms.MannaForm), self)
 
-    def show_errors(self, *errs):
-        for msg in errs:
-            flask.flash(msg)
+        def add(self, component):
+            self.append(component)
+            return component
 
-
-class MannaStorePage(MannaPage):
-
-    def __init__(self, mstore, **kwargs):
-        super().__init__()
-        self.mstore = mstore
-        if 'video_id' in kwargs:
-            self.video = mstore.video_by_id(kwargs['video_id'])
-        elif 'audio_id' in kwargs:
-            self.audio = mstore.audio_by_id(kwargs['audio_id'])
-        elif 'dt_json' in kwargs:
-            self.json = self._dt_json(**kwargs)
-
-    @property
-    def is_playable(self):
-        return hasattr(self, 'video') or hasattr(self, 'audio')
-
-    @property
-    def has_audio(self):
-        return hasattr(self, 'audio')
-
-    @property
-    def has_json(self):
-        return hasattr(self, 'json')
-
-    def _dt_json(self, **kwargs):
-        cseries = self.mstore.catalog(**kwargs)
-        qdicts = [ dict(id=x.id,
-                   date=x.date.strftime("%Y-%m-%d"), 
-                   name=x.name, 
-                   video_count=x.video_count) for x in cseries ]
-        return json.dumps(dict(
-            data=qdicts,
-            draw=int(kwargs['draw']), 
-            recordsTotal=cseries.available, 
-            recordsFiltered=cseries.available))
+        def show_errors(self, *errs):
+            for msg in errs:
+                flask.flash(msg)
 
 
-class RecentVideosPage(MannaStorePage):
+    class MannaStorePage(MannaPage):
 
-    def __init__(self, mstore, **kwargs):
-        super().__init__(mstore, **kwargs)
-        if hasattr(self, 'video') and self.video not in self.vids:
-            raise Exception(f"{self.video.name} is not a recent video!")
+        def __init__(self, mstore, **kwargs):
+            super().__init__()
+            self.mstore = mstore
+            if 'video_id' in kwargs:
+                self.video = mstore.video_by_id(kwargs['video_id'])
+            elif 'audio_id' in kwargs:
+                self.audio = mstore.audio_by_id(kwargs['audio_id'])
+            elif 'dt_json' in kwargs:
+                self.json = self._dt_json(**kwargs)
 
-    @property
-    def vids(self):
-        return self.mstore.recent_videos 
+        @property
+        def is_playable(self):
+            return hasattr(self, 'video') or hasattr(self, 'audio')
 
+        @property
+        def has_audio(self):
+            return hasattr(self, 'audio')
 
-class EditRecentVideosPage(RecentVideosPage):
-
-    def __init__(self, mstore, **kwargs):
-        super().__init__(mstore, **kwargs)
-        self.add(forms.AddToRecentVideosForm())
-
-    @property
-    def vids(self):
-        return (self.mstore.latest_videos - self.mstore.recent_videos)[:5]
-
-    def include_as_recent(self, video_id):
-        video = self.mstore.video_by_id(video_id)
-        if self.mstore.adjust_recents(video):
-            return(f"Added {video.name} to recent videos: {video.date}")
-        else:
-            return(f"{video.name} of {video.date} is not recent enough!")
+        @property
+        def has_json(self):
+            return hasattr(self, 'json')
 
 
-class CatalogEditPage(MannaStorePage):
+    class CatalogStorePage(MannaStorePage):
 
-    def __init__(self, mstore):
-        super().__init__(mstore)
-        asform = self.add(forms.AddSeriesToCatalogForm())
-        if asform.was_submitted:
-            mstore.add_new_series(asform.series_name.data)
-        
+        @property
+        def catalog(self):
+            return self.mstore.catalog()
 
-class SeriesPage(MannaStorePage):
+    class RecentVideosPage(MannaStorePage):
 
-    def __init__(self, mstore, series, **kwargs):
-        self.series = mstore.series_by_name(series)
-        super().__init__(mstore, **kwargs)
+        def __init__(self, mstore, **kwargs):
+            super().__init__(mstore, **kwargs)
+            if hasattr(self, 'video') and self.video not in self.vids:
+                raise Exception(f"{self.video.name} is not a recent video!")
 
-    def _dt_json(self, **kwargs):
-        svids = self.series.videos(**kwargs) 
-        qdicts = [ dict(id=x.id,
-                   date=x.date.strftime("%Y-%m-%d"), 
-                   name=x.described, 
-                   duration=str(x.duration)) for x in svids ]
-        return json.dumps(dict(
-            data=qdicts,
-            draw=int(kwargs['draw']), 
-            recordsTotal=svids.available, 
-            recordsFiltered=svids.available))
+        @property
+        def vids(self):
+            return self.mstore.recent_videos 
 
 
-class SeriesEditPage(SeriesPage):
+    class EditRecentVideosPage(RecentVideosPage):
 
-    def __init__(self, mstore, series, **kwargs):
-        super().__init__(mstore, series, **kwargs)
-        if 'dt_json' not in kwargs:
-            self.add_videos_form = self.add(forms.AddVideoSet(self.series))
-            self.purge_video_form = self.add(forms.PurgeVideo(self.series))
-            self.redate_series_form = self.add(forms.RedateSeries(self.series))
-            self.normalize_series_form = self.add(forms.NormalizeTitles(self.series))
-            #self.sync_series_form = self.add(forms.SyncSeries(self.series))
+        def __init__(self, mstore, **kwargs):
+            super().__init__(mstore, **kwargs)
+            self.add(forms.AddToRecentVideosForm())
 
+        @property
+        def vids(self):
+            return (self.mstore.latest_videos - self.mstore.recent_videos)[:5]
 
-class LoginPage(MannaPage):
-
-    def __init__(self, login_manager):
-        super().__init__("Login")
-        self.login_form = self.add(forms.LoginUserForm(login_manager))
-        self.glogin_form = self.add(forms.GoogleLoginForm())
-        self.request_form = self.add(forms.RequestAccessForm())
-        self.redirection = False
-        if self.login_form.was_submitted:
-            self.redirection = login_manager.login_via_email(
-                self.login_form.email.data, 
-                self.login_form.password.data)
-        elif self.glogin_form.was_submitted:
-            self.redirection = login_manager.login_via_google()
-        elif self.request_form.was_submitted:
-            self.redirection = login_manager.request_access()
+        def include_as_recent(self, video_id):
+            video = self.mstore.video_by_id(video_id)
+            if self.mstore.adjust_recents(video):
+                return(f"Added {video.name} to recent videos: {video.date}")
+            else:
+                return(f"{video.name} of {video.date} is not recent enough!")
 
 
-class RegistrationPage(MannaPage):
+    class CatalogEditPage(MannaStorePage):
 
-    def __init__(self, login_manager):
-        super().__init__("Registration")
-        self.add(forms.RegistrationForm(login_manager))
-        self.add(forms.InviteUserForm(login_manager))
+        def __init__(self, mstore):
+            super().__init__(mstore)
+            asform = self.add(forms.AddSeriesToCatalogForm())
+            if asform.was_submitted:
+                mstore.add_new_series(asform.series_name.data)
+            
+
+    class SeriesPage(MannaStorePage):
+
+        def __init__(self, mstore, series, **kwargs):
+            self.series = mstore.series_by_name(series)
+            super().__init__(mstore, **kwargs)
+
+        def _dt_json(self, **kwargs):
+            sort=kwargs.get(f"columns[{kwargs.get('order[0][column]', 0)}][data]", False)
+            if sort == 'name':
+                kwargs[f"columns[{kwargs.get('order[0][column]', 0)}][data]"] = 'alphabetical'
+            svids = self.series.videos(**kwargs) 
+            qdicts = [ dict(id=x.id,
+                       date=x.date.strftime("%Y-%m-%d"), 
+                       name=x.described, 
+                       duration=str(x.duration)) for x in svids ]
+            return json.dumps(dict(
+                data=qdicts,
+                draw=int(kwargs['draw']), 
+                recordsTotal=svids.available, 
+                recordsFiltered=svids.available))
+
+
+    class SeriesEditPage(SeriesPage):
+
+        def __init__(self, mstore, series, **kwargs):
+            super().__init__(mstore, series, **kwargs)
+            if 'dt_json' not in kwargs:
+                self.add_videos_form = self.add(forms.AddVideoSet(self.series))
+                self.purge_video_form = self.add(forms.PurgeVideo(self.series))
+                self.redate_series_form = self.add(forms.RedateSeries(self.series))
+                self.normalize_series_form = self.add(forms.NormalizeTitles(self.series))
+                #self.sync_series_form = self.add(forms.SyncSeries(self.series))
+
+
+    class LoginPage(MannaPage):
+        redirection=None
+
+        def __init__(self, login_manager):
+            super().__init__("Login")
+            self.login_form = self.add(forms.LoginUserForm(login_manager))
+            self.glogin_form = self.add(forms.GoogleLoginForm())
+            self.request_form = self.add(forms.RequestAccessForm())
+            if self.login_form.was_submitted:
+                self.redirection = login_manager.login_via_email(
+                    self.login_form.email.data, 
+                    self.login_form.password.data)
+            elif self.glogin_form.was_submitted:
+                self.redirection = login_manager.login_via_google()
+            elif self.request_form.was_submitted:
+                self.redirection = login_manager.request_access()
+
+        @property
+        def needs_redirection(self):
+            return bool(self.redirection)
+
+    class RegistrationPage(MannaPage):
+
+        def __init__(self, login_manager):
+            super().__init__("Registration")
+            self.add(forms.RegistrationForm(login_manager))
+            self.add(forms.InviteUserForm(login_manager))
 
 
 

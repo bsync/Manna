@@ -1,5 +1,0 @@
-services:
-  manna:
-    image: manna
-    volumes:
-      - ./:/app

@@ -1,35 +1,17 @@
 production: 
-	docker-compose -f docker-compose.yml -f docker-compose.pro.yml up ${FLAGS}
-
-down:
-	docker-compose down
-
-restart:
-	docker-compose -f docker-compose.yml -f docker-compose.pro.yml restart manna
+	docker-compose -f docker/docker-compose.yml up ${TARGETS}
 
 dev:
-	docker-compose stop manna
-	docker-compose -f docker-compose.yml -f dev.yml \
-		run \
-		-e DOMAIN="pleromabiblechurch.org" \
-		-e FLASK_DEBUG=0 \
-		-e WORKERS=1 \
-		-e FLASK_ENV="development" \
-		--name mannadbg \
-		--service-ports \
-		manna bash
+	docker-compose -f docker/docker-compose.yml -f docker/docker-compose.debug.yml up ${TARGETS}
 
-debug_pro:
-	docker-compose stop manna
-	docker-compose -f docker-compose.yml -f docker-compose.pro.yml run \
-		-e FLASK_DEBUG=0 \
-		-e WORKERS=1 \
-		--name mannadbg \
-		--service-ports \
-		--rm manna
-			   
-shell:
-	docker-compose run --rm --entrypoint bash manna
+restart:
+	docker-compose -f docker/docker-compose.yml -f docker/docker-compose.debug.yml restart ${TARGETS}
+
+build:
+	docker-compose -f docker/docker-compose.yml -f docker/docker-compose.debug.yml build ${TARGETS}
+
+down:
+	docker-compose -f docker/docker-compose.yml down
 
 # Rules to dump production volumes
 pro_dump: 

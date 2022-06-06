@@ -1,0 +1,16 @@
+#!/bin/bash
+WORKERS=${WORKERS:-1}
+TIMEOUT=${TIMEOUT:-500}
+CERT=$(ls /etc/letsencrypt/live/*/fullchain.pem)
+KEY=$(ls /etc/letsencrypt/live/*/privkey.pem)
+
+echo "Current dir is $(pwd)"
+set -x
+exec env SCRIPT_NAME=/manna gunicorn \
+	--bind 0.0.0.0:8001  \
+	--workers=${WORKERS} \
+	--timeout=${TIMEOUT} \
+	--certfile=${CERT} \
+	--keyfile=${KEY} \
+	${RELOAD} \
+	manna:app

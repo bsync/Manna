@@ -1,8 +1,6 @@
 import flask, os, requests, json
 import wtforms.validators as validators
 from flask_mail import Message
-from tables import UserTable
-from models import mdb, User, Role
 from wtforms.fields import StringField, PasswordField
 from wtforms.fields import IntegerField, HiddenField, FileField
 from wtforms.fields import SubmitField, TextAreaField
@@ -42,8 +40,7 @@ class MannaForm(FlaskForm):
 
     @property
     def was_submitted(self):
-        if self.validate_on_submit():
-            return flask.request.form['submit'] == self.submit.label.text
+        return self.validate_on_submit() and flask.request.form['submit'] == self.submit.label.text
 
     @property
     def visifields(self):
@@ -195,6 +192,7 @@ class RegistrationForm(MannaForm):
 
     def __init__(self, login_manager):
         super().__init__()
+        self.session = login_manager.mdb.session
         self.table = UserTable(login_manager.Users, select={ 'style':'single'}) 
         self.scripts.extend(self.table.scripts)
         self.css = self.table.css
@@ -240,8 +238,8 @@ class RegistrationForm(MannaForm):
                 if aRole in su.roles:
                     su.roles.clear()
             elif self.operation == "Delete":
-                mdb.session.delete(su)
-            mdb.session.commit()
+                self.session.delete(su)
+            self.session.commit()
         self.redirection=redirect(with_msg=f"{self.operation} completed!")
 
 
@@ -294,7 +292,7 @@ class RequestAccessForm(MannaForm):
 
     def on_validated(self):    
         mailer = self.lm.email_adapter.mail
-        rcpt = self.lm.USER_EMAIL_SENDER_EMAIL
+        rcpt = self.lm.MAIL_USERNAME
         msg = Message("Request for Manna Access", recipients=[rcpt])
         msg.body = f"{self.email.data} says '{self.comments.data}'"
         mailer.send(msg)
@@ -304,6 +302,10 @@ class RequestAccessForm(MannaForm):
 class GoogleLoginForm(MannaForm):
     template = "google_login_form.html"
     submit = SubmitField("Google_Authorize")
+
+    @property
+    def was_submitted(self):
+        return super().was_submitted or 'google_callback' in flask.request.args
 
 class LoginUserForm(MannaForm):
     template = "login_form.html"

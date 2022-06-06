@@ -1,14 +1,14 @@
-import vimeo, json, datetime, re, math, os
-import subprocess 
+import vimeo, json, datetime, re, math, os, subprocess 
 
-class MannaStore(vimeo.VimeoClient):
-    def __init__(self, config):
-        super().__init__(config['VIMEO_TOKEN'], config['VIMEO_CLIENT_ID'], config['VIMEO_CLIENT_SECRET'])
-        self.latest_cnt = config.get('LATEST_CNT', 10)
+class Mannager(vimeo.VimeoClient):
+    def __init__(self, app):
+        super().__init__(app.config['VIMEO_TOKEN'], app.config['VIMEO_CLIENT_ID'], app.config['VIMEO_CLIENT_SECRET'])
+        self.latest_cnt = app.config.get('LATEST_CNT', 10)
         try:
             self.recents = self.showcase_by_name("Recent")
         except NoSuchResource as nsse:
             self.recents = self.add_new_series("Recent", cls=Showcase)
+
         rvids = self.recents.videos()
         vidcnt = len(rvids)
         if vidcnt < self.latest_cnt:
@@ -20,6 +20,8 @@ class MannaStore(vimeo.VimeoClient):
             for vid in rvids[self.latest_cnt:]:
                 self.recents.purge(vid)
 
+        self.catalog() #Force initial caching of the archives
+
     @property
     def recent_videos(self):
         return self.recents.videos()
@@ -29,7 +31,9 @@ class MannaStore(vimeo.VimeoClient):
         return self.collect(Video, sort="date", direction="desc", length=self.latest_cnt)
 
     def catalog(self, **kwargs):
-        return self.collect(Series, **kwargs)
+        if not hasattr(self, "_cached_catalog"):
+            self._cached_catalog = self.collect(Series, **kwargs)
+        return self._cached_catalog
 
     def showcase_by_name(self, name):
         slist = self.collect(Showcase, query=name)
@@ -230,7 +234,7 @@ class Video(Record):
 
     @property
     def plink(self):
-        return self.pictures['sizes'][0]['link']
+        return self.pictures['sizes'][-1]['link']
 
     @property
     def vlink(self):

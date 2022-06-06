@@ -5,13 +5,12 @@ services:
       container_name: dnsrobocert
       restart: always
       volumes:
-         - ./nginx/config.yml:/etc/dnsrobocert/config.yml
-         - nginx_secrets:/etc/letsencrypt
+         - ../robocert/config.yml:/etc/dnsrobocert/config.yml
+         - ../robocert/letsencrypt:/etc/letsencrypt
    nginx:
       image: nginx
       container_name: nginx
       ports:
-         - 80:80
          - 443:443
       depends_on: 
          - joomla
@@ -19,8 +18,8 @@ services:
       volumes:
          - joomla_html:/var/www/html
          - static_html:/var/www/html/manna/static
-         - nginx_secrets:/etc/letsencrypt
-         - ./nginx/pleroma.conf:/etc/nginx/conf.d/pleroma.conf
+         - ../robocert/letsencrypt:/etc/letsencrypt
+         - ../nginx.conf:/etc/nginx/conf.d/pleroma.conf
       restart: unless-stopped
    joomla:
       container_name: joomla
@@ -29,7 +28,7 @@ services:
          - joomladb
       links:
          - "joomladb:mysql"
-      env_file: secrets
+      env_file: ../manna.cfg
       ports:
          - 9000:9000
       volumes:
@@ -38,7 +37,7 @@ services:
    joomladb:
       container_name: joomladb
       image: mysql:5.7
-      env_file: secrets
+      env_file: ../manna.cfg
       volumes:
          - mysql_data:/var/lib/mysql
       restart: unless-stopped
@@ -47,17 +46,16 @@ services:
       image: manna      
       volumes:
          - static_html:/app/static
-         - nginx_secrets:/etc/letsencrypt
+         - ../robocert/letsencrypt:/etc/letsencrypt
       ports:
          - 8001:8001
       environment:
          - WORKERS=4
-      env_file: secrets          
+      env_file: ../manna.cfg          
       build:
-        context: .
-        dockerfile: ./Dockerfile
+        context: ..
+        dockerfile: docker/Dockerfile
 volumes:
-   nginx_secrets:
    static_html:
    joomla_html:
    mysql_data:

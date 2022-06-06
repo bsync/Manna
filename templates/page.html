@@ -34,14 +34,14 @@
 			.form-control { width: 100%; }
 			.menu {
 			  display: grid;
-			  grid-template-columns: auto auto auto;
-			  text-align: center;
-			  padding: 10px;
-              font-weight:bold; 
-              border-radius: 20px;
               width:auto;
-              background-image: linear-gradient(to right, gray,black,gray); 
+			  grid-template-columns: auto auto;
+			  padding: 10px;
+			  font-weight:bold; 
+			  border-radius: 20px;
+			  background-image: linear-gradient(to right, gray,black,gray); 
             }
+			.mright { text-align: right; }
 			table { 
 				 background-color: blue; 
 			}
@@ -61,11 +61,11 @@
        <h2 class="site-title"><a href="/">{{ page.site_name }}</a></h2>
 		<h3 class="menu" >
 			<a href="{{ url_for('recents') }}" onclick="shift_edit(event, this)">Recent</a>
-			<a href="{{ url_for('view_archives') }}" onclick="shift_edit(event, this)">Archives</a>
-			{% if not current_user.is_authenticated %}
-				<a href="{{ url_for('user.login') }}" onclick="shift_edit(event, this)">Login/Register </a>
+			<a class="mright" href="{{ url_for('view_archives') }}" onclick="shift_edit(event, this)">Archives</a>
+			{% if current_user.is_authenticated %}
+				<a href="{{ url_for('logout') }}" onclick="shift_edit(event, this)">Logout as {{ current_user.username }}</a>
 			{% else %}
-				<a href="{{ url_for('user.logout') }}" onclick="shift_edit(event, this)">Logout</a>
+				<!--a href="{{ url_for('login') }}" onclick="shift_edit(event, this)">Login/Register </a-->
 			{% endif %}
 		</h3>
 		<h3 class="title">

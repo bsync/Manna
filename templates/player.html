@@ -3,7 +3,7 @@
 		{{ super() }}
         <fieldset>
             <legend style="border:2px solid yellow; padding: 10px;">
-                <a href="{{ url_for('view_series', series=page.video.parent_series.name)}}">{{page.video.parent_name}}</a>, 
+                <a href="{{ url_for('view_archive', series=page.video.parent_series.name)}}">{{page.video.parent_name}}</a>, 
                     {{ page.video.described }}, {{ page.video.width }} x {{ page.video.height }} {{ page.video.quality }}
                 <span style="float: right">
                     <button id="play_button">Play Video</button>
