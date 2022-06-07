@@ -43,7 +43,7 @@ services:
       restart: unless-stopped
    manna:
       container_name: manna
-      image: manna      
+      image: docksync/manna      
       volumes:
          - static_html:/app/static
          - ../robocert/letsencrypt:/etc/letsencrypt
