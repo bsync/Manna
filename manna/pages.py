@@ -5,7 +5,7 @@ from flask import url_for
 from collections import namedtuple
 from flask_wtf.csrf import CSRFProtect
 from flask_bootstrap import Bootstrap
-import forms
+from . import forms
 
 class Mannager:
     def __init__(self, app):

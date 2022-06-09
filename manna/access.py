@@ -4,7 +4,7 @@ from oauthlib.oauth2 import WebApplicationClient
 from flask_principal import Principal, Permission, RoleNeed, Identity, UserNeed
 from flask_principal import AnonymousIdentity, identity_changed, identity_loaded
 from flask_login import current_user
-from database import Datastore
+from .database import Datastore
 
 class Mannager(flask_login.LoginManager):
     admin_permission = Permission(RoleNeed('Admin'))

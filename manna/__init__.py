@@ -2,7 +2,7 @@ import flask
 from datetime import datetime, timezone
 from flask import url_for, request, render_template
 from werkzeug.exceptions import HTTPException
-import access, pages, storage
+from . import access, pages, storage
 
 app = flask.Flask(__name__)
 app.config.from_prefixed_env()
