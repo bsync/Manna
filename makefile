@@ -1,14 +1,17 @@
+TARGETS=
+DEVMODE=debug
+
 production: 
 	docker-compose -f docker/docker-compose.yml up ${TARGETS}
 
 dev:
-	docker-compose -f docker/docker-compose.yml -f docker/docker-compose.debug.yml up ${TARGETS}
+	docker-compose -f docker/docker-compose.yml -f docker/docker-compose.${DEVMODE}.yml up ${TARGETS}
 
 restart:
-	docker-compose -f docker/docker-compose.yml -f docker/docker-compose.debug.yml restart ${TARGETS}
+	docker-compose -f docker/docker-compose.yml -f docker/docker-compose.${DEVMODE}.yml restart ${TARGETS}
 
 build:
-	docker-compose -f docker/docker-compose.yml -f docker/docker-compose.debug.yml build ${TARGETS}
+	docker-compose -f docker/docker-compose.yml -f docker/docker-compose.${DEVMODE}.yml build ${TARGETS}
 
 down:
 	docker-compose -f docker/docker-compose.yml down
