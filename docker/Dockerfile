@@ -1,4 +1,5 @@
-FROM python:3.9-slim 
+FROM python:3.9-slim
+RUN apt-get update; apt-get install -y ffmpeg
 RUN python -m venv /venv
 RUN mkdir /app
 ADD manna /app/manna
