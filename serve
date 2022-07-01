@@ -12,5 +12,5 @@ exec env SCRIPT_NAME=/manna gunicorn \
 	--timeout=${TIMEOUT} \
 	--certfile=${CERT} \
 	--keyfile=${KEY} \
-	${RELOAD} \
+	$* \
 	manna:app
