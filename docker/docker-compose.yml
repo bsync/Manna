@@ -23,7 +23,7 @@ services:
       restart: unless-stopped
    joomla:
       container_name: joomla
-      image: joomla:4.0.4-php8.0-fpm-alpine
+      image: joomla:3.9-php7.4-fpm
       depends_on: 
          - joomladb
       links:
@@ -41,11 +41,12 @@ services:
       volumes:
          - mysql_data:/var/lib/mysql
       restart: unless-stopped
+      command: [mysqld, --max_allowed_packet=16M]
    manna:
       container_name: manna
       image: docksync/manna      
       volumes:
-         - static_html:/app/static
+         - static_html:/app/manna/static
          - ../robocert/letsencrypt:/etc/letsencrypt
       ports:
          - 8001:8001
