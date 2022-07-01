@@ -1,6 +1,10 @@
 {% extends "page.html" %}
    {% block main %}
-       <h3 class="table-title">{{page.series.name}}</h3>
+		{{ super() }}
+      <h3 class="table-title">
+			<a href="{{ url_for('view_archive', series=page.series.name) }}" 
+				onclick="shift_edit(event, this)">{{page.series.name}}</a>
+       </h3>
        <table id="series">
           <thead>
              <th>Date</th>
@@ -11,6 +15,7 @@
        </table>
 	{% endblock %}
 	{% block scriptage %}
+		{{ super() }}
 		$("#series").DataTable({ 	
             ajax: "?dt_json", 
 		    serverSide: true, 

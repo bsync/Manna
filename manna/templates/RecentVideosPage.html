@@ -1,6 +1,7 @@
 {% extends "page.html" %}
     {% block title %}Recent Videos{% endblock %}
     {% block main %}
+	 	 {{ super() }}
        <h3 class="table-title">Recently Taught Lessons</h3>
        <table id="recent">
           <thead>
@@ -22,5 +23,6 @@
        </table>
     {% endblock %}
 	{% block scriptage %} 
-        $("#recent").DataTable({"order": [[ 0, 'desc']]})
+		{{ super() }}
+	   $("#recent").DataTable({"order": [[ 0, 'desc']]})
 	{% endblock %}

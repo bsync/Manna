@@ -9,8 +9,8 @@
 			body { margin: 15px; background-color: grey; }
 			a:visited { color: gold; }
 			a { color: yellow; }
-            button a { color: black; }
-            button a:visited { color: blue; }
+			button a { color: black; }
+			button a:visited { color: blue; }
 			fieldset {
 			  margin: 10px; 
 			  padding: 15px;
@@ -19,29 +19,30 @@
 			  grid-auto-columns: auto;
 			}
 			.site-title { margin: 0 auto;
-                           padding: 10px;
-                          font-weight:bold; 
-                          text-align:center; 
-                          width:auto;
-                          background-image: linear-gradient(to right, gray,black,gray);
-                          color:orange; }
+							  padding: 10px;
+							  font-weight:bold; 
+							  text-align:center; 
+							  width:auto;
+							  background-image: linear-gradient(to right, gray,black,gray);
+							  color:orange; 
+			}
 			.table-title { margin: 0 auto;
-                          padding: 10px;
-                          font-weight:bold; 
-                          width:auto;
-                          background-image: linear-gradient(to right, black,gray);
-                          color:yellow; }
-			.form-control { width: 100%; }
+							   padding: 10px;
+							   font-weight:bold; 
+							   width:auto;
+							   background-image: linear-gradient(to right, black,gray);
+							   color:yellow; 
+			}
 			.menu {
-			  display: grid;
-              width:auto;
-			  grid-template-columns: auto auto;
-			  padding: 10px;
-			  font-weight:bold; 
-			  border-radius: 20px;
-			  background-image: linear-gradient(to right, gray,black,gray); 
-            }
-			.mright { text-align: right; }
+				display: grid;
+				width:auto;
+				grid-template-columns: auto auto auto;
+				font-weight:bold; 
+				border-radius: 20px;
+				background-image: linear-gradient(to right, gray,black,gray); 
+         }
+			.form-control { width: 100%; }
+			.mcenter { text-align: center; }
 			table { 
 				 background-color: blue; 
 			}
@@ -58,20 +59,15 @@
 	{% endblock %}
 	{% block title %}{{page.title}}{% endblock %}
    {% block content %}
-       <h2 class="site-title"><a href="/">{{ page.site_name }}</a></h2>
 		<h3 class="menu" >
-			<a href="{{ url_for('recents') }}" onclick="shift_edit(event, this)">Recent</a>
-			<a class="mright" href="{{ url_for('view_archives') }}" onclick="shift_edit(event, this)">Archives</a>
+			<a class="mcenter" href="{{ url_for('recents') }}" onclick="shift_edit(event, this)">Recent</a>
+			<a class="site-title" href="/">{{ page.site_name }}</a>
+			<a class="mcenter" href="{{ url_for('view_archives') }}" onclick="shift_edit(event, this)">Archives</a>
 			{% if current_user.is_authenticated %}
-				<a href="{{ url_for('logout') }}" onclick="shift_edit(event, this)">Logout as {{ current_user.username }}</a>
+				<a class="mcenter" href="{{ url_for('logout') }}" onclick="shift_edit(event, this)">Logout</a>
 			{% else %}
 				<!--a href="{{ url_for('login') }}" onclick="shift_edit(event, this)">Login/Register </a-->
 			{% endif %}
-		</h3>
-		<h3 class="title">
-		<!--{% for portion in page.breadcrumbs %}
-			<a href="{{portion.url}}">{{portion.name|safe}}</a> {% if not loop.last %} > {% endif %}
-		{% endfor %}-->
 		</h3>
 		<h3 id="status" style="background: black; color: red;">
 			{% with messages = get_flashed_messages() %}
@@ -81,22 +77,48 @@
 					{% endfor %}
 				{% endif %}
 			{% endwith %}
-		</h2>
-      {% block main %}
-      {% endblock %}
-      {% block formset %}
+		</h3>
+		{% block main %}
+			{% if page.is_playable %}
+			  <fieldset>
+					<legend style="border:2px solid yellow; padding: 10px;">
+						 <a href="{{ url_for('view_archive', series=page.video.parent_series.name)}}">{{page.video.parent_name}}</a>, 
+							  {{ page.video.described }}, {{ page.video.width }} x {{ page.video.height }} {{ page.video.quality }}
+						 <span style="float: right">
+							  <button id="play_button">Play Video</button>
+							  <button><a href="?audio_id={{page.video.id}}">Play Audio</a></button>
+							  <button><a href="?audio_id={{page.video.id}}" download="{{page.video.parent_series.name}}_{{page.video.name}}.mp3">Download Audio</a></button>
+							  <button><a href="{{page.video.downlink}}">Download Video</a></button>
+						 </span>
+					</legend>
+					<div id="ver" style="text-align: center;"> 
+						 <div data-vimeo-url="{{page.video.link}}" id="player"><h3 id="tmpbnr"><b>Loading, please wait...</b></h3></div>
+					</div>
+			  </fieldset>
+			{% endif %}
+		{% endblock %}
+		{% block formset %}
 			{% import 'macros.j2' as macro %}
-         {% for form in page.forms %}
+			{% for form in page.forms %}
 				{{ macro.render_form(form) }}
-         {% endfor %}
-      {% endblock %}
+			{% endfor %}
+		{% endblock %}
 	{% endblock %}
 	{% block scripts %}
 		{{ super() }}
 		<script src="https://cdn.datatables.net/r/ju-1.11.4/jqc-1.11.3,dt-1.10.8/datatables.min.js"></script>
 		<script src="https://cdn.datatables.net/select/1.3.3/js/dataTables.select.min.js"></script>
+		<script src="https://player.vimeo.com/api/player.js"></script>
+		<script src="{{ url_for('static', filename='jquery.fitvids.js') }}"></script>
 		<script>
-			$(document).ready(function() { {% block scriptage %}{% endblock %} })
+			$(document).ready(function() { 
+				{% block scriptage %}
+					{% if page.is_playable %}
+						vp = new Vimeo.Player('player')
+						vp.on('loaded', function(data) { $("#player").fitVids(); $("#tmpbnr").hide() })
+						$('#play_button').click(function() { vp.play() })
+					{% endif %}
+				{% endblock %} })
 			function shift_edit(event, slink) { 
 				if (event.shiftKey) 
 					event.preventDefault();

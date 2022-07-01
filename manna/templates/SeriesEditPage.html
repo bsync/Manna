@@ -1,6 +1,6 @@
-{% extends "series_page.html" %}
+{% extends "SeriesPage.html" %}
 	{% block scripts %}
-		{{ super() }}
+	{{ super() }}
 		<script src="{{url_for('static', filename='vimeo-upload.js')}}"></script>
 	{% endblock %}
 	{% import 'macros.j2' as macro %}
@@ -218,25 +218,33 @@
 
 		 $('#vid_set').spinner({step: 1, min: 1, max: 3})
 		 $('#date_inc').spinner({step: 1, min: 1, max: 3})
+		 $('#RedateSeries').prop('disabled', true)
 		 function set_redate_strategy(etype) {
-			 if (etype === 'row') {
-                var srows = series_table.rows('.selected').data()
-                srows = srows.map(function(v) { return $(v[1]).text() })
-                if ( srows.length == 0) {
-                     $('#strategy').text('Redate all items in the order listed above')
-                }
-                else if ( srows.length == 1 ) {
-                     $('#strategy').text(`Redate items in the order listed from ${srows[0]} `)
-                }
-                else if ( srows.length == 2 ) {
-                     $('#strategy').text(`Redate items in the order listed from ${srows[0]} up to ${srows[1]} `)
-                }
-                else { 
-                     $('#strategy').text('Redate the selected items in the order listed')
-                }
+			 if ( $("#start_date").val() ) {
+				 if (etype === 'row') {
+						 var srows = series_table.rows('.selected').data()
+						 srows = srows.map(function(v) { return v.name })
+						 if ( srows.length == 0) {
+								$('#strategy').text('Redate all items in the order listed above')
+						 }
+						 else if ( srows.length == 1 ) {
+								$('#strategy').text(`Redate items in the order listed from ${srows[0]} `)
+						 }
+						 else if ( srows.length == 2 ) {
+								$('#strategy').text(`Redate items in the order listed from ${srows[0]} up to ${srows[1]} `)
+						 }
+						 else { 
+								$('#strategy').text('Redate the selected items in the order listed')
+						 }
+				 }
 			 }
+			 else { $("#strategy").text('Provide a start date using the start date control.') }
 		 }
 		 set_redate_strategy('row')
+		 $('#start_date').change(function() { 
+		 	$("#RedateSeries").prop('disabled', !$(this).val()) 
+			set_redate_strategy('row')
+		 })
 		 function changing_selection(e,dt,type,idxs) { set_redate_strategy(type) }
 		 series_table.on('select', changing_selection)
 		 series_table.on('deselect', changing_selection)
@@ -259,7 +267,7 @@
 						 }).select()
 			  }
 			  vc = series_table.rows('.selected').data()
-			  var vm = vc.map(function(v) { return $(v[1]).text() })
+			  var vm = vc.map(function(v) { return v.name })
 			  var date = new Date($('#start_date').val() + "T00:00")
 			  var dinc = parseInt($('#date_inc').val())
 			  var vcnt = parseInt($('#vid_set').val())

@@ -1,6 +1,59 @@
-{% extends "forms_base.html" %}
-	{% block manna_form %}
-		{% include "user_table.html" %}
-		{{ form.user_selection }}
+{% extends "page.html" %}
+	{% block formset %}
+		{{ page.register_form.user_selection }}
+	   <div id="register">
+			<fieldset>
+				<legend>User Account Registration Form</legend>
+            <form class="form" method="post" role="form">
+					 {{ page.register_form.hidden_tag() }}
+					 {% if page.users %}
+						 <table id="invtbl">
+					  <thead>
+						  <th>Email</th>
+						  <th>Active</th>
+						  <th>Roles</th>
+					  </thead>
+					  <tbody> 
+						 {% for user in page.users %}
+							<tr id="{{user.id}}">
+								 <td> {{ user.email }} </td>
+								 <td> {{ user.active }} </td>
+								 <td> {{ page.roles_for_user(user) }} </td>
+							</tr>
+						 {% endfor %}
+					  </tbody>
+						 </table>
+						 {% import "bootstrap/wtf.html" as wtf %}
+						 {{ wtf.form_field(page.register_form.submit) }}
+						 {{ wtf.form_field(page.register_form.unregister) }}
+						 {{ wtf.form_field(page.register_form.delete) }}
+						 {{ wtf.form_field(page.register_form.promote) }}
+						 {{ wtf.form_field(page.register_form.demote) }}
+					{% else %}
+						<h3>No users found...</h3>
+					{% endif %}
+				</form>
+			</fieldset>
+		</div>
+	{% endblock %}
+	{% block scriptage %}
 		{{ super() }}
+		var tbl = $("#invtbl").DataTable(
+			{ "columns": [ 
+					{ "data":"email" }, 
+					{ "data":"active" }, 
+					{ "data":"roles" } ] })
+		tbl.on('select', 
+			(e,dt,type,idxs) => { 
+			  var udata = tbl.rows(idxs).data()
+			  var uregd = udata.pluck('active') == "True"
+			  var isadmin = udata.pluck('roles')[0].includes("Admin")
+			  var uid = udata[3]
+			  $('#user_selection').val(uid); 
+			  $('#register').prop('disabled', uregd)
+			  $('#unregister').prop('disabled', !uregd || uid == "1")
+			  $('#promote').prop('disabled', isadmin || uid == "1")
+			  $('#demote').prop('disabled', !isadmin || uid == "1")
+			  $('#delete').prop('disabled', uregd) })
+		tbl.select.style('single')
 	{% endblock %}

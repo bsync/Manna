@@ -1,6 +1,6 @@
 {% extends "page.html" %}
    {% block main %}
-       <h3 class="table-title" >Catalog of Series</h3>
+       <h3 class="table-title" >Series Archives</h3>
        <table id="catalog">
           <thead>
              <th>Date</th>
@@ -11,7 +11,8 @@
             {% for series in page.catalog %}
                 <tr id="{{series.id}}">
                     <td> {{series.date.strftime("%m-%d-%Y")}}</td>
-		    <td> <a href={{url_for("view_archive", series=series.name)}}>{{series.name}}</a> </td>
+		    <td> <a href={{url_for("view_archive", series=series.name)}}
+			    onclick="shift_edit(event, this)">{{series.name}}</a> </td>
                     <td> {{series.video_count}} </td>
                 </tr>
             {% endfor %}
