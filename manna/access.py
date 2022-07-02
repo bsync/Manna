@@ -4,13 +4,15 @@ from oauthlib.oauth2 import WebApplicationClient
 from flask_principal import Principal, Permission, RoleNeed, Identity, UserNeed
 from flask_principal import AnonymousIdentity, identity_changed, identity_loaded
 from flask_login import current_user
+from flask_mail import Message
 from .database import Datastore
 
 class Mannager(flask_login.LoginManager):
     admin_permission = Permission(RoleNeed('Admin'))
-    def __init__(self, app, view="login"):
+    def __init__(self, app, view="login", mailer=None):
         super().__init__(app)
         self.login_view = view
+        self.mailer= mailer
         self.datastore = Datastore(app)
         self.principal = Principal(app)
         self.config = app.config
@@ -135,6 +137,36 @@ class Mannager(flask_login.LoginManager):
             for role in current_user.roles:
                 identity.provides.add(RoleNeed(role.name))
     
+    def request_access(self, email, comments):    
+        msg = Message("Request for Manna Access", 
+                recipients=[self.mailer.app.config.get('MAIL_USERNAME', '')])
+        msg.body = f"{email} says '{comments}'"
+        self.mailer.send(msg)
+        return flask.redirect(with_msg="Request sent....please allow a day or so for response")
+
+    def invite_access(self, email, comments):
+        if self.datastore.find_user(email=email):
+            return flask.redirect(with_msg=f"{email} already exists in the user database...try something else!")
+        else:
+            self.datastore.create_user(email=email, desc=comments, active=False,)
+            return flask.redirect(with_msg=f"{email} added to the user database...waiting for confirmation!")
+
+    def register_user(self, su):
+        aRole = Role.query.filter(Role.name == 'Admin').first()
+        if su:
+            if self.operation in "Register Unregister".split():
+                su.active = (self.operation == "Register")
+            elif self.operation == "Promote":
+                if aRole not in su.roles:
+                    su.roles.append(aRole)
+            elif self.operation == "Demote":
+                if aRole in su.roles:
+                    su.roles.clear()
+            elif self.operation == "Delete":
+                self.session.delete(su)
+            self.session.commit()
+        self.redirection=redirect(with_msg=f"{self.operation} completed!")
+
     def logout(self):
         flask.flash(f"{current_user.username} logged out.")
         identity_changed.send(

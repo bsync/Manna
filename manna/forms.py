@@ -24,7 +24,6 @@ def redirect(url='', to_form=None, with_msg=False, **kwargs):
     return flask.redirect(url)
 
 class MannaForm(FlaskForm):
-    template = "forms_base.html"
     target = ""
     scripts = [ "https://code.jquery.com/jquery-3.6.0.min.js"]
     vimeo_token_field = HiddenField(default=os.getenv('VIMEO_TOKEN'))
@@ -179,78 +178,22 @@ class SyncSeries(MannaForm):
         flask.flash(f"Resynced series {self.series.name}.")
 
 
-class RegistrationForm(MannaForm):
-    template = "regform.html"
+class RegisterUserForm(MannaForm):
     rendopts=dict(disabled=True)
-    submit = None
-    register = SubmitField("Register", render_kw=rendopts)
+    submit = SubmitField("Register", render_kw=rendopts)
     unregister = SubmitField("Unregister", render_kw=rendopts)
     delete = SubmitField("Delete", render_kw=rendopts)
     promote = SubmitField("Promote", render_kw=rendopts)
     demote = SubmitField("Demote", render_kw=rendopts)
     user_selection = HiddenField()
 
-    def __init__(self, login_manager):
-        super().__init__()
-        self.session = login_manager.mdb.session
-        self.table = UserTable(login_manager.Users, select={ 'style':'single'}) 
-        self.scripts.extend(self.table.scripts)
-        self.css = self.table.css
-
-    @property
-    def scriptage(self):
-        return f"var dtable = {self.table.scriptage}\n" + \
-                """dtable.on('select', (e,dt,type,idxs) => { 
-                    var udata = dt.data()
-                    var uregd = udata[2] == "True"
-                    var uid = udata[3]
-                    var isadmin = udata[0] == "Admin"
-                    $('#user_selection').val(uid); 
-                    $('#register').prop('disabled', uregd)
-                    $('#unregister').prop('disabled', !uregd || uid == "1")
-                    $('#promote').prop('disabled', isadmin || uid == "1")
-                    $('#demote').prop('disabled', !isadmin || uid == "1")
-                    $('#delete').prop('disabled', uregd)
-                })"""
-
-    @property
-    def selected_user(self):
-        sid = flask.request.form.get('user_selection', '')
-        return User.query.filter_by(id=sid).first() if sid else None
-
-    @property
-    def operation(self):
-        for op in "register unregister promote demote delete".split():
-            if op in flask.request.form:
-                return flask.request.form[op]
-        return None
-
-    def on_validated(self):    
-        su = self.selected_user
-        aRole = Role.query.filter(Role.name == 'Admin').first()
-        if su:
-            if self.operation in "Register Unregister".split():
-                su.active = (self.operation == "Register")
-            elif self.operation == "Promote":
-                if aRole not in su.roles:
-                    su.roles.append(aRole)
-            elif self.operation == "Demote":
-                if aRole in su.roles:
-                    su.roles.clear()
-            elif self.operation == "Delete":
-                self.session.delete(su)
-            self.session.commit()
-        self.redirection=redirect(with_msg=f"{self.operation} completed!")
-
-
 class InviteUserForm(MannaForm):
-    #template = "invform.html"
     email = EmailField('Email address', [validators.DataRequired(), validators.Email()])
     submit = SubmitField("Invite")
 
-    def __init__(self, login_manager):
+    def __init__(self, access_manager):
         super().__init__()
-        self.lm = login_manager
+        self.lm = access_manager
 
     def on_validated(self):
         email = self.email.data
@@ -281,22 +224,22 @@ class InviteUserForm(MannaForm):
         safe_next_url = self.lm._get_safe_next_url('next', 'list_latest')
         self.redirection = redirect(safe_next_url)
 
+
 class RequestAccessForm(MannaForm):
-    template = "request_access_form.html"
     email = EmailField('Email address', [validators.DataRequired(), validators.Email()])
     comments = TextAreaField(
         u'Your comments:', 
         [validators.optional(), validators.length(max=200)])
-    recaptcha = RecaptchaField()
+    #recaptcha = RecaptchaField()
     submit = SubmitField("Request_Access")
 
-    def on_validated(self):    
-        mailer = self.lm.email_adapter.mail
-        rcpt = self.lm.MAIL_USERNAME
-        msg = Message("Request for Manna Access", recipients=[rcpt])
-        msg.body = f"{self.email.data} says '{self.comments.data}'"
-        mailer.send(msg)
-        self.redirection=redirect(with_msg="Request sent....please allow a day or so for response")
+
+class InviteUserForm(MannaForm):
+    email = EmailField('Email address', [validators.DataRequired(), validators.Email()])
+    comments = TextAreaField(
+        u'Invitation message:', 
+        [validators.optional(), validators.length(max=200)])
+    submit = SubmitField("Invite_Access")
 
 
 class GoogleLoginForm(MannaForm):
@@ -307,6 +250,7 @@ class GoogleLoginForm(MannaForm):
     def was_submitted(self):
         return super().was_submitted or 'google_callback' in flask.request.args
 
+
 class LoginUserForm(MannaForm):
     template = "login_form.html"
     email = EmailField('Email address', [validators.DataRequired(), validators.Email()])
@@ -314,8 +258,8 @@ class LoginUserForm(MannaForm):
     recaptcha = RecaptchaField()
     submit = SubmitField("Login")
 
-    def __init__(self, login_manager):
+    def __init__(self, access_manager):
         super().__init__()
-        if not self.email.data and login_manager.guest:
-            self.email.data  = login_manager.guest.email
+        if not self.email.data and access_manager.guest:
+            self.email.data  = access_manager.guest.email
         

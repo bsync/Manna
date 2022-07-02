@@ -37,7 +37,6 @@ class Mannager:
             for msg in errs:
                 flask.flash(msg)
 
-
     class MannaStorePage(MannaPage):
 
         def __init__(self, mstore, **kwargs):
@@ -61,6 +60,19 @@ class Mannager:
         @property
         def has_json(self):
             return hasattr(self, 'json')
+
+        @property
+        def template_name(self):
+            return f"{self.__class__.__name__}.html"
+
+        @property
+        def response(self):
+            if self.has_json: 
+                return self.json
+            elif self.has_audio:
+                return flask.Response(self.audio, mimetype="audio/mpeg")
+            else:
+                return flask.render_template(self.template_name, page=self)
 
 
     class CatalogStorePage(MannaStorePage):
@@ -143,33 +155,79 @@ class Mannager:
 
 
     class LoginPage(MannaPage):
-        redirection=None
 
-        def __init__(self, login_manager):
+        def __init__(self, access_manager):
             super().__init__("Login")
-            self.login_form = self.add(forms.LoginUserForm(login_manager))
+            self.login_form = self.add(forms.LoginUserForm(access_manager))
             self.glogin_form = self.add(forms.GoogleLoginForm())
             self.request_form = self.add(forms.RequestAccessForm())
-            if self.login_form.was_submitted:
-                self.redirection = login_manager.login_via_email(
-                    self.login_form.email.data, 
-                    self.login_form.password.data)
-            elif self.glogin_form.was_submitted:
-                self.redirection = login_manager.login_via_google()
-            elif self.request_form.was_submitted:
-                self.redirection = login_manager.request_access()
+            self.invite_form = self.add(forms.InviteUserForm())
 
         @property
-        def needs_redirection(self):
-            return bool(self.redirection)
+        def login_form_was_submitted(self):
+            return self.login_form.was_submitted
+
+        @property
+        def request_form_was_submitted(self):
+            return self.request_form.was_submitted
+
+        @property
+        def invite_access_form_was_submitted(self):
+            return self.invite_form.was_submitted
+
+        @property
+        def google_login_form_was_submitted(self):
+            return self.glogin_form.was_submitted
+
+        @property
+        def email(self):
+            if self.login_form_was_submitted:
+                return self.login_form.email.data
+            elif self.request_form_was_submitted:
+                return self.request_form.email.data
+            else:
+                return None
+
+        @property
+        def password(self):
+            if self.login_form_was_submitted:
+                return self.login_form.password.data
+            else:
+                return None
+
+        @property
+        def comments(self):
+            if self.request_form_was_submitted:
+                return self.request_form.comments.data
+            else:
+                return None
+        
 
     class RegistrationPage(MannaPage):
 
-        def __init__(self, login_manager):
-            super().__init__("Registration")
-            self.add(forms.RegistrationForm(login_manager))
-            self.add(forms.InviteUserForm(login_manager))
+        def __init__(self, access_manager):
+            super().__init__("Login")
+            self.users = access_manager.datastore.find_users()
+            self.register_form = self.add(forms.RegisterUserForm())
 
+        @property
+        def register_user_form_was_submitted(self):
+            return self.register_form.was_submitted
+
+        @property
+        def selected_user(self):
+            sid = self.register_form.user_selection
+            return self.datastore.find_user(email=sid) if sid else None
+
+        @property
+        def operation(self):
+            for op in "register unregister promote demote delete".split():
+                if op in flask.request.form:
+                    return flask.request.form[op]
+            return None
+
+        def roles_for_user(self, user):
+            return [ r.name for r in user.roles ]
 
 
 class BreadCrumbs(object):

@@ -21,8 +21,11 @@ class Datastore:
         db.session.add(Role(**kwargs))
         db.session.commit()
 
+    def find_users(self, **kwargs):
+        return db.session.query(User).filter_by(**kwargs)
+
     def find_user(self, **kwargs):
-        return db.session.query(User).filter_by(**kwargs).one_or_none()
+        return self.find_users(**kwargs).one_or_none()
 
     def create_user(self, roles=[], **kwargs):
         user = User(**kwargs)
