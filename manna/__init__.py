@@ -1,23 +1,41 @@
 import flask
 from datetime import datetime, timezone
 from flask import url_for, request, render_template
+from flask_mail import Mail
 from werkzeug.exceptions import HTTPException
 from . import access, pages, storage
 
 app = flask.Flask(__name__)
 app.config.from_prefixed_env()
 
-maccess = access.Mannager(app) 
+mmailer = Mail(app)
+maccess = access.Mannager(app, mailer=mmailer) 
 mpages = pages.Mannager(app)
 mstore = storage.Mannager(app)
 
 @app.route("/login", methods=['GET', 'POST'])
 def login():
     pg = mpages.LoginPage(maccess)
-    if pg.needs_redirection:
-        return pg.redirection
+    if pg.login_form_was_submitted:
+        return maccess.login_via_email(pg.email, pg.password)
+    elif pg.request_form_was_submitted:
+        return maccess.request_access(pg.email, pg.comments)
+    elif pg.google_login_form_was_submitted: 
+        return maccess.login_via_google()
+    elif pg.invite_access_form_was_submitted: 
+        return maccess.invite_access(pg.email, pg.comments)
     else:
         return flask.render_template("login_form.html", page=pg)
+
+@app.route("/register", methods=['GET', 'POST'])
+@maccess.login_required
+@maccess.admin_required
+def register():
+    pg = mpages.RegistrationPage(maccess)
+    if pg.register_user_form_was_submitted:
+        return maccess.register(pg.selected_user)
+    else:
+        return flask.render_template("regform.html", page=pg)
 
 @app.route("/logout", methods=['GET'])
 def logout():
@@ -30,53 +48,33 @@ def index():
 
 @app.route("/recent")
 def recents():
-    pg = mpages.RecentVideosPage(mstore, **request.args)
-    if pg.is_playable:
-        return render_player_for(pg)
-    else:
-        return flask.render_template("recents.html", page=pg)
+    return mpages.RecentVideosPage(mstore, **request.args).response
 
 @app.route("/recent/edit/")
+@maccess.login_required
 @maccess.admin_required
 def edit_recents():
     pg = mpages.EditRecentVideosPage(mstore, **request.args)
-    if pg.is_playable:
-        return render_player_for(pg)
     if 'make_recent' in request.args:
         return pg.include_as_recent(request.args.get('make_recent'))
-    return flask.render_template("missing_recent_vids.html", page=pg)
+    return pg.response
 
 @app.route("/archives")
 def view_archives():
-        pg = mpages.CatalogStorePage(mstore, **request.args)
-        if pg.has_json: 
-            return pg.json
-        else:
-            return flask.render_template("catalog_page.html", page=pg)
+    return mpages.CatalogStorePage(mstore, **request.args).response
 
-@app.route("/archive/<series>")
+@app.route("/archives/<series>")
 def view_archive(series=None):
-    pg = mpages.SeriesPage(mstore, series, **request.args)
-    if pg.is_playable:
-        return render_player_for(pg)
-    elif pg.has_json:
-        return pg.json
-    else:
-        return flask.render_template("series_page.html", page=pg)
+    return mpages.SeriesPage(mstore, series, **request.args).response
 
 @app.route("/archives/<series>/edit", methods=['GET', 'POST', 'DELETE'])
+@maccess.login_required
 @maccess.admin_required
 def edit_series_page(series):
-    pg=mpages.SeriesEditPage(mstore, series, **request.args)
-    if pg.is_playable:
-        return flask.redirect(url_for('.play_restricted', **request.args))
-    elif pg.has_json:
-        return pg.json
-    else:
-        return flask.render_template("series_edit_page.html", page=pg)
-
+    return mpages.SeriesEditPage(mstore, series, **request.args).response
 
 @app.route("/archives/<series>/videos/<video>/edit", methods=['GET', 'POST'])
+@maccess.login_required
 @maccess.admin_required
 def edit_video(series, video):
     try:
@@ -117,7 +115,7 @@ def roku():
                     thumbnail=x.plink,
                     content=dict(
                          dateAdded=x.date.strftime("%Y-%m-%d"),
-                         duration=str(x.duration),
+                         duration=x.duration.seconds,
                          videos=[
                             dict(url=x.vlink, 
                                  quality="HD", 
@@ -134,10 +132,4 @@ def error_page(err):
     oe = getattr(err, 'original_exception', "")
     flask.flash(f"Error routing to {request.url} {err.description} {oe}")
     return flask.render_template("page.html", page=mp)
-
-def render_player_for(pg):
-    if pg.has_audio:
-        return flask.Response(pg.audio, mimetype="audio/mpeg")
-    else:
-        return flask.render_template("player.html", page=pg)
 
