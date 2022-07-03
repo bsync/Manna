@@ -4,7 +4,7 @@ services:
         volumes:
             - ../robocert/selfsigned:/etc/letsencrypt
     manna:
-        image: manna
+        image: docksync/manna
         environment:
             - WORKERS=1
         volumes:

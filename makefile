@@ -5,6 +5,9 @@ DEVMODE=debug
 production: 
 	docker-compose -f docker/docker-compose.yml up ${DETACH} ${TARGETS}
 
+test: 
+	docker-compose -f docker/docker-compose.yml -f docker/docker-compose.test.yml up ${TARGETS}
+
 dev:
 	docker-compose -f docker/docker-compose.yml -f docker/docker-compose.${DEVMODE}.yml up ${DETACH} ${TARGETS}
 
@@ -16,7 +19,7 @@ restart:
 	docker-compose -f docker/docker-compose.yml -f docker/docker-compose.${DEVMODE}.yml restart ${TARGETS}
 
 build:
-	docker-compose -f docker/docker-compose.yml -f docker/docker-compose.${DEVMODE}.yml build ${TARGETS}
+	docker-compose -f docker/docker-compose.yml  build ${TARGETS}
 
 down:
 	docker-compose -f docker/docker-compose.yml down
