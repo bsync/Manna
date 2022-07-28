@@ -12,7 +12,7 @@
 			 <li><a href="#normal_tab">Normalize</a></li>
 			 <li><a href="#redate_tab">Redate</a></li>
 		  </ul>
-		  <div id="upload_tab">
+		  <div id="upload_tab" data-upload-token="{{page.token}}">
 			  <h3> Upload one or more videos to the "{{page.series.name}}" series: </h3>
 				{% for vid_up_form in page.add_videos_form.upload %}
 					<div class="upunit">
@@ -74,7 +74,7 @@
 			var progbar = $(unit).find(".progress")
 		   var vidout = $(unit).find("input[id$='vid_id']")
 			var seriesid = $(unit).find("input[id$='series_id']").val()
-			var vimtoken = $("#vimeo_token_field").val()
+			var vimtoken = $("#upload_tab").data("upload-token")
 
 			function move_to_series(vidid) { 
 				  return new Promise( (resolve) => {
@@ -117,7 +117,7 @@
 				  return new Promise( (resolve) => {
 				  		var origin = location.origin 
 						var pname = location.pathname.split('/')[1]
-						var aurl = origin + '/' + pname + `/recent/edit/${vidid}`
+						var aurl = origin + '/' + pname + `/recent/edit?make_recent=${vidid}`
 						$.ajax({url: aurl,
 								error: function(jqXHR, textStatus, errorThrown) { 
 								  showMessage(errorThrown, 'danger') },
@@ -201,20 +201,18 @@
 		series_table.on('deselect', change_purge_selection_cb)
         change_purge_selection('deselect', 0)
         $("#PurgeVideo").click(function(evt) {
-              evt.preventDefault()
+           evt.preventDefault()
 			  selected_rows = series_table.rows({ selected: true}).data()
 			  if ( selected_rows != "" ) 
                   if (window.confirm('Remove selected videos?')) {
-                      selected_rows.each(function () { 
-						V_ID = $(this).id()
-						vidname = $(vpurge['Lesson']).html()
-						$.ajax({url: escape(`videos/${vidname}/edit`)+`?purge=${V_ID}`, 
-								error: function(jqXHR, textStatus, errorThrown) { 
-								  showMessage(errorThrown, 'danger') },
-								success: function(sdata) { 
-								  showMessage(sdata) 
-								  series_table.ajax.reload() 
-                                  resolve(V_ID) }, }) }) } }) 
+                      selected_rows.each(function (value) { 
+								$.ajax({url: escape(`videos/${value.name}/edit`)+`?purge=${value.id}`, 
+										error: function(jqXHR, textStatus, errorThrown) { 
+										  showMessage(errorThrown, 'danger') },
+										success: function(sdata) { 
+										  showMessage(sdata) 
+										  series_table.ajax.reload() 
+													 resolve(value.id) }, }) }) } }) 
 
 		 $('#vid_set').spinner({step: 1, min: 1, max: 3})
 		 $('#date_inc').spinner({step: 1, min: 1, max: 3})
@@ -271,36 +269,43 @@
 			  var date = new Date($('#start_date').val() + "T00:00")
 			  var dinc = parseInt($('#date_inc').val())
 			  var vcnt = parseInt($('#vid_set').val())
+			  var promises = []
 			  for (let lname of vm.toArray()) {
 					dout = date.toISOString().split('T')[0]
-					$.ajax({url: escape(`videos/${lname}/edit`)+`?redate=${dout}`, 
+					promises.push(
+					 	$.ajax({url: escape(`videos/${lname}/edit`)+`?redate=${dout}`, 
 								error: function(jqXHR, textStatus, errorThrown) { 
 					 			  showMessage(errorThrown, 'danger') },
 								success: function(sdata) { 
 					 			  showMessage(sdata) 
 					 			  series_table.ajax.reload() },
-							 })
+							 }))
 					vcnt = vcnt - 1
 					if (vcnt == 0) {
 						 vcnt = $('#vid_set').val()
 						 date.setDate(date.getDate() + dinc)
 					}
 			  }
+			  $.when.apply(null, promises).done(function(){ window.location.reload(true) })
 		 }) 
     
 	    $("#NormalizeTitles").click(
 				function(evt) { 
 				  evt.preventDefault()
 				  var vc = series_table.rows().data()
-				  var vm = vc.map(function(v) { return $(v[1]).text() })
+				  var vm = vc.map(function(v) { return v.name })
+				  var promises = []
 				  for (let lname of vm.toArray()) 
-						$.ajax({url: escape(`videos/${lname}/edit`)+'?normalize', 
+						promises.push(
+					 		$.ajax({url: escape(`videos/${lname}/edit`)+'?normalize', 
 									error: function(jqXHR, textStatus, errorThrown) { 
 									  showMessage(errorThrown, 'danger') },
 									success: function(sdata) { 
 									  showMessage(sdata) 
-									  series_table.ajax.reload() } }) 
-				  })
+									  series_table.ajax.reload() } }))
+				  //Once we are done normalizing the table, reload the page to see results
+				  $.when.apply(null, promises).done(function(){ window.location.reload(true) })
+			  })
 
 	{% endblock %}
 

@@ -1,21 +1,19 @@
 import vimeo, json, datetime, re, math, os, subprocess 
 
 class Mannager(vimeo.VimeoClient):
+
     def __init__(self, app):
         super().__init__(app.config['VIMEO_TOKEN'], app.config['VIMEO_CLIENT_ID'], app.config['VIMEO_CLIENT_SECRET'])
         self.latest_cnt = app.config.get('LATEST_CNT', 10)
-        try:
-            self.recents = self.showcase_by_name("Recent")
-        except NoSuchResource as nsse:
-            self.recents = self.add_new_series("Recent", cls=Showcase)
-
+        recentsc = app.config.get("RECENTS", "Recent")
+        self.recents = self.showcase_by_name(recentsc, makeit=True)
         rvids = self.recents.videos()
         vidcnt = len(rvids)
         if vidcnt < self.latest_cnt:
             vids = self.collect(Video, sort="date", direction="desc", length=self.latest_cnt)
             for vid in vids:
-                if vid not in self.recents:
-                    self.recents.add_videos(vid)
+                if vid not in rvids:
+                    self.recents.add_videos(vid.id)
         elif vidcnt > self.latest_cnt:
             for vid in rvids[self.latest_cnt:]:
                 self.recents.purge(vid)
@@ -31,14 +29,17 @@ class Mannager(vimeo.VimeoClient):
         return self.collect(Video, sort="date", direction="desc", length=self.latest_cnt)
 
     def catalog(self, **kwargs):
-        if not hasattr(self, "_cached_catalog"):
-            self._cached_catalog = self.collect(Series, **kwargs)
-        return self._cached_catalog
+        if not hasattr(self, "_cached"):
+            self._cached = self.collect(Series, **kwargs)
+        return self._cached
 
-    def showcase_by_name(self, name):
+    def showcase_by_name(self, name, makeit=False):
         slist = self.collect(Showcase, query=name)
         if len(slist) < 1:
-            raise NoSuchResource(f"No Showcase matching: {name}")
+            if makeit:
+                return self.add_new_series(recentsc, cls=Showcase)
+            else:
+                raise NoSuchResource(f"No Showcase matching: {name}")
         return slist[0]
 
     def series_by_id(self, id):
@@ -271,11 +272,11 @@ class Series(Record):
     FIELDS="uri,name,embed,files,download," \
           +"created_time,modified_time,duration," \
           +"pictures.sizes.link," \
-          +"metadata.connections.items.total"
+          +"metadata.connections.videos.total"
 
     @property
     def video_count(self):
-        return int(self.metadata['connections']['items']['total'])
+        return int(self.metadata['connections']['videos']['total'])
 
     @property
     def date(self):
@@ -338,6 +339,7 @@ class Series(Record):
 
     def add_videos(self, *vid_ids):
         #Send all vid.uri's to vimeo at once to have it associate all with this folder/series
+        self._clear_cache()
         return self.source.add_videos_to_series(self, *vid_ids)
 
     def video_by_name(self, name):
@@ -348,7 +350,9 @@ class Series(Record):
         #return { v.name:v for v in self.videos() }[name]
 
     def videos(self, **kwargs):
-        return self.source.collect(Video, uri=f"{self.uri}/videos", **kwargs)
+        if not hasattr(self, '_cached'):
+            self._cached = self.source.collect(Video, uri=f"{self.uri}/videos", **kwargs)
+        return self._cached
 
     def normalized_name(self, name='', inc=0):
         vids = self.videos()
@@ -363,6 +367,10 @@ class Series(Record):
         else:
             return name
 
+    def _clear_cache(self):
+        if hasattr(self, '_cached'):
+            del self._cached
+
     def __contains__(self, record):
         return record.id in [ x.id for x in self.videos() ]
 
@@ -372,6 +380,7 @@ class Showcase(Series):
 
     def add_videos(self, *vid_ids):
         #Send all vid.uri's to vimeo at once to have it associate all with this folder/series
+        self._clear_cache()
         return self.source.add_videos_to_showcase(self, *vid_ids)
 
 

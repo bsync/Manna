@@ -26,7 +26,6 @@ def redirect(url='', to_form=None, with_msg=False, **kwargs):
 class MannaForm(FlaskForm):
     target = ""
     scripts = [ "https://code.jquery.com/jquery-3.6.0.min.js"]
-    vimeo_token_field = HiddenField(default=os.getenv('VIMEO_TOKEN'))
     submit = SubmitField("Submit")
 
     def __init__(self, *args, **kwargs):
@@ -165,7 +164,7 @@ class NormalizeTitles(MannaForm):
             evid = evids[0]
             e_norm_name = self.series.normalized_name(evid.name)
             return f"""There are a total of {len(evids)} videos to normalize. 
-                       For example: {evid.name} would be normalized to {e_norm_name}"""
+                       For example: '{evid.name}' would be normalized to '{e_norm_name}'"""
         else:
             return f"""Nothing to normalize in series "{self.series.name}" at this time.""" 
 

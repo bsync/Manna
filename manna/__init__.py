@@ -91,8 +91,10 @@ def edit_video(series, video):
                 return(f"Redated {video.name} to {newdate}")
             if 'normalize' in request.args:
                 vname = video.name
-                video.save(name=series.normalized_name(vname))
-                return(f"Normalized {vname} to {video.name}")
+                nvname = series.normalized_name(vname)
+                video.save(name=nvname)
+                del series._cached
+                return(f"Normalized {vname} to {nvname}")
             if 'purge' in request.args:
                 series.purge_video(video.name)
                 return(f"Purged {video.name}")

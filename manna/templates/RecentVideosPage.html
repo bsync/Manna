@@ -15,7 +15,7 @@
                 <tr id="{{vid.id}}">
                     <td> {{ vid.date.strftime("%a %b %d %Y") }} </td>
                     <td> <a href="?video_id={{vid.id}}">{{vid.parent_name}}</a> </td>
-                    <td> <a href="?video_id={{vid.id}}">{{vid.described}}</a> </td>
+                    <td> <a href="?video_id={{vid.id}}" onclick="shift_edit(event, this)">{{vid.described}}</a> </td>
                     <td> {{vid.duration}} </td>
                 </tr>
             {% endfor %}

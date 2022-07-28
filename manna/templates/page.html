@@ -125,8 +125,9 @@
                     if (typeof(slink) == "string") 
                         window.location = slink
                     else
-                        window.location = slink.href + '\/edit';
-					return false; 
+			aurl = new URL(slink.href) 
+                        window.location = aurl.origin + aurl.pathname + '/edit' + aurl.search
+			return false; 
 			} 
 		</script>
 	{% endblock %}
