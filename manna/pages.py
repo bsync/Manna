@@ -80,23 +80,20 @@ class Mannager:
         def catalog(self):
             return self.mstore.catalog()
 
-
     class RecentVideosPage(MannaStorePage):
+
         def __init__(self, mstore, **kwargs):
             super().__init__(mstore, **kwargs)
-            if hasattr(self, 'video'):
-                self.check_video(self.video)
+            if hasattr(self, 'video') and self.video not in self.vids:
+                raise Exception(f"{self.video.name} is not a recent video!")
 
         @property
         def vids(self):
             return self.mstore.recent_videos 
 
-        def check_video(self, video):
-            if video not in self.vids:
-                raise Exception(f"{self.video.name} is not a recent video!")
-
 
     class EditRecentVideosPage(RecentVideosPage):
+
         def __init__(self, mstore, **kwargs):
             super().__init__(mstore, **kwargs)
             self.add(forms.AddToRecentVideosForm())
@@ -104,10 +101,6 @@ class Mannager:
         @property
         def vids(self):
             return (self.mstore.latest_videos - self.mstore.recent_videos)[:5]
-
-        def check_video(self, video):
-            if video not in super().vids:
-                raise Exception(f"{self.video.name} is not a recent video!")
 
         def include_as_recent(self, video_id):
             video = self.mstore.video_by_id(video_id)
