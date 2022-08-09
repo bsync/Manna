@@ -4,10 +4,17 @@ from flask import url_for, request, render_template
 from flask_mail import Mail
 from werkzeug.exceptions import HTTPException
 from . import access, pages, storage
+from flask_caching import Cache
 
 app = flask.Flask(__name__)
 app.config.from_prefixed_env()
+app.config.from_mapping({ 
+    "DEBUG": True, 
+    "CACHE_TYPE": "FileSystemCache",  
+    "CACHE_DIR": "/tmp",
+    "CACHE_DEFAULT_TIMEOUT": 300 })
 
+cache = Cache(app)
 mmailer = Mail(app)
 maccess = access.Mannager(app, mailer=mmailer) 
 mpages = pages.Mannager(app)
@@ -59,12 +66,18 @@ def edit_recents():
         return pg.include_as_recent(request.args.get('make_recent'))
     return pg.response
 
-@app.route("/archives")
+@app.route("/archives") 
+@cache.memoize()
 def view_archives():
     return mpages.CatalogStorePage(mstore, **request.args).response
 
+@app.route("/catalog/edit/")
+def edit_archives():
+    cache.delete_memoized(view_archives)
+    return mpages.CatalogEditPage(mstore, **request.args).response
+
 @app.route("/archives/<series>")
-def view_archive(series=None):
+def view_archive(series):
     return mpages.SeriesPage(mstore, series, **request.args).response
 
 @app.route("/archives/<series>/edit", methods=['GET', 'POST', 'DELETE'])
@@ -81,6 +94,7 @@ def edit_video(series, video):
         series = mstore.series_by_name(series)
         if 'move_to' in request.args:
             series.add_videos(request.args['move_to'])
+            cache.delete_memoized(view_archive, series.name)
             return(f"{video} moved to {series.name}")
         else:
             video = series.video_by_name(video)
@@ -93,7 +107,6 @@ def edit_video(series, video):
                 vname = video.name
                 nvname = series.normalized_name(vname)
                 video.save(name=nvname)
-                del series._cached
                 return(f"Normalized {vname} to {nvname}")
             if 'purge' in request.args:
                 series.purge_video(video.name)

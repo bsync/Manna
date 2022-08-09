@@ -37,6 +37,7 @@ class Mannager:
             for msg in errs:
                 flask.flash(msg)
 
+
     class MannaStorePage(MannaPage):
         def __init__(self, mstore, **kwargs):
             super().__init__()
@@ -80,8 +81,8 @@ class Mannager:
         def catalog(self):
             return self.mstore.catalog()
 
-    class RecentVideosPage(MannaStorePage):
 
+    class RecentVideosPage(MannaStorePage):
         def __init__(self, mstore, **kwargs):
             super().__init__(mstore, **kwargs)
             if hasattr(self, 'video') and self.video not in self.vids:
@@ -93,7 +94,6 @@ class Mannager:
 
 
     class EditRecentVideosPage(RecentVideosPage):
-
         def __init__(self, mstore, **kwargs):
             super().__init__(mstore, **kwargs)
             self.add(forms.AddToRecentVideosForm())

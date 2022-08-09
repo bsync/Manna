@@ -18,8 +18,6 @@ class Mannager(vimeo.VimeoClient):
             for vid in rvids[self.latest_cnt:]:
                 self.recents.purge(vid)
 
-        self.catalog() #Force initial caching of the archives
-
     @property
     def recent_videos(self):
         return self.recents.videos()
@@ -29,9 +27,7 @@ class Mannager(vimeo.VimeoClient):
         return self.collect(Video, sort="date", direction="desc", length=self.latest_cnt)
 
     def catalog(self, **kwargs):
-        if not hasattr(self, "_cached"):
-            self._cached = self.collect(Series, **kwargs)
-        return self._cached
+        return self.collect(Series, **kwargs)
 
     def showcase_by_name(self, name, makeit=False):
         slist = self.collect(Showcase, query=name)
@@ -339,7 +335,6 @@ class Series(Record):
 
     def add_videos(self, *vid_ids):
         #Send all vid.uri's to vimeo at once to have it associate all with this folder/series
-        self._clear_cache()
         return self.source.add_videos_to_series(self, *vid_ids)
 
     def video_by_name(self, name):
@@ -350,9 +345,7 @@ class Series(Record):
         #return { v.name:v for v in self.videos() }[name]
 
     def videos(self, **kwargs):
-        if not hasattr(self, '_cached'):
-            self._cached = self.source.collect(Video, uri=f"{self.uri}/videos", **kwargs)
-        return self._cached
+        return self.source.collect(Video, uri=f"{self.uri}/videos", **kwargs)
 
     def normalized_name(self, name='', inc=0):
         vids = self.videos()
@@ -367,10 +360,6 @@ class Series(Record):
         else:
             return name
 
-    def _clear_cache(self):
-        if hasattr(self, '_cached'):
-            del self._cached
-
     def __contains__(self, record):
         return record.id in [ x.id for x in self.videos() ]
 
@@ -380,7 +369,6 @@ class Showcase(Series):
 
     def add_videos(self, *vid_ids):
         #Send all vid.uri's to vimeo at once to have it associate all with this folder/series
-        self._clear_cache()
         return self.source.add_videos_to_showcase(self, *vid_ids)
 
 
