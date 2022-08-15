@@ -1,6 +1,6 @@
 import vimeo, json, datetime, re, math, os, subprocess 
 
-class Mannager(vimeo.VimeoClient):
+class VimeoMannager(vimeo.VimeoClient):
 
     def __init__(self, app):
         super().__init__(app.config['VIMEO_TOKEN'], app.config['VIMEO_CLIENT_ID'], app.config['VIMEO_CLIENT_SECRET'])

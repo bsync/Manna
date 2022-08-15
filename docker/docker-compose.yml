@@ -48,6 +48,7 @@ services:
       volumes:
          - static_html:/app/manna/static
          - ../robocert/letsencrypt:/etc/letsencrypt
+         - /media/bsync/Seagate/lessons/Zechariah:/catalog/Zechariah
       ports:
          - 8001:8001
       environment:

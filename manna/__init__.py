@@ -3,8 +3,9 @@ from datetime import datetime, timezone
 from flask import url_for, request, render_template
 from flask_mail import Mail
 from werkzeug.exceptions import HTTPException
-from . import access, pages, storage
+from . import access, pages
 from flask_caching import Cache
+from importlib import import_module
 
 app = flask.Flask(__name__)
 app.config.from_prefixed_env()
@@ -18,7 +19,12 @@ cache = Cache(app)
 mmailer = Mail(app)
 maccess = access.Mannager(app, mailer=mmailer) 
 mpages = pages.Mannager(app)
-mstore = storage.Mannager(app)
+
+#Import the configured storage module, defaulting to 'local'
+mstoremod = import_module(f"manna.storage.{app.config.get('STORAGE_MANNAGER', 'local')}")
+mstore = mstoremod.Mannager(
+    app.config.get('STORE_MANNAGER_ROOT', '/catalog'), 
+    app.config.get('LATEST_CNT', 10))
 
 @app.route("/login", methods=['GET', 'POST'])
 def login():
