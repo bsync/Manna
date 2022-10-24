@@ -1,6 +1,6 @@
 DETACH=-d
 TARGETS=
-DEVMODE=debug
+OVERRIDE=debug
 
 production: 
 	docker-compose -f docker/docker-compose.yml up ${DETACH} ${TARGETS}
@@ -9,14 +9,14 @@ test:
 	docker-compose -f docker/docker-compose.yml -f docker/docker-compose.test.yml up ${TARGETS}
 
 dev:
-	docker-compose -f docker/docker-compose.yml -f docker/docker-compose.${DEVMODE}.yml up ${DETACH} ${TARGETS}
+	docker-compose -f docker/docker-compose.yml -f docker/docker-compose.${OVERRIDE}.yml up ${DETACH} ${TARGETS}
 
 mdev:
-	docker-compose -f docker/docker-compose.yml -f docker/docker-compose.debug.yml stop manna
-	docker-compose -f docker/docker-compose.yml -f docker/docker-compose.debug.yml run --rm manna bash
+	docker-compose -f docker/docker-compose.yml -f docker/docker-compose.${OVERRIDE}.yml stop manna
+	docker-compose -f docker/docker-compose.yml -f docker/docker-compose.${OVERRIDE}.yml run --rm manna bash
 
 restart:
-	docker-compose -f docker/docker-compose.yml -f docker/docker-compose.${DEVMODE}.yml restart ${TARGETS}
+	docker-compose -f docker/docker-compose.yml -f docker/docker-compose.${OVERRIDE}.yml restart ${TARGETS}
 
 build:
 	docker-compose -f docker/docker-compose.yml  build ${TARGETS}

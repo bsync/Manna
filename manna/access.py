@@ -64,15 +64,15 @@ class Mannager(flask_login.LoginManager):
         if user and user.password == password:
             return self.login(
                 user, 
-                flask.request.values.get('next', flask.url_for('recents')))
+                flask.request.values.get('next', flask.url_for('show_recent')))
         else:
             flask.flash(f"Login failed for {email}.")
-            return flask.redirect(flask.url_for('recents'))
+            return flask.redirect(flask.url_for('show_recent'))
 
     def login_via_google(self):
         if 'google_callback' in flask.request.args:
             return self.google_callback()
-        flask.session['next_url'] = flask.request.values.get('next', flask.url_for('recents'))
+        flask.session['next_url'] = flask.request.values.get('next', flask.url_for('show_recent'))
         return flask.redirect(self.gclient.prepare_request_uri(
             self.gprov["authorization_endpoint"],
             redirect_uri=flask.request.base_url + "?google_callback",
@@ -114,7 +114,7 @@ class Mannager(flask_login.LoginManager):
             return self.login(user, flask.session['next_url'])
         else: #An entry for the user now exists but needs to be made active before first use.
             flask.flash(f"Waiting for {user.username} confirmation.")
-            return flask.redirect(flask.url_for("recents"))
+            return flask.redirect(flask.url_for("show_recent"))
 
     def login(self, user, next_url):
         flask_login.login_user(user)

@@ -1,0 +1,16 @@
+version: '3.1'
+services:
+    nginx:
+        volumes:
+            - ../robocert/letsencrypt:/etc/letsencrypt
+            - ../nginx.hopto.conf:/etc/nginx/conf.d/pleroma.conf
+    manna:
+        image: docksync/manna
+        hostname: manna.hopto.org
+        environment:
+            - WORKERS=1
+        volumes:
+            - ../:/app
+            - ../robocert/letsencrypt:/etc/letsencrypt
+            - ${HOME}/catalog:/catalog
+

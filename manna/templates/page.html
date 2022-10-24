@@ -60,7 +60,7 @@
 	{% block title %}{{page.title}}{% endblock %}
    {% block content %}
 		<h3 class="menu" >
-			<a class="mcenter" href="{{ url_for('recents') }}" onclick="shift_edit(event, this)">Recent</a>
+			<a class="mcenter" href="{{ url_for('show_recent') }}" onclick="shift_edit(event, this)">Recent</a>
 			<a class="site-title" href="/">{{ page.site_name }}</a>
 			<a class="mcenter" href="{{ url_for('view_archives') }}" onclick="shift_edit(event, this)">Archives</a>
 			{% if current_user.is_authenticated %}
@@ -79,23 +79,6 @@
 			{% endwith %}
 		</h3>
 		{% block main %}
-			{% if page.is_playable %}
-			  <fieldset>
-					<legend style="border:2px solid yellow; padding: 10px;">
-						 <a href="{{ url_for('view_archive', series=page.video.parent_series.name)}}">{{page.video.parent_name}}</a>, 
-							  {{ page.video.described }}, {{ page.video.width }} x {{ page.video.height }} {{ page.video.quality }}
-						 <span style="float: right">
-							  <button id="play_button">Play Video</button>
-							  <button><a href="?audio_id={{page.video.id}}">Play Audio</a></button>
-							  <button><a href="?audio_id={{page.video.id}}" download="{{page.video.parent_series.name}}_{{page.video.name}}.mp3">Download Audio</a></button>
-							  <button><a href="{{page.video.downlink}}">Download Video</a></button>
-						 </span>
-					</legend>
-					<div id="ver" style="text-align: center;"> 
-						 <div data-vimeo-url="{{page.video.link}}" id="player"><h3 id="tmpbnr"><b>Loading, please wait...</b></h3></div>
-					</div>
-			  </fieldset>
-			{% endif %}
 		{% endblock %}
 		{% block formset %}
 			{% import 'macros.j2' as macro %}
@@ -114,9 +97,11 @@
 			$(document).ready(function() { 
 				{% block scriptage %}
 					{% if page.is_playable %}
-						vp = new Vimeo.Player('player')
-						vp.on('loaded', function(data) { $("#player").fitVids(); $("#tmpbnr").hide() })
-						$('#play_button').click(function() { vp.play() })
+                  {% if page.needs_vimeo %}
+                     vp = new Vimeo.Player('player')
+                        vp.on('loaded', function(data) { $("#player").fitVids(); $("#tmpbnr").hide() })
+                        $('#play_button').click(function() { vp.play() })
+                  {% endif %}
 					{% endif %}
 				{% endblock %} })
 			function shift_edit(event, slink) { 

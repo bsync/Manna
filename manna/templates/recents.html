@@ -1,7 +1,9 @@
-{% extends "page.html" %}
+{% extends "base.html" %}
     {% block title %}Recent Videos{% endblock %}
     {% block main %}
-	 	 {{ super() }}
+       {% if playvid %}
+         {% include "player.html" %}
+       {% endif %}
        <h3 class="table-title">Recently Taught Lessons</h3>
        <table id="recent">
           <thead>
@@ -11,12 +13,13 @@
              <th>Duration</th>
           </thead>
           <tbody> 
-            {% for vid in page.vids %}
-                <tr id="{{vid.vid}}">
+            {% for vid in videos %}
+                <tr>
                     <td> {{ vid.date.strftime("%a %b %d %Y") }} </td>
-                    <td> <a href="play/{{vid.parent_name}}/{{vid.name}}"</a>{{vid.parent_name}}</td>
-                    <td> <a href="play/{{vid.parent_name}}/{{vid.name}}"
-                            onclick="shift_edit(event, this)">{{vid.described}}</a> </td>
+                    <td> <a href="{{ url_for('play', series=vid.parent.name, video=vid.name) }}">
+                          {{ vid.parent.name }}</a></td>
+                    <td> <a href="{{ url_for('play', series=vid.parent.name, video=vid.name) }}"
+                          onclick="shift_edit(event, this)"> {{vid.name}}</a> </td>
                     <td> {{vid.duration}} </td>
                 </tr>
             {% endfor %}

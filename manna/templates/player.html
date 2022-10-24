@@ -1,30 +1,32 @@
-{% extends "page.html" %}
-	{% block main %}
-		{{ super() }}
-        <fieldset>
-            <legend style="border:2px solid yellow; padding: 10px;">
-                <a href="{{ url_for('view_archive', series=page.video.parent_series.name)}}">{{page.video.parent_name}}</a>, 
-                    {{ page.video.described }}, {{ page.video.width }} x {{ page.video.height }} {{ page.video.quality }}
-                <span style="float: right">
-                    <button id="play_button">Play Video</button>
-                    <button><a href="?audio_id={{page.video.id}}">Play Audio</a></button>
-                    <button><a href="?audio_id={{page.video.id}}" download="{{page.video.parent_series.name}}_{{page.video.name}}.mp3">Download Audio</a></button>
-                    <button><a href="{{page.video.downlink}}">Download Video</a></button>
-                </span>
-            </legend>
-            <div id="ver" style="text-align: center;"> 
-                <div data-vimeo-url="{{page.video.link}}" id="player"><h3 id="tmpbnr"><b>Loading, please wait...</b></h3></div>
-            </div>
-        </fieldset>
-	{% endblock %}
-	{% block scripts %}
-		{{ super() }}
-		<script src="https://player.vimeo.com/api/player.js"></script>
-		<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-		<script src="{{ url_for('static', filename='jquery.fitvids.js') }}"></script>
-	{% endblock %}
-	{% block scriptage %}
-		vp = new Vimeo.Player('player')
-		vp.on('loaded', function(data) { $("#player").fitVids(); $("#tmpbnr").hide() })
-        $('#play_button').click(function() { vp.play() })
-	{% endblock %}
+<fieldset>
+   <legend style="border:2px solid yellow; padding: 10px;">
+       <a href="{{ url_for('play', series=playvid.parent.name)}}">{{playvid.parent.name}}</a>
+           {{ playvid.name }}, {{ playvid.width }} x {{ playvid.height }} 
+       <span style="float: right">
+           <button><a href="{{ url_for('play', 
+                               series=playvid.parent.name, 
+                               audio=playvid.name) }}">Play Audio</a></button> 
+           <button><a href="{{ url_for('download', 
+                               series=playvid.parent.name, 
+                               audio=playvid.name) }}">Download Audio</a></button> 
+           <button><a href="{{ url_for('download', 
+                               series=playvid.parent.name, 
+                               video=playvid.name) }}">Download Video</a></button>
+       </span>
+   </legend>
+   <div id="ver" style="text-align: center;"> 
+      {% if playvid.needs_vimeo %}
+       <div data-vimeo-url="{{playvid.link}}" id="player"><h3 id="tmpbnr"><b>Loading, please wait...</b></h3></div>
+      {% elif playaudio %}
+       <audio width="620" height="480" id="player" controls>
+          <source src="{{ playvid.encoded_audio_path }}">
+         Your browser does not support the audio tag.
+       </audio>
+      {% else %}
+       <video width="620" height="480" id="player" controls>
+          <source src="{{ playvid.encoded_path }}" type="video/mp4">
+         Your browser does not support the video tag.
+       </video>
+      {% endif %}
+   </div>
+</fieldset>

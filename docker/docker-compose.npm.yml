@@ -1,27 +1,15 @@
 version: '3.1'
 services:
-   dnsrobocert:
-      image: adferrand/dnsrobocert
-      container_name: dnsrobocert
-      restart: always
-      volumes:
-         - ../robocert/config.yml:/etc/dnsrobocert/config.yml
-         - ../robocert/letsencrypt:/etc/letsencrypt
-   nginx:
-      image: nginx
-      container_name: nginx
-      ports:
-         - 443:443
-      depends_on: 
-         - joomla
-         - manna
-      volumes:
-         - joomla_html:/var/www/html
-         - static_html:/var/www/html/manna/static
-         - ../robocert/letsencrypt:/etc/letsencrypt
-         - ../nginx.conf:/etc/nginx/conf.d/pleroma.conf
-         - ${HOME}/catalog:/catalog
+   npm:
+      image: 'jc21/nginx-proxy-manager:latest'
       restart: unless-stopped
+      ports:
+         - '80:80'
+         - '81:81'
+         - '443:443'
+      volumes:
+      - ./npm_data:/data
+      - ./npm_letsencrypt:/etc/letsencrypt
    joomla:
       container_name: joomla
       image: joomla:3.9-php7.4-fpm

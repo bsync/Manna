@@ -10,5 +10,5 @@ services:
         volumes:
             - ../:/app
             - ../robocert/selfsigned:/etc/letsencrypt
-            - ./catalog:/catalog
+            - ../catalog:/catalog
 

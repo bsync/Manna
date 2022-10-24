@@ -94,7 +94,7 @@ class AddVideoSet(MannaForm):
         for avf,vn in zip(self.upload, nvn):
            avf.video_name.data = vn
            avf.video_author.data = series.author
-           avf.series_id.data = series.id
+           avf.series_id.data = series.rid
 
     def on_validated(self):    
         vidids = [ vid for vid in flask.request.form.getlist('vid_id') if vid ]

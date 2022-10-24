@@ -7,4 +7,4 @@ COPY serve README.txt pyproject.toml setup.cfg /app/
 WORKDIR /app
 RUN /venv/bin/python -m pip install -e .
 ENV PATH="/venv/bin:${PATH}"
-CMD ["serve"]
+CMD ["/app/serve"]

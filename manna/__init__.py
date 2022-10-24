@@ -1,4 +1,4 @@
-import flask
+import flask, time
 from datetime import datetime, timezone
 from flask import url_for, request, render_template
 from flask_mail import Mail
@@ -6,6 +6,7 @@ from werkzeug.exceptions import HTTPException
 from . import access, pages
 from flask_caching import Cache
 from importlib import import_module
+from urllib.parse import unquote
 
 app = flask.Flask(__name__)
 app.config.from_prefixed_env()
@@ -22,9 +23,7 @@ mpages = pages.Mannager(app)
 
 #Import the configured storage module, defaulting to 'local'
 mstoremod = import_module(f"manna.storage.{app.config.get('STORAGE_MANNAGER', 'local')}")
-mstore = mstoremod.Mannager(
-    app.config.get('STORE_MANNAGER_ROOT', '/catalog'), 
-    app.config.get('LATEST_CNT', 10))
+mstore = mstoremod.Mannager(app.config.get('STORE_MANNAGER_ROOT', '/catalog'))
 
 @app.route("/login", methods=['GET', 'POST'])
 def login():
@@ -53,15 +52,50 @@ def register():
 @app.route("/logout", methods=['GET'])
 def logout():
     maccess.logout()
-    return flask.redirect(flask.url_for("recents"))
+    return flask.redirect(flask.url_for("show_recent"))
 
 @app.route("/")
 def index():
-    return flask.redirect(url_for('recents'))
+    return flask.redirect(url_for('show_recent'))
 
-@app.route("/recent")
-def recents():
-    return mpages.RecentVideosPage(mstore, **request.args).response
+def render(template, **kwargs):
+    return flask.render_template(
+            template, 
+            title=app.config.get('TITLE', 'Manna'),
+            **kwargs)
+
+@app.route("/recent/")
+def show_recent(series=None, vid=None):
+    if vid:
+        series = mstore.series_by_name(series)
+        vid = series.video_by_name(vid)
+    recents = mstore.recent_videos(app.config.get('LATEST_CNT', 10))
+    return render('recents.html', playvid=vid, videos=recents)
+
+@app.route("/play/<series>")
+def play(series):
+    series = mstore.series_by_name(series)
+    if "dt_json" in request.args:
+        kwargs = request.args.copy()
+        svids = series.videos(**kwargs) 
+        qdicts = [ dict(id=id(x),
+                   date=x.date.strftime("%Y-%m-%d"), 
+                   name=x.name, 
+                   duration=str(x.duration)) for x in svids ]
+        return flask.jsonify(dict(
+            data=qdicts,
+            draw=int(kwargs['draw']), 
+            recordsTotal=svids.available, 
+            recordsFiltered=svids.available))
+    elif 'video' in request.args:
+        vid = series.video_by_name(request.args['video'])
+        return render('series.html', series=series, playvid=vid)
+    elif 'audio' in request.args:
+        vid = series.video_by_name(request.args['audio'])
+        return render('series.html', series=series, playvid=vid, playaudio=True)
+        #return flask.Response(vid.audio_stream, mimetype="audio/mpeg")
+    else:
+        return render('series.html', series=series)
 
 @app.route("/recent/edit/")
 @maccess.login_required
@@ -75,28 +109,43 @@ def edit_recents():
 @app.route("/archives") 
 @cache.memoize()
 def view_archives():
-    return mpages.CatalogStorePage(mstore, **request.args).response
+    return render('catalog.html', catalog=mstore.series.values())
 
-@app.route("/catalog/edit/")
-def edit_archives():
-    cache.delete_memoized(view_archives)
-    return mpages.CatalogEditPage(mstore, **request.args).response
+@app.route("/download/<series>")
+def download(series):
+    series = mstore.series_by_name(series)
+    if 'video' in request.args:
+        video = series.video_by_name(request.args['video'])
+        vrp = unquote(str(video.relative_path))
+        return flask.send_from_directory(mstore.rootdir, vrp, as_attachment=True)
+    elif 'audio' in request.args:
+        video = series.video_by_name(request.args['audio'])
+        if not video.audio_file.exists():
+            video.generate_audio_file()
+        response = flask.make_response(video.audio_stream)
+        response.headers.set(
+            'Content-Disposition', 'attachment', filename=str(video.relative_stem.with_suffix('.mp3')))
+        return response
 
-@app.route("/archives/<series>")
-def view_archive(series):
-    return mpages.SeriesPage(mstore, series, **request.args).response
-
-@app.route("/archives/<series>/edit", methods=['GET', 'POST', 'DELETE'])
+@app.route("/play/<series>/edit", methods=['GET', 'POST', 'DELETE'])
 @maccess.login_required
 @maccess.admin_required
 def edit_series_page(series):
-    return mpages.SeriesEditPage(mstore, series, **request.args).response
+    if "dt_json" in request.args:
+        return flask.redirect(flask.url_for("play", series=series, **request.args))
+    series = mstore.series_by_name(series)
+    return render('editseries.html', series=series,
+                    add_videos_form=forms.AddVideoSet(series),
+                    purge_video_form=forms.PurgeVideo(series),
+                    redate_series_form=forms.RedateSeries(series),
+                    normalize_series_form=forms.NormalizeTitles(series))
 
 @app.route("/archives/<series>/videos/<video>/edit", methods=['GET', 'POST'])
 @maccess.login_required
 @maccess.admin_required
 def edit_video(series, video):
     try:
+        import pdb; pdb.set_trace()
         series = mstore.series_by_name(series)
         if 'move_to' in request.args:
             series.add_videos(request.args['move_to'])

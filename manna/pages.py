@@ -43,15 +43,19 @@ class Mannager:
             super().__init__()
             self.mstore = mstore
             if 'video_id' in kwargs:
-                self.video = mstore.video_by_id(kwargs['video_id'])
+                self.video = mstore.video_by_id(int(kwargs['video_id']))
             elif 'audio_id' in kwargs:
-                self.audio = mstore.audio_by_id(kwargs['audio_id'])
+                self.audio = mstore.audio_by_id(int(kwargs['audio_id']))
             elif 'dt_json' in kwargs:
                 self.json = self._dt_json(**kwargs)
 
         @property
         def is_playable(self):
-            return hasattr(self, 'video') or hasattr(self, 'audio')
+            return self.has_video or self.has_audio
+
+        @property
+        def has_video(self):
+            return hasattr(self, 'video')
 
         @property
         def has_audio(self):
@@ -60,6 +64,10 @@ class Mannager:
         @property
         def has_json(self):
             return hasattr(self, 'json')
+
+        @property
+        def needs_vimeo(self):
+            return 'vimeo' in str(type(self.mstore))
 
         @property
         def template_name(self):
@@ -74,6 +82,9 @@ class Mannager:
             else:
                 return flask.render_template(self.template_name, page=self)
 
+
+    class VideoPlayer(MannaStorePage):
+        pass
 
     class CatalogStorePage(MannaStorePage):
 
@@ -128,7 +139,7 @@ class Mannager:
             if sort == 'name':
                 kwargs[f"columns[{kwargs.get('order[0][column]', 0)}][data]"] = 'alphabetical'
             svids = self.series.videos(**kwargs) 
-            qdicts = [ dict(id=x.id,
+            qdicts = [ dict(id=id(x),
                        date=x.date.strftime("%Y-%m-%d"), 
                        name=x.described, 
                        duration=str(x.duration)) for x in svids ]
