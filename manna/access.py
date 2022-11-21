@@ -59,6 +59,11 @@ class Mannager(flask_login.LoginManager):
     def admin_required(self):
         return self.admin_permission.require()
 
+    def https_url(self, url=None):
+        if url is None:
+            url = flask.request.base_url
+        return url.replace('http:', 'https:')
+
     def login_via_email(self, email, password):
         user = self.datastore.find_user(email=email)
         if user and user.password == password:
@@ -75,15 +80,15 @@ class Mannager(flask_login.LoginManager):
         flask.session['next_url'] = flask.request.values.get('next', flask.url_for('show_recent'))
         return flask.redirect(self.gclient.prepare_request_uri(
             self.gprov["authorization_endpoint"],
-            redirect_uri=flask.request.base_url + "?google_callback",
+            redirect_uri=self.https_url() + "?google_callback",
             scope=["openid", "email", "profile"],))
 
     def google_callback(self):
         code = flask.request.args.get("code")
         token_url, headers, body = self.gclient.prepare_token_request(
             self.gprov['token_endpoint'],
-            authorization_response=flask.request.url,
-            redirect_url=flask.request.base_url + "?google_callback",
+            authorization_response=self.https_url(flask.request.url),
+            redirect_url=self.https_url() + "?google_callback",
             code=code)
 
         token_response = bg_requests.post(
