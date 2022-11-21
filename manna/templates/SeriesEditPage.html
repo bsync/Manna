@@ -1,0 +1,311 @@
+{% extends "SeriesPage.html" %}
+	{% block scripts %}
+	{{ super() }}
+		<script src="{{url_for('static', filename='vimeo-upload.js')}}"></script>
+	{% endblock %}
+	{% import 'macros.j2' as macro %}
+   {% block formset %}
+		<div id="formgroup">
+		  <ul>
+			 <li><a href="#upload_tab">Uploads</a></li>
+			 <li><a href="#purge_tab">Purge</a></li>
+			 <li><a href="#normal_tab">Normalize</a></li>
+			 <li><a href="#redate_tab">Redate</a></li>
+		  </ul>
+		  <div id="upload_tab" data-upload-token="{{page.token}}">
+			  <h3> Upload one or more videos to the "{{page.series.name}}" series: </h3>
+				{% for vid_up_form in page.add_videos_form.upload %}
+					<div class="upunit">
+						{{ macro.render_form(vid_up_form) }}
+						<div class="progress"></div>
+					</div>
+				{% endfor %}
+				<button class="add_field">+</>
+				<button class="del_field">-</>
+				<button id="upload_videos">Start Uploads</>
+		  </div>
+		  <div id="purge_tab">
+				<h3 id="select_for_purge"></h3>
+				{{ macro.render_form(page.purge_video_form) }}
+		  </div>
+		  <div id="normal_tab">
+				<h3>Normalize the names in the table above</h3>
+				{{ macro.render_form(page.normalize_series_form) }}
+		  </div>
+		  <div id="redate_tab">
+				<h3 id="strategy"></h3>
+				{{ macro.render_form(page.redate_series_form) }}
+		  </div>
+		</div>
+   {% endblock %}
+	{% block scriptage %}
+		{{ super() }}
+		var series_table = $("#series").DataTable({retrieve: true}) 
+
+		function switch_table_mode(tab_hash) {
+			tab_hash = (tab_hash == '') ? '#upload_tab' : tab_hash;
+			var options_by_tab = {
+				upload_tab: { select: 'api' },
+				purge_tab:  { select: 'multiple' },
+				normal_tab: { select: 'api' },
+				redate_tab: { select: 'multiple' },
+				sync_tab:     { select: 'api' }
+			}
+			series_table.rows().deselect()
+			select_opt = options_by_tab[tab_hash.substring(1)]['select']
+			series_table.select.style(select_opt)
+		}
+		$("#formgroup").tabs({ activate: function(event,ui) { switch_table_mode(ui.newPanel.selector) } })
+		switch_table_mode(window.location.hash);
+
+		function showMessage(html, type) {
+			 var stats = $("#status")
+			 stats.attr('class', 'status alert alert-' + (type || 'success'))
+			 stats.html(html)
+			 window.scroll(0, 0)
+		}
+
+		function perform_upload_for(unit) {
+			var upfile = $(unit).find("input[type=file]")[0].files[0]
+			var vidname = $(unit).find("input[type=text]")[0].value
+			var vidauth = $(unit).find("input[type=text]")[1].value
+			var viddesc = $(unit).find("input[type=text]")[2].value
+			var viddate = $(unit).find("input[type=date]")[0].value
+			var progbar = $(unit).find(".progress")
+		   var vidout = $(unit).find("input[id$='vid_id']")
+			var seriesid = $(unit).find("input[id$='series_id']").val()
+			var vimtoken = $("#upload_tab").data("upload-token")
+
+			function move_to_series(vidid) { 
+				  return new Promise( (resolve) => {
+						$.ajax({url: escape(`videos/${vidname}/edit`)+`?move_to=${vidid}`, 
+								error: function(jqXHR, textStatus, errorThrown) { 
+								  showMessage(errorThrown, 'danger') },
+								success: function(sdata) { 
+								  showMessage(sdata) 
+								  series_table.ajax.reload() 
+								  resolve(vidid) }, }) })
+			 }
+
+			 function wait_for_transcode(vidid) {
+				  var tm=0, timer=setInterval(function(){tm++},1000);
+				  showMessage(`Waiting for transcode to complete for: <strong>${vidname}</strong>`)
+				  return new Promise( (resolve) => {
+						function poll_transcode_status() {
+							 $.ajax({url: `https://api.vimeo.com/videos/${vidid}` 
+											  + "?fields=uri,upload.status,transcode.status",
+										type: "GET",
+										beforeSend: function(xhr) { 
+											 xhr.setRequestHeader('Authorization', 
+																		 'Bearer ' + vimtoken); }, 
+										success: function (resp) {
+											 if (resp.transcode.status != "complete") {
+												  showMessage(`Transcode status after ${tm} seconds: ${vidname} ` 
+																 +`<strong> ${resp.transcode.status} </strong>` )
+												  setTimeout(poll_transcode_status, 3000, vidid) 
+											 }
+											 else { 
+												  showMessage(`Transcode complete for: <strong> ${vidname} </strong>`)
+												  resolve(vidid)
+											 } } })
+						}
+						poll_transcode_status()
+				  })
+			 }
+
+			function advertise(vidid) { 
+				  return new Promise( (resolve) => {
+				  		var origin = location.origin 
+						var pname = location.pathname.split('/')[1]
+						var aurl = origin + '/' + pname + `/recent/edit?make_recent=${vidid}`
+						$.ajax({url: aurl,
+								error: function(jqXHR, textStatus, errorThrown) { 
+								  showMessage(errorThrown, 'danger') },
+								success: function(sdata) { 
+								  showMessage(sdata) },
+								  }).then( (res) => { series_table.ajax.reload() }) 
+				  })
+			 }
+
+			vup_promise = new Promise((resolve,reject) => {
+				  vup = new VimeoUpload({
+						 name: vidname,
+						 description: viddesc,
+						 private: false,
+						 file: upfile,
+						 token: vimtoken,
+						 upgrade_to_1080: true,
+						 onError: function(data) {
+							 showMessage('<strong>Error</strong>: ' 
+											 + JSON.parse(data).error, 'danger') },
+						 onProgress: function(data) {
+							 updateProgress(data.loaded / data.total, progbar) },
+						 onComplete: (vuri) => resolve(vuri),
+							 })
+				  vup.upload() })
+
+			 return vup_promise.then(move_to_series).then(wait_for_transcode).then(advertise)
+		}
+
+		function updateProgress(progress, bar) {
+			 progress = Math.floor(progress * 100)
+			 $(bar).attr('style', 'background-color: blue; width:' + progress + '%')
+			 $(bar).html('&nbsp;' + progress + '%')
+		}
+
+		$(".upunit:not(:first)").hide()
+		$(".del_field").hide()
+		$(".add_field").click(function(e) {
+			 e.preventDefault()
+			 if ($(".upunit:hidden").length > 0) {
+						$(".upunit:hidden:first").show()
+			 } 
+			 if ($(".upunit:hidden").length == 0) {
+						$(".add_field").hide()
+						$(".del_field").show()
+			 }
+		})
+		$(".del_field").click(function(e) {
+			 e.preventDefault()
+			 if ($(".upunit:visible").length > 0) {
+						$(".upunit").last().hide()
+			 } 
+			 if ($(".upunit:visible").length == 1) {
+						$(".add_field").show()
+						$(".del_field").hide()
+			 }
+		}) 
+
+		$("#upload_videos").click(function(evt) {
+			evt.stopPropagation()
+			evt.preventDefault()
+			var ups = $.map($(".upunit:visible"), function(unit) { return perform_upload_for(unit) })
+			Promise.all(ups).then(function() { location.reload(true) })
+		})
+
+        function change_purge_selection(tname, idxs=0) {
+			if (tname == 'deselect') {
+				$("#select_for_purge").text('Select one or more videos to purge from the table above')
+				$("#PurgeVideo").prop("disabled", true)
+			}
+			else {
+                var vidname = $(series_table.rows(idxs).data()[0][1]).html()
+				$("#select_for_purge").text(`Click Purge_Video below to purge ${vidname}`)
+				$("#PurgeVideo").prop("disabled", false)
+			}
+        }
+		function change_purge_selection_cb(e,dt,type,idxs) { 
+            change_purge_selection(e.type, idxs)
+		}
+		series_table.on('select', change_purge_selection_cb)
+		series_table.on('deselect', change_purge_selection_cb)
+        change_purge_selection('deselect', 0)
+        $("#PurgeVideo").click(function(evt) {
+           evt.preventDefault()
+			  selected_rows = series_table.rows({ selected: true}).data()
+			  if ( selected_rows != "" ) 
+                  if (window.confirm('Remove selected videos?')) {
+                      selected_rows.each(function (value) { 
+								$.ajax({url: escape(`videos/${value.name}/edit`)+`?purge=${value.id}`, 
+										error: function(jqXHR, textStatus, errorThrown) { 
+										  showMessage(errorThrown, 'danger') },
+										success: function(sdata) { 
+										  showMessage(sdata) 
+										  series_table.ajax.reload() 
+													 resolve(value.id) }, }) }) } }) 
+
+		 $('#vid_set').spinner({step: 1, min: 1, max: 3})
+		 $('#date_inc').spinner({step: 1, min: 1, max: 3})
+		 $('#RedateSeries').prop('disabled', true)
+		 function set_redate_strategy(etype) {
+			 if ( $("#start_date").val() ) {
+				 if (etype === 'row') {
+						 var srows = series_table.rows('.selected').data()
+						 srows = srows.map(function(v) { return v.name })
+						 if ( srows.length == 0) {
+								$('#strategy').text('Redate all items in the order listed above')
+						 }
+						 else if ( srows.length == 1 ) {
+								$('#strategy').text(`Redate items in the order listed from ${srows[0]} `)
+						 }
+						 else if ( srows.length == 2 ) {
+								$('#strategy').text(`Redate items in the order listed from ${srows[0]} up to ${srows[1]} `)
+						 }
+						 else { 
+								$('#strategy').text('Redate the selected items in the order listed')
+						 }
+				 }
+			 }
+			 else { $("#strategy").text('Provide a start date using the start date control.') }
+		 }
+		 set_redate_strategy('row')
+		 $('#start_date').change(function() { 
+		 	$("#RedateSeries").prop('disabled', !$(this).val()) 
+			set_redate_strategy('row')
+		 })
+		 function changing_selection(e,dt,type,idxs) { set_redate_strategy(type) }
+		 series_table.on('select', changing_selection)
+		 series_table.on('deselect', changing_selection)
+		 $("#RedateSeries").click(
+			function(evt) { 
+			  evt.preventDefault()
+			  var vc = series_table.rows('.selected').data()
+			  if (vc.length == 0) { series_table.rows().select() }
+			  else if (vc.length == 2) { 
+					ridxs = series_table.rows().indexes()
+					sidxs = series_table.rows('.selected')
+					sidxs = sidxs.indexes()
+					series_table.rows(
+						 /* note: the row indices used by datatables are NOT the same 
+							 as the order of the actual table's rows. Therefore we
+							 must use indexOf to compare positions.*/
+						 function (idx, data, node) { 
+							  return ridxs.indexOf(idx) >= ridxs.indexOf(sidxs[0]) && 
+										ridxs.indexOf(idx) <= ridxs.indexOf(sidxs[1])
+						 }).select()
+			  }
+			  vc = series_table.rows('.selected').data()
+			  var vm = vc.map(function(v) { return v.name })
+			  var date = new Date($('#start_date').val() + "T00:00")
+			  var dinc = parseInt($('#date_inc').val())
+			  var vcnt = parseInt($('#vid_set').val())
+			  var promises = []
+			  for (let lname of vm.toArray()) {
+					dout = date.toISOString().split('T')[0]
+					promises.push(
+					 	$.ajax({url: escape(`videos/${lname}/edit`)+`?redate=${dout}`, 
+								error: function(jqXHR, textStatus, errorThrown) { 
+					 			  showMessage(errorThrown, 'danger') },
+								success: function(sdata) { 
+					 			  showMessage(sdata) 
+					 			  series_table.ajax.reload() },
+							 }))
+					vcnt = vcnt - 1
+					if (vcnt == 0) {
+						 vcnt = $('#vid_set').val()
+						 date.setDate(date.getDate() + dinc)
+					}
+			  }
+			  $.when.apply(null, promises).done(function(){ window.location.reload(true) })
+		 }) 
+    
+	    $("#NormalizeTitles").click(
+				function(evt) { 
+				  evt.preventDefault()
+				  var vc = series_table.rows().data()
+				  var vm = vc.map(function(v) { return v.name })
+				  var promises = []
+				  for (let lname of vm.toArray()) 
+						promises.push(
+					 		$.ajax({url: escape(`videos/${lname}/edit`)+'?normalize', 
+									error: function(jqXHR, textStatus, errorThrown) { 
+									  showMessage(errorThrown, 'danger') },
+									success: function(sdata) { 
+									  showMessage(sdata) 
+									  series_table.ajax.reload() } }))
+				  //Once we are done normalizing the table, reload the page to see results
+				  $.when.apply(null, promises).done(function(){ window.location.reload(true) })
+			  })
+
+	{% endblock %}
+

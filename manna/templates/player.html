@@ -1,0 +1,32 @@
+<fieldset>
+   <legend style="border:2px solid yellow; padding: 10px;">
+       <a href="{{ url_for('play', series=playvid.parent.name)}}">{{playvid.parent.name}}</a>
+           {{ playvid.name }}, {{ playvid.width }} x {{ playvid.height }} 
+       <span style="float: right">
+           <button><a href="{{ url_for('play', 
+                               series=playvid.parent.name, 
+                               audio=playvid.name) }}">Play Audio</a></button> 
+           <button><a href="{{ url_for('download', 
+                               series=playvid.parent.name, 
+                               audio=playvid.name) }}">Download Audio</a></button> 
+           <button><a href="{{ url_for('download', 
+                               series=playvid.parent.name, 
+                               video=playvid.name) }}">Download Video</a></button>
+       </span>
+   </legend>
+   <div id="ver" style="text-align: center;"> 
+      {% if playvid.needs_vimeo %}
+       <div data-vimeo-url="{{playvid.link}}" id="player"><h3 id="tmpbnr"><b>Loading, please wait...</b></h3></div>
+      {% elif playaudio %}
+       <audio width="620" height="480" id="player" controls>
+          <source src="{{ playvid.encoded_audio_path }}">
+         Your browser does not support the audio tag.
+       </audio>
+      {% else %}
+       <video width="620" height="480" id="player" controls>
+          <source src="{{ playvid.encoded_path }}" type="video/mp4">
+         Your browser does not support the video tag.
+       </video>
+      {% endif %}
+   </div>
+</fieldset>

@@ -1,0 +1,34 @@
+{% extends "page.html" %}
+   {% block main %}
+		{{ super() }}
+      <h3 class="table-title">
+			<a href="{{ url_for('view_archive', series=page.series.name) }}" 
+				onclick="shift_edit(event, this)">{{page.series.name}}</a>
+       </h3>
+       <table id="series">
+          <thead>
+             <th>Date</th>
+             <th>Lesson</th>
+             <th>Duration</th>
+          </thead>
+          <tbody> </tbody>
+       </table>
+	{% endblock %}
+	{% block scriptage %}
+		{{ super() }}
+		$("#series").DataTable({ 	
+            ajax: "?dt_json", 
+		    serverSide: true, 
+		    processing: true, 
+            columns: [
+                { width: "20%", data: "date" },
+                { data: "name",
+                  render: function(data, type, row) { 
+                    if(type === 'display'){
+                        data = `<a href="?video_id=${row.id}">${data}</a>`
+                    }
+                    return data 
+                  } },
+                { width: "20%", data: "duration" },
+            ]}) 
+	{% endblock %}

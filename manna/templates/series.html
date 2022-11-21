@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+   {% block main %}
+		{{ super() }}
+      <h3 class="table-title">
+			<a href="{{ url_for('play', series=series.name) }}" 
+				onclick="shift_edit(event, this)">{{series.name}}</a>
+       </h3>
+       {% if playvid or playaud %}
+         {% include "player.html" %}
+       {% endif %}
+       <table id="series">
+          <thead>
+             <th>Date</th>
+             <th>Lesson</th>
+             <th>Duration</th>
+          </thead>
+          <tbody> </tbody>
+       </table>
+	{% endblock %}
+	{% block scriptage %}
+		$("#series").DataTable({ 	
+            ajax: "?dt_json", 
+		    serverSide: true, 
+		    processing: true, 
+            columns: [
+                { width: "20%", data: "date" },
+                { data: "name",
+                  render: function(data, type, row) { 
+                    if(type === 'display'){
+                    var refname = encodeURI("{{series.name}}?video=") + encodeURIComponent(row['name']) 
+                    data = `<a href="${refname}">${data}</a>`
+                    }
+                    return data 
+                  } },
+                { width: "20%", data: "duration" },
+            ]}) 
+	{% endblock %}

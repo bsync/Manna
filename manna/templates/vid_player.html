@@ -1,0 +1,23 @@
+{% extends "page.html" %}
+	{% block main %}
+		{{ super() }}
+		{% set vid = page.video %}
+		<div id="ver" style="text-align: center;"> Version: {{ vid.width }} x {{ vid.height }} {{ vid.quality }}
+			<div data-vimeo-url="{{vid.link}}" id="player"></div>
+			<div style="margin: 30px">
+				<a href="{{ url_for('play_audio', video=vid.name, series=vid.parent_series_name) }}"><button>Play Audio</button></a>
+				<a href="{{vid.download_audio_link}}"><button>Download Audio</button></a>
+				<a href="{{vid.downlink}}"><button>Download Video</button></a>
+			</div>
+		</div>
+	{% endblock %}
+	{% block scripts %}
+		{{ super() }}
+		<script src="https://player.vimeo.com/api/player.js"></script>
+		<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+		<script src="{{ url_for('static', filename='jquery.fitvids.js') }}"></script>
+	{% endblock %}
+	{% block scriptage %}
+		vp = new Vimeo.Player('player')
+		vp.on('loaded', function(data) { $("#player").fitVids() })
+	{% endblock %}

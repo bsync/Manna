@@ -1,0 +1,8 @@
+{% extends "forms_base.html" %}
+	{% block manna_subforms %}
+	     {% include "vid_table.html" %}
+	     <p> <span id="strategy"></span> starting with {{ form.initial_date }} and increasing by 
+	     {{ form.date_inc }} days for every {{ form.vid_set }} videos </p>
+	     <div id='RedateVideos_form_results' style="background-color:black; color:red;"></div>
+	     {{ super() }}
+	{% endblock %}

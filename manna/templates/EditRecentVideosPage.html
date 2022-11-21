@@ -1,0 +1,35 @@
+{% extends "RecentVideosPage.html" %}
+	{% block formset %}
+		<h4 id="form_msg">Select video above to include in recent video set, then click submit.</h4>
+        {{ super() }} 
+	{% endblock %}
+	{% block scriptage %} 
+	 	var rtable = $("#recent").DataTable()
+		function showMessage(html, type) {
+			 var stats = $("#status")
+			 stats.attr('class', 'status alert alert-' + (type || 'success'))
+			 stats.html(stats.html() + " " + html)
+			 window.scroll(0, 0)
+			 return stats
+		}
+		rtable.select.style('single')
+		function updateForm() {
+			var uptodate = rtable.column(0).data().length == 0
+			if (uptodate) {
+				$("#AddToRecentVideosForm").prop("disabled", true)
+				$("#form_msg").text("Nothing to do here...the latest videos are already listed as recents...")
+			}
+		}
+		updateForm()
+	   $("#AddToRecentVideosForm").click(
+				function(evt) { 
+				   evt.preventDefault()
+					rtable.rows('.selected').every(
+						function(rowIdx, tableLoop, rowLoop) {
+							$.ajax({ 
+								url: `?make_recent=${this.id()}`, 
+								error: (jqXHR, textStatus, errorThrown) => { 
+									showMessage(errorThrown, 'danger') },
+								success: (sdata) => { showMessage(sdata) } }).then(
+										(res) => { this.remove().draw(); updateForm() }) }) })
+	{% endblock %}

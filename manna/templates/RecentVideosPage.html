@@ -1,0 +1,29 @@
+{% extends "page.html" %}
+    {% block title %}Recent Videos{% endblock %}
+    {% block main %}
+	 	 {{ super() }}
+       <h3 class="table-title">Recently Taught Lessons</h3>
+       <table id="recent">
+          <thead>
+             <th>Date</th>
+             <th>Series</th>
+             <th>Lesson</th>
+             <th>Duration</th>
+          </thead>
+          <tbody> 
+            {% for vid in page.vids %}
+                <tr id="{{vid.vid}}">
+                    <td> {{ vid.date.strftime("%a %b %d %Y") }} </td>
+                    <td> <a href="play/{{vid.parent_name}}/{{vid.name}}"</a>{{vid.parent_name}}</td>
+                    <td> <a href="play/{{vid.parent_name}}/{{vid.name}}"
+                            onclick="shift_edit(event, this)">{{vid.described}}</a> </td>
+                    <td> {{vid.duration}} </td>
+                </tr>
+            {% endfor %}
+          </tbody>
+       </table>
+    {% endblock %}
+	{% block scriptage %} 
+		{{ super() }}
+	   $("#recent").DataTable({"order": [[ 0, 'desc']]})
+	{% endblock %}

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+   {% block main %}
+       <h3 class="table-title" >Series Archives</h3>
+       <table id="catalog">
+          <thead>
+             <th>Date</th>
+             <th>Series</th>
+             <th>Count</th>
+          </thead>
+          <tbody> 
+            {% for series in catalog %}
+                <tr id="{{series.id}}">
+                   <td> {{series.date.strftime("%m-%d-%Y")}}</td>
+                   <td> <a href={{ url_for("play", series=series.name) }}
+                                           onclick="shift_edit(event, this)">
+                                           {{series.name}}</a> </td>
+                   <td> {{series.video_count}} </td>
+                </tr>
+            {% endfor %}
+           </tbody>
+       </table>
+   {% endblock %}
+	{% block scriptage %}
+		$("#catalog").DataTable()
+	{% endblock %}

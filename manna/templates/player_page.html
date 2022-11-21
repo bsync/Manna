@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+   {% block extra_scripts %}
+		<script src="https://player.vimeo.com/api/player.js"></script>
+		<script src="{{ url_for('static', filename='jquery.fitvids.js') }}"></script>
+   {% endblock %}
+   {% block main %}
+      {% include "player.html" %}
+   {% endblock %}
+   {% block scriptage %}
+      {% if video.needs_vimeo %}
+         vp = new Vimeo.Player('player')
+            vp.on('loaded', function(data) { $("#player").fitVids(); $("#tmpbnr").hide() })
+            $('#play_button').click(function() { vp.play() })
+      {% endif %}
+   {% endblock %} })

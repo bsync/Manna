@@ -1,0 +1,23 @@
+{% extends 'table.html' %}
+{% block table_head %}
+   <tr>
+      <th>Roles</th>
+      <th>Email</th>
+      <th>Active</th>
+      <th style="display: none;">ID</th>
+   </tr>
+{% endblock %}
+{% block table_body %}
+    {% if form.table.users %}
+      {% for user in form.table.users %}
+      <tr>
+         <td>{{user.role_names}}</td>
+         <td>{{user.email}}</td>
+         <td>{{user.is_active}}</td>
+         <td style="display: none;">{{user.id}}</td>
+      </tr>
+      {% endfor %}
+   {% else %}
+   <h3>No users found...</h3>
+   {% endif %}
+{% endblock %}

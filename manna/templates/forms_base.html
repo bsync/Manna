@@ -1,0 +1,23 @@
+<form id="{{ form.name }}" action="{{form.target}}" class="mx-auto" style="width: 70%" method="POST" > 
+	{% block manna_form %} 
+		{% if form.legend %}
+			<fieldset>
+				<legend>{{form.legend}}</legend>
+				<br>
+		{% endif %}
+		<input type="hidden" name="form_id" value="{{form.name}}">
+		{{ form.hidden_tag() }}
+		{% for field in form.content_fields %} 
+			{{ field.label }} {{ field(class="form-control") }}
+		{% endfor %}
+		{% block manna_subforms %} 
+		{% endblock %}
+		{% for field in form.submit_fields %} 
+			{{ field(class="form-control mt-3") }}
+		{% endfor %}
+		<hr>
+		{% if form.legend %}
+			</fieldset>
+		{% endif %}
+	{% endblock %}
+</form>
