@@ -1,7 +1,4 @@
 {% extends "series.html" %}
-   {% block extra_scripts %}
-		<script src="{{url_for('static', filename='vimeo-upload.js')}}"></script>
-	{% endblock %}
 	{% import 'macros.j2' as macro %}
    {% block formset %}
 		<div id="formgroup">
@@ -91,8 +88,7 @@
 				  showMessage(`Waiting for transcode to complete for: <strong>${vidname}</strong>`)
 				  return new Promise( (resolve) => {
 						function poll_transcode_status() {
-							 $.ajax({url: `https://api.vimeo.com/videos/${vidid}` 
-											  + "?fields=uri,upload.status,transcode.status",
+							 $.ajax({url: `transcode/${vidid}`,
 										type: "GET",
 										beforeSend: function(xhr) { 
 											 xhr.setRequestHeader('Authorization', 
@@ -127,21 +123,35 @@
 			 }
 
 			vup_promise = new Promise((resolve,reject) => {
-				  vup = new VimeoUpload({
-						 name: vidname,
-						 description: viddesc,
-						 private: false,
-						 file: upfile,
-						 token: vimtoken,
-						 upgrade_to_1080: true,
-						 onError: function(data) {
-							 showMessage('<strong>Error</strong>: ' 
-											 + JSON.parse(data).error, 'danger') },
-						 onProgress: function(data) {
-							 updateProgress(data.loaded / data.total, progbar) },
-						 onComplete: (vuri) => resolve(vuri),
-							 })
-				  vup.upload() })
+           var upformd = new FormData();
+           // add assoc key values, this will be posts values
+           upformd.append("file", upfile, vidname + '.' + upfile.name.split('.')[1]);
+           upformd.append("upload_file", true);
+           $.ajax('?upload=true',
+              { xhr: function() {
+                   var xhr = new window.XMLHttpRequest();
+                   xhr.upload.addEventListener("progress", 
+                     function(evt) {
+                        if (evt.lengthComputable) {
+                          var percentComplete = evt.loaded / evt.total;
+                          percentComplete = parseInt(percentComplete * 100);
+                          updateProgress(percentComplete, progbar);
+                          console.log(percentComplete);
+                          if (percentComplete === 100) { }
+                        } }, 
+                        false);
+                      return xhr; },
+                 beforeSend: function (xhr) {
+                   var csrf = $('input').filter(function() { return this.name.match(/upload.*csrf.*/); }).val();
+                   xhr.setRequestHeader('X-CSRF-Token', csrf); },
+                 type: "POST",
+                 data: upformd,
+                 async: true,
+                 cache: false,
+                 contentType: false,
+                 processData: false,
+                 success: function(result) { console.log(result); resolve(vidname); } });
+        })
 
 			 return vup_promise.then(move_to_series).then(wait_for_transcode).then(advertise)
 		}

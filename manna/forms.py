@@ -7,6 +7,7 @@ from wtforms.fields import SubmitField, TextAreaField
 from wtforms.fields import DateField, EmailField
 from wtforms.fields import FormField, FieldList
 from flask_wtf import FlaskForm, RecaptchaField
+from flask_wtf.file import FileAllowed
 from flask_login import current_user
 from oauthlib.oauth2 import WebApplicationClient
 from datetime import date
@@ -70,7 +71,7 @@ class AddVideoForm(MannaForm):
     video_name = StringField("Video Name:", [validators.InputRequired()])
     video_author = StringField("Presented by:", [validators.InputRequired()])
     video_description = StringField("Description:", default=" ")
-    video_file = FileField("Video File:", [validators.InputRequired()])
+    video_file = FileField("Video File:", [validators.InputRequired(), FileAllowed(['mp4'], "mp4s only")])
     video_date = DateField("Video Date:", [validators.InputRequired()], default=date.today())
     vid_id = HiddenField("uploaded video ids")
     series_id = HiddenField("series id")

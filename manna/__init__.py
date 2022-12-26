@@ -3,20 +3,15 @@ from datetime import datetime, timezone
 from flask import url_for, request, render_template
 from flask_mail import Mail
 from werkzeug.exceptions import HTTPException
+from werkzeug.utils import secure_filename
 from . import access, pages
-from flask_caching import Cache
 from importlib import import_module
 from urllib.parse import unquote
 
 app = flask.Flask(__name__)
 app.config.from_prefixed_env()
-app.config.from_mapping({ 
-    "DEBUG": True, 
-    "CACHE_TYPE": "FileSystemCache",  
-    "CACHE_DIR": "/tmp",
-    "CACHE_DEFAULT_TIMEOUT": 300 })
+app.config.from_mapping({ "DEBUG": True, })
 
-cache = Cache(app)
 mmailer = Mail(app)
 maccess = access.Mannager(app, mailer=mmailer) 
 mpages = pages.Mannager(app)
@@ -107,7 +102,6 @@ def edit_recents():
     return pg.response
 
 @app.route("/archives") 
-@cache.memoize()
 def view_archives():
     return render('catalog.html', catalog=mstore.series.values())
 
@@ -134,6 +128,13 @@ def edit_series_page(series):
     if "dt_json" in request.args:
         return flask.redirect(flask.url_for("play", series=series, **request.args))
     series = mstore.series_by_name(series)
+    if 'upload' in request.args:
+        upfile = request.files['file']
+        if upfile.filename == '':
+            return 'No file selected'
+        safeUpfile = "".join(c for c in upfile.filename if c.isalnum() or c in " #.")
+        upfile.save(series.path.joinpath(safeUpfile))
+        return f"Finished upload for {safeUpfile}!"
     return render('editseries.html', series=series,
                     add_videos_form=forms.AddVideoSet(series),
                     purge_video_form=forms.PurgeVideo(series),
@@ -145,11 +146,10 @@ def edit_series_page(series):
 @maccess.admin_required
 def edit_video(series, video):
     try:
-        import pdb; pdb.set_trace()
         series = mstore.series_by_name(series)
         if 'move_to' in request.args:
+            import pdb; pdb.set_trace()
             series.add_videos(request.args['move_to'])
-            cache.delete_memoized(view_archive, series.name)
             return(f"{video} moved to {series.name}")
         else:
             video = series.video_by_name(video)

@@ -149,12 +149,13 @@ class Series(Record):
             return name
 
     def next_vidnames(self, n):
+        hnum = self.highest_numbered_title
         lvidname = self._videos[0].name if len(self._videos) else "Video #0"
         nvidnames = []
         for x in range(n):
             nvidname = re.sub(
                 r"(.*\D+)(\d+)(.*)",  
-                lambda x: x.group(1) + str(int(x.group(2)) + 1) + x.group(3),  
+                lambda s: s.group(1) + str(hnum + x + 1) + s.group(3),  
                 lvidname) 
             nvidnames.append(nvidname)
             lvidname = nvidname
