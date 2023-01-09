@@ -1,10 +1,8 @@
 FROM python:3.9-slim
 RUN apt-get update; apt-get install -y ffmpeg
-RUN python -m venv /venv
-RUN mkdir /app
-ADD manna /app/manna
-COPY serve README.txt pyproject.toml setup.cfg /app/
+RUN mkdir /app /catalog
 WORKDIR /app
-RUN /venv/bin/python -m pip install -e .
-ENV PATH="/venv/bin:${PATH}"
+COPY serve README.txt pyproject.toml setup.cfg /app/
+COPY manna /app/manna
+RUN python -m pip install -e .
 CMD ["/app/serve"]
