@@ -7,10 +7,12 @@ from werkzeug.utils import secure_filename
 from . import access, pages
 from importlib import import_module
 from urllib.parse import unquote
+from secrets import token_hex
 
 app = flask.Flask(__name__)
 app.config.from_prefixed_env()
 app.config.from_mapping({ "DEBUG": True, })
+app.config['SECRET_KEY'] = token_hex(16)
 
 mmailer = Mail(app)
 maccess = access.Mannager(app, mailer=mmailer) 
