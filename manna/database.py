@@ -6,6 +6,7 @@ db = SQLAlchemy()
 class Datastore:
 
     def __init__(self, app):
+        app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///manna.db"
         db.init_app(app)
         with app.app_context():
             db.create_all()
