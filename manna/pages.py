@@ -18,8 +18,12 @@ class Mannager:
             self.title = title
 
         @property
+        def site_config(self):
+            return flask.current_app.config
+
+        @property
         def site_name(self):
-            return flask.current_app.config.get('TITLE', 'Manna')
+            return self.site_config.get('TITLE', 'Manna')
 
         @property
         def breadcrumbs(self):
@@ -169,6 +173,7 @@ class Mannager:
             self.glogin_form = self.add(forms.GoogleLoginForm())
             self.request_form = self.add(forms.RequestAccessForm())
             self.invite_form = self.add(forms.InviteUserForm())
+            self.has_recaptcha = 'RECAPTCHA_PUBLIC_KEY' in self.site_config
 
         @property
         def login_form_was_submitted(self):

@@ -18,7 +18,9 @@
                     {{ page.login_form.prefix }}
                     {{ wtf.form_field(page.login_form.email) }}
                     {{ wtf.form_field(page.login_form.password) }}
-                    {{ wtf.form_field(page.login_form.recaptcha) }}
+		    {% if page.has_recaptcha %}
+		       {{ wtf.form_field(page.login_form.recaptcha) }}
+	            {% endif %}
                     {{ wtf.form_field(page.login_form.submit) }}
             </form>
 		</fieldset>
